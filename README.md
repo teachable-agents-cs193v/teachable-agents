@@ -1,6 +1,4 @@
-# Teachable Agents and the Protégé Effect
-
-CS193V final project. *Working title.*
+# Teachable Agents 
 
 ## Goal
 
