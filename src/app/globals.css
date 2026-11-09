@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   Design tokens — the small design system every component builds on.
+   Palette: warm ivory, forest + sage greens, butter yellow, terracotta.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-ivory: #faf8f3;
+  --color-ivory-deep: #f1ecdf;
+  --color-paper: #fffdf8;
+  --color-forest: #254d3c;
+  --color-forest-deep: #1a382b;
+  --color-sage: #dde9dc;
+  --color-sage-deep: #c5d8c4;
+  --color-butter: #f4e8b4;
+  --color-butter-deep: #e6d281;
+  --color-terracotta: #c77b63;
+  --color-terracotta-deep: #a65f49;
+  --color-charcoal: #26332d;
+  --color-muted: #5f6b64;
+  --color-line: #e3dccb;
+  --color-danger: #a8463a;
+
+  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-soft: 0 1px 2px rgba(38, 51, 45, 0.05), 0 10px 30px -18px rgba(38, 51, 45, 0.25);
+  --shadow-lift: 0 2px 4px rgba(38, 51, 45, 0.06), 0 18px 40px -20px rgba(38, 51, 45, 0.3);
+
+  --radius-card: 1.25rem;
+  --radius-bubble: 1.125rem;
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pop: pop 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-bounce-dot: bounce-dot 1.2s ease-in-out infinite;
+  --animate-wiggle: wiggle 3s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes bounce-dot {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-4px); opacity: 1; }
+  }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
+  }
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ivory);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle notebook-paper texture: ruled lines + a terracotta margin. */
+@utility paper-lines {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, transparent 0, transparent 2.75rem, rgba(199, 123, 99, 0.35) 2.75rem, rgba(199, 123, 99, 0.35) calc(2.75rem + 1px), transparent calc(2.75rem + 1px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 1.9rem, rgba(37, 77, 60, 0.1) 1.9rem, rgba(37, 77, 60, 0.1) calc(1.9rem + 1px));
+}
+
+/* Soft dotted grid for section backgrounds. */
+@utility dot-grid {
+  background-image: radial-gradient(rgba(37, 77, 60, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Shared focus ring, visible for keyboard users only. */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-forest) 55%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+@utility card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+@utility accent-bg {
+  background-color: var(--accent-soft, var(--color-sage));
+}
+@utility accent-text {
+  color: var(--accent, var(--color-forest));
+}
+@utility accent-border {
+  border-color: var(--accent, var(--color-forest));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
