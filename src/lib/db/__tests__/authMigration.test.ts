@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { authSchemaOptions } from "@/lib/auth/options";
 import { hasDb } from "@/lib/auth/__tests__/testHelpers";
 
-const MIGRATION = new URL("../../../../db/migrations/0001_auth.sql", import.meta.url);
+const MIGRATION_SQL = readFileSync(new URL("../../../../db/migrations/0001_auth.sql", import.meta.url), "utf8");
 const normalize = (sql: string) => sql.replace(/\s+/g, " ").trim();
 
 describe.skipIf(!hasDb)("db/migrations/0001_auth.sql", () => {
@@ -33,17 +33,17 @@ describe.skipIf(!hasDb)("db/migrations/0001_auth.sql", () => {
 
   it("matches what the current config generates for an empty database (run npm run db:generate if not)", async () => {
     const { compileMigrations } = await getMigrations(authSchemaOptions(pool));
-    expect(normalize(readFileSync(MIGRATION, "utf8"))).toBe(normalize(await compileMigrations()));
+    expect(normalize(MIGRATION_SQL)).toBe(normalize(await compileMigrations()));
   });
 
   it("applies cleanly and leaves nothing for Better Auth to add", async () => {
-    await pool.query(readFileSync(MIGRATION, "utf8"));
+    await pool.query(MIGRATION_SQL);
     const { toBeCreated, toBeAdded, toBeAddedIndexes } = await getMigrations(authSchemaOptions(pool));
     expect({ toBeCreated, toBeAdded, toBeAddedIndexes }).toEqual({ toBeCreated: [], toBeAdded: [], toBeAddedIndexes: [] });
   });
 
   it("indexes the userId foreign keys and cascades deletes from users", async () => {
-    const sql = normalize(readFileSync(MIGRATION, "utf8"));
+    const sql = normalize(MIGRATION_SQL);
     expect(sql).toContain(`create index "auth_session_userId_idx" on "auth_session" ("userId")`);
     expect(sql).toContain(`create index "auth_account_userId_idx" on "auth_account" ("userId")`);
     expect(sql.match(/references "users" \("id"\) on delete cascade/g)).toHaveLength(2);
