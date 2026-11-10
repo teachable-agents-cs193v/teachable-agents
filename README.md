@@ -10,9 +10,24 @@ Requirements: Node 20+ and npm.
 
 ```bash
 npm install
-sh .githooks/install.sh   # once per clone: turns on the gitleaks secret-scanning hooks
+sh .githooks/install.sh   # once per clone: turns on secret scanning (see below)
 npm run dev
 ```
+
+### One-time setup: secret scanning
+
+**Everyone, please run this once in each clone of the repo** (each laptop or container):
+
+```bash
+sh .githooks/install.sh
+```
+
+It turns on two git hooks and downloads [gitleaks](https://github.com/gitleaks/gitleaks) into `.githooks/bin/`. That folder is gitignored. You should see `Hooks enabled` and `Installed 8.30.1`.
+
+- **What the hooks do:** before each commit and each push, they check for passwords, API keys, database URLs with passwords, and `.env` files. If they find one, the commit or push is blocked and the file and line are shown. The secret value itself is never printed.
+- **If you're blocked:** move the value into `.env.local` (gitignored) and read it with `process.env`. For placeholders, use something like `postgres://user:password@host/db`.
+- **CI scans every PR as well,** so skipping this doesn't skip the check. It just means you find out after pushing instead of before.
+- Please don't bypass the hooks with `--no-verify`. The push hook and CI will still catch the secret.
 
 Open http://localhost:3000. The demo needs no account and no environment variables. Sessions are stored in the browser's localStorage.
 
