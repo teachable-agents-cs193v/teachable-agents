@@ -34,8 +34,9 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Scans the full git history for secrets with the same config as the local
-  # hooks, so it also catches commits from anyone who hasn't installed them.
+  # The enforced secret scan: covers the full history, including commits from
+  # anyone who skipped the local hooks (those only give early feedback).
+  # Uses the hooks' own config and run_gitleaks, so both report the same way.
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -45,4 +46,4 @@ jobs:
           fetch-depth: 0
       # Downloads gitleaks and verifies its checksum (see .githooks/install.sh).
       - run: sh .githooks/install.sh
-      - run: .githooks/bin/gitleaks git . --config .gitleaks.toml --redact --no-banner --exit-code 1
+      - run: . .githooks/lib.sh && run_gitleaks git .

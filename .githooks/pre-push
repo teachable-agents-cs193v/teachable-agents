@@ -27,15 +27,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     range="$local_sha --not --remotes=$remote"
   fi
 
-  if ! commits=$(git rev-list $range); then
+  if ! count=$(git rev-list --count $range); then
     echo "Push of $local_ref blocked: couldn't list the commits being pushed." >&2
     status=1
     continue
   fi
   # Nothing new to scan (e.g. pushing a branch the remote already has).
-  [ -z "$commits" ] && continue
+  [ "$count" -eq 0 ] && continue
 
-  count=$(printf '%s\n' "$commits" | wc -l | tr -d ' ')
   rc=0
   run_gitleaks git --log-opts="$range" "$top" || rc=$?
   if [ "$rc" -eq 2 ]; then
