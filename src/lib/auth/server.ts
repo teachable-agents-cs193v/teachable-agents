@@ -17,8 +17,11 @@ import { withNext } from "./nextPath";
  * component render; in a route handler each call is its own lookup.
  */
 export const getCurrentUser = cache(async (): Promise<AuthUser | null> => {
+  // Read the request first: this marks the page as per-request, so Next never tries
+  // to pre-render it at build time (when there is no request, secret or database).
+  const requestHeaders = await headers();
   if (!authAvailable()) return null; // development without a database
-  const session = await getAuth().api.getSession({ headers: await headers() });
+  const session = await getAuth().api.getSession({ headers: requestHeaders });
   if (!session) return null;
   const { id, email, name } = session.user;
   return { id, email, name };
