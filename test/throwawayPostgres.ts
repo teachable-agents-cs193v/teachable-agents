@@ -62,10 +62,15 @@ export async function startThrowawayPostgres(bin: string, prefix = "teachable-pg
     execFileSync(path.join(bin, "initdb"), ["-D", path.join(dir, "data"), "-U", "postgres", "--auth=trust", "-E", "UTF8"], {
       stdio: "ignore",
     });
+    let startError: Error | undefined;
     server = spawn(path.join(bin, "postgres"), ["-D", path.join(dir, "data"), "-p", String(port), "-h", "127.0.0.1", "-k", dir], {
       stdio: "ignore",
     });
+    // Without a listener a failed spawn (ENOENT, EACCES) would crash the process.
+    server.on("error", (e) => (startError = e));
     for (let i = 0; ; i++) {
+      if (startError) throw startError;
+      if (server.exitCode !== null) throw new Error(`Throwaway Postgres exited during startup (code ${server.exitCode}).`);
       try {
         execFileSync(path.join(bin, "pg_isready"), ["-q", "-h", "127.0.0.1", "-p", String(port)]);
         break;

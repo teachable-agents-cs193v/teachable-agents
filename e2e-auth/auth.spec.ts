@@ -158,6 +158,39 @@ test.describe("redirects", () => {
 });
 
 test.describe("form behaviour", () => {
+  test("a name of only spaces is caught, and only the name field is marked", async ({ page }) => {
+    await signUp(page, { name: "   " });
+    await expect(signupError(page)).toHaveText("Please enter your name.");
+    await expect(page.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("aria-invalid", "false");
+  });
+
+  test("a password error marks the password field, not the email field", async ({ page }) => {
+    await signUp(page, { password: PASSWORDS.weak });
+    await expect(signupError(page)).toBeVisible();
+    await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByLabel("Email")).toHaveAttribute("aria-invalid", "false");
+  });
+
+  test("a password over 128 characters is refused, not silently cut short", async ({ page }) => {
+    const long = (PASSWORDS.strong + "-").repeat(5); // 155 characters
+    await signUp(page, { password: long });
+    await expect(page.getByLabel("Password", { exact: true })).toHaveValue(long);
+    await expect(signupError(page)).toHaveText("Your password can be at most 128 characters.");
+  });
+
+  test("if logging out fails, the student is told and stays logged in", async ({ page }) => {
+    await signUp(page);
+    await expect(page).toHaveURL(/\/topics$/);
+    await page.route("**/api/auth/sign-out", (route) => route.fulfill({ status: 500, body: "{}" }));
+    await nav(page).getByRole("button", { name: "Log out" }).click();
+    await expect(nav(page).getByRole("alert")).toHaveText("Couldn't log out. Please try again.");
+    await expect(page).toHaveURL(/\/topics$/);
+    await page.unroute("**/api/auth/sign-out");
+    await page.reload();
+    await expect(nav(page).getByTestId("auth-greeting")).toHaveText("Hi, Jordan");
+  });
+
   test("double-clicking Log in sends one request", async ({ page }) => {
     const requests: string[] = [];
     page.on("request", (r) => {

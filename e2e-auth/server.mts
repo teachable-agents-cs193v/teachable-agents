@@ -22,6 +22,7 @@ const MOCK_PORT = Number(env("E2E_MOCK_PORT"));
 const BREACHED_PREFIX = env("E2E_BREACHED_PREFIX");
 const UNAVAILABLE_PREFIX = env("E2E_UNAVAILABLE_PREFIX");
 const SERVER_LOG = env("E2E_SERVER_LOG");
+const BREACHED_SUFFIX = env("E2E_BREACHED_SUFFIX");
 
 const repo = (p: string) => new URL(`../${p}`, import.meta.url).href;
 const { findPgBin, startThrowawayPostgres } = await import(repo("test/throwawayPostgres.ts"));
@@ -85,8 +86,14 @@ try {
     const prefix = (req.url ?? "").replace("/range/", "");
     if (prefix === UNAVAILABLE_PREFIX) return void res.writeHead(503).end("unavailable");
     const lines = ["0018A45C4D1DEF81644B54AB7F969B88D65:3", "00D4F6E8FA6EECAD2A3AA415EEC418D38EC:0"];
-    if (prefix === BREACHED_PREFIX) lines.push(`${process.env.E2E_BREACHED_SUFFIX}:42`);
+    if (prefix === BREACHED_PREFIX) lines.push(`${BREACHED_SUFFIX}:42`);
     res.writeHead(200, { "content-type": "text/plain" }).end(lines.join("\r\n"));
+  });
+  // A taken port arrives as an async "error" event, outside this try/catch.
+  mock.on("error", async (e) => {
+    console.error(`Mock breach API couldn't start on port ${MOCK_PORT}:`, (e as Error).message);
+    await cleanup();
+    process.exit(1);
   });
   mock.listen(MOCK_PORT, "127.0.0.1");
 
@@ -105,7 +112,10 @@ try {
   });
   next.stdout!.pipe(log);
   next.stderr!.pipe(log);
+  // If next dies on its own, clean up and fail. During a normal shutdown cleanup has
+  // already started; the signal handler then exits 0.
   next.on("exit", async (code) => {
+    if (cleaning) return;
     await cleanup();
     process.exit(code ?? 1);
   });

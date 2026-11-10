@@ -29,6 +29,23 @@ describe("describeAuthError", () => {
     expect(describeAuthError({ status: 503, code: "auth_unavailable" }, "login").message).toMatch(/isn't set up/);
   });
 
+  it("ties each error to the input it's about, and general errors to none", () => {
+    const field = (code?: string, status?: number) => describeAuthError({ code, status }, "signup").field;
+    expect(field("weak_password")).toBe("password");
+    expect(field("breached_password")).toBe("password");
+    expect(field("PASSWORD_TOO_LONG")).toBe("password");
+    expect(field("INVALID_EMAIL")).toBe("email");
+    expect(field("USER_ALREADY_EXISTS")).toBe("email");
+    expect(field("missing_name")).toBe("name");
+    for (const general of [field(undefined, 429), field("auth_unavailable", 503), field(undefined, 500), NETWORK_ERROR.field]) {
+      expect(general).toBeUndefined();
+    }
+  });
+
+  it("asks for a name when it's missing", () => {
+    expect(describeAuthError({ code: "missing_name" }, "signup").message).toBe("Please enter your name.");
+  });
+
   it("offers to log in when the email is taken", () => {
     for (const code of ["USER_ALREADY_EXISTS", "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"]) {
       expect(describeAuthError({ status: 422, code }, "signup")).toMatchObject({ offerLogin: true });

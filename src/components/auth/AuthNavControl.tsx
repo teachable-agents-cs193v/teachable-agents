@@ -20,6 +20,7 @@ export function AuthNavControl({ layout = "bar", onNavigate }: { layout?: "bar" 
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutFailed, setLogoutFailed] = useState(false);
   const menu = layout === "menu";
 
   // Reserve the space while the session loads, so the bar doesn't jump.
@@ -28,14 +29,18 @@ export function AuthNavControl({ layout = "bar", onNavigate }: { layout?: "bar" 
   if (data?.user) {
     const logOut = async () => {
       setLoggingOut(true);
-      try {
-        await authClient.signOut();
-      } finally {
-        onNavigate?.();
-        router.push("/");
-        router.refresh();
-        setLoggingOut(false);
-      }
+      setLogoutFailed(false);
+      // The client returns `{ error }` rather than throwing; only leave once the
+      // server has really ended the session (a shared computer stays logged in otherwise).
+      const failed = await authClient.signOut().then(
+        ({ error }) => !!error,
+        () => true,
+      );
+      setLoggingOut(false);
+      if (failed) return setLogoutFailed(true);
+      onNavigate?.();
+      router.push("/");
+      router.refresh();
     };
     return (
       <div className={cn("flex items-center gap-3", menu && "flex-col items-stretch")}>
@@ -45,6 +50,11 @@ export function AuthNavControl({ layout = "bar", onNavigate }: { layout?: "bar" 
         <Button variant="outline" size={menu ? "md" : "sm"} onClick={logOut} disabled={loggingOut} className={cn(menu && "w-full")}>
           {loggingOut ? "Logging out…" : "Log out"}
         </Button>
+        {logoutFailed && (
+          <span role="alert" className="text-sm font-medium text-danger">
+            Couldn&apos;t log out. Please try again.
+          </span>
+        )}
       </div>
     );
   }
