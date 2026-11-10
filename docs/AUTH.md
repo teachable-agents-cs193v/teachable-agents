@@ -76,12 +76,12 @@ import { requireUser } from "@/lib/auth/server";   // add
 
 export default async function TeachPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  await requireUser(`/teach/${sessionId}`);        // add: logged out → /login, then back here
+  await requireUser(`/teach/${encodeURIComponent(sessionId)}`); // add: logged out → /login, then back here
   return <TeachingWorkspace sessionId={sessionId} />;
 }
 ```
 
-Pass the page's own path to `requireUser()` so the student comes back to it after logging in. Only same-site paths are accepted; anything else falls back to plain `/login`. The page check is a redirect for usability. **The API routes are the security boundary**, because that's where the data is. In client components, `useSession()` from the auth client is only for display, such as showing the student's name in the `Navbar`.
+Pass the page's own path to `requireUser()` so the student comes back to it after logging in, with route params wrapped in `encodeURIComponent` so an ID containing `?`, `#` or `%` comes back unchanged. Only same-site paths are accepted; anything else falls back to plain `/login`. The page check is a redirect for usability. **The API routes are the security boundary**, because that's where the data is. In client components, `useSession()` from the auth client is only for display, such as showing the student's name in the `Navbar`.
 
 ## What is protected
 
