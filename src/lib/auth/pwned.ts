@@ -11,7 +11,8 @@ import crypto from "node:crypto";
 const DEFAULT_API_URL = "https://api.pwnedpasswords.com/range/";
 const TIMEOUT_MS = 5_000;
 const CACHE_TTL_MS = 60 * 60 * 1000; // the database changes rarely
-const CACHE_MAX = 1_000;
+// Each entry is a parsed padded response (~100 KB), so keep the cache small.
+const CACHE_MAX = 50;
 const LINE_RE = /^([0-9A-F]{35}):(\d+)$/;
 
 /** Thrown when the check can't complete. Signup must fail closed on it. */
@@ -41,20 +42,20 @@ export function clearPwnedCache(): void {
 async function fetchRange(prefix: string, fetchImpl: FetchImpl, timeoutMs: number): Promise<Counts> {
   // The override exists so tests can point at a local mock; it is not a secret.
   const url = (process.env.PWNED_PASSWORDS_API_URL || DEFAULT_API_URL) + prefix;
+  let res: Response;
   let body: string;
   try {
-    const res = await fetchImpl(url, {
+    res = await fetchImpl(url, {
       // Padding hides how many suffixes share our prefix from network observers.
       headers: { "Add-Padding": "true", "User-Agent": "teachable-agents-signup" },
       signal: AbortSignal.timeout(timeoutMs),
       cache: "no-store",
     });
-    if (res.status !== 200) throw new BreachCheckUnavailable(`unexpected status ${res.status}`);
     body = await res.text();
   } catch (e) {
-    if (e instanceof BreachCheckUnavailable) throw e;
     throw new BreachCheckUnavailable((e as Error)?.name === "TimeoutError" ? "timed out" : "network error");
   }
+  if (res.status !== 200) throw new BreachCheckUnavailable(`unexpected status ${res.status}`);
   const counts: Counts = new Map();
   for (const line of body.split("\n")) {
     const trimmed = line.trim();

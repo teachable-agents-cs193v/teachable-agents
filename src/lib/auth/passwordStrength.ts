@@ -23,7 +23,7 @@ export interface StrengthResult {
   suggestions: string[];
 }
 
-const TIPS = {
+export const TIPS = {
   common: "Avoid common passwords, phrases, and passwords that have appeared in data breaches.",
   userInputs: "Avoid using your name, your email address, or the name of this site.",
   l33t: "Avoid predictable substitutions like replacing 'a' with '@' or 'o' with '0'.",
@@ -107,5 +107,5 @@ export function userInputsFor({ name, email }: { name?: string; email?: string }
   const local = email?.split("@")[0];
   const localParts = local?.split(/[._+-]+/) ?? [];
   const words = [name, nameParts.join(""), ...nameParts, email, local, ...localParts, ...SITE_WORDS];
-  return [...new Set(words.filter((w): w is string => typeof w === "string" && w.length > 0))];
+  return [...new Set(words.filter((w): w is string => !!w))];
 }
