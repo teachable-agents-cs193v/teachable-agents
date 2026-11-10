@@ -94,6 +94,8 @@ Pass the page's own path to `requireUser()` so the student comes back to it afte
 
 These stay public: `/`, `/topics`, `/login`, `/signup`, and Better Auth's own `/api/auth/*` endpoints.
 
+**Adding a page?** A unit test (`src/lib/auth/__tests__/routeGuard.test.ts`) checks that every `page.tsx` either calls `await requireUser(...)` or is listed in its `PUBLIC_PAGES`. If you add a page and `npm test` fails, its message tells you which line to add. Only list a page as public if it shows no student data.
+
 Any early redirect in `proxy.ts` (Next 16's new name for `middleware.ts`) is a convenience only. It checks for the cookie, not the database, so pages and routes must still call the helpers.
 
 ## Ownership rules
