@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { authTestServer } from "./e2e-auth/webServer";
 
 const PORT = 3210;
 
@@ -12,10 +13,6 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
   },
-  webServer: {
-    command: `npm run dev -- -p ${PORT}`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  // Pages need a logged-in student now, so the server includes a throwaway database.
+  webServer: authTestServer({ appPort: PORT, mockPort: 3213 }),
 });
