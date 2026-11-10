@@ -92,7 +92,7 @@ describe.skipIf(!hasDb)("without a valid session", () => {
   });
 
   it("redirects to plain /login when the next path isn't a safe relative path", async () => {
-    for (const bad of ["//evil.example", "https://evil.example/x", "/\\evil.example", "evil", undefined]) {
+    for (const bad of ["//evil.example", "https://evil.example/x", "/\\evil.example", "/\t/evil.example", "evil", undefined]) {
       expect(await redirectTarget(() => requireUser(bad))).toBe("/login");
     }
   });
@@ -101,8 +101,28 @@ describe.skipIf(!hasDb)("without a valid session", () => {
 describe("safeNextPath", () => {
   it("allows same-site relative paths only", () => {
     expect(safeNextPath("/sessions?tab=done")).toBe("/sessions?tab=done");
-    for (const bad of ["//evil.example", "https://evil.example", "/\\evil.example", "javascript:alert(1)", "", null, undefined]) {
-      expect(safeNextPath(bad)).toBeUndefined();
-    }
+    expect(safeNextPath("/teach/abc#end")).toBe("/teach/abc#end");
+    // Percent-encoded slashes stay a same-site path.
+    expect(safeNextPath("/%2F%2Fevil.example")).toBe("/%2F%2Fevil.example");
+    // Dot segments are resolved, and the result is returned normalized.
+    expect(safeNextPath("/a/../sessions")).toBe("/sessions");
+    const bad = [
+      "//evil.example",
+      "https://evil.example",
+      "/\\evil.example",
+      "/\t/evil.example", // browsers strip tabs: becomes //evil.example
+      "/\n/evil.example",
+      "/\r/evil.example",
+      "/\t\\evil.example",
+      "/..//evil.example", // normalizes to //evil.example
+      "/a/..//evil.example",
+      "/\u0000/evil.example",
+      "javascript:alert(1)",
+      "evil.example",
+      "",
+      null,
+      undefined,
+    ];
+    for (const value of bad) expect(safeNextPath(value), JSON.stringify(value)).toBeUndefined();
   });
 });

@@ -20,6 +20,8 @@ export function assertUsableSecret(secret: string | undefined): asserts secret i
 const PASSWORD_FIELDS: Record<string, string> = {
   "/sign-up/email": "password",
   "/change-password": "newPassword",
+  // Unreachable until password reset is enabled (no reset emails are sent), but covered now.
+  "/reset-password": "newPassword",
 };
 
 /** Runs the password policy (strength + breach check) before Better Auth stores any password. */
