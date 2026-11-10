@@ -10,6 +10,7 @@ Requirements: Node 20+ and npm.
 
 ```bash
 npm install
+sh .githooks/install.sh   # once per clone: turns on the gitleaks secret-scanning hooks
 npm run dev
 ```
 
