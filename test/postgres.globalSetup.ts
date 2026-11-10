@@ -43,6 +43,9 @@ export default async function setup() {
   if (!bin) {
     if (process.env.CI) throw new Error("Postgres server binaries not found; database tests can't run.");
     console.warn("\n[tests] Postgres not found: database tests will be SKIPPED. Install Postgres to run them.\n");
+    // Never let a DATABASE_URL (e.g. Neon) or a stray flag from the shell reach the tests.
+    delete process.env.DATABASE_URL;
+    delete process.env.TEST_THROWAWAY_DB;
     return;
   }
 
@@ -68,6 +71,8 @@ export default async function setup() {
   // No password: the throwaway cluster trusts local connections and is deleted after the run.
   const url = `postgres://postgres@127.0.0.1:${port}/postgres`;
   process.env.DATABASE_URL = url;
+  // Database tests run only when this flag is set, i.e. only against this throwaway cluster.
+  process.env.TEST_THROWAWAY_DB = "1";
 
   // Create the auth tables with Better Auth's own migration runner.
   const pool = new Pool({ connectionString: url });

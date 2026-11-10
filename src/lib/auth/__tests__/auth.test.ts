@@ -19,12 +19,11 @@ const userCount = async (email: string) =>
 describe.skipIf(!hasDb)("signup", () => {
   it("creates the user, stores the email lowercased, and starts a session", async () => {
     const email = uniqueEmail().replace("student", "Student");
-    const { res } = await signUp(email);
+    const { res } = await signUp({ email });
     expect(res.status).toBe(200);
     expect(sessionCookie(res)).toMatch(/session_token=/);
+    // userCount looks the row up by the lowercased email, so this also checks it was stored lowercased.
     expect(await userCount(email)).toBe(1);
-    const { rows } = await getPool().query("SELECT email FROM users WHERE email = $1", [email.toLowerCase()]);
-    expect(rows[0].email).toBe(email.toLowerCase());
   });
 
   it("never stores the password in plaintext", async () => {
@@ -35,13 +34,12 @@ describe.skipIf(!hasDb)("signup", () => {
     );
     expect(rows).toHaveLength(1);
     // Compare without printing the hash: only booleans reach the test output.
-    expect(rows[0].password === PASSWORD).toBe(false);
     expect(String(rows[0].password).includes(PASSWORD)).toBe(false);
   });
 
   it("rejects a weak password with 422 weak_password and creates no user", async () => {
     const email = uniqueEmail();
-    const { res } = await signUp(email, "Password1");
+    const { res } = await signUp({ email, password: "Password1" });
     expect(res.status).toBe(422);
     const body = await res.json();
     expect(body.code).toBe("weak_password");
@@ -64,7 +62,7 @@ describe.skipIf(!hasDb)("signup", () => {
   it("rejects a breached password with 422 breached_password and creates no user", async () => {
     mockIsPwned.mockResolvedValue(true);
     const email = uniqueEmail();
-    const { res } = await signUp(email);
+    const { res } = await signUp({ email });
     expect(res.status).toBe(422);
     expect((await res.json()).code).toBe("breached_password");
     expect(await userCount(email)).toBe(0);
@@ -74,7 +72,7 @@ describe.skipIf(!hasDb)("signup", () => {
     mockIsPwned.mockRejectedValue(new BreachCheckUnavailable("timed out"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const email = uniqueEmail();
-    const { res } = await signUp(email);
+    const { res } = await signUp({ email });
     expect(res.status).toBe(503);
     expect((await res.json()).code).toBe("breach_check_unavailable");
     expect(await userCount(email)).toBe(0);
@@ -83,14 +81,14 @@ describe.skipIf(!hasDb)("signup", () => {
 
   it("enforces Better Auth's minimum length of 8", async () => {
     const email = uniqueEmail();
-    const { res } = await signUp(email, "Ab1!xyz");
+    const { res } = await signUp({ email, password: "Ab1!xyz" });
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(await userCount(email)).toBe(0);
   });
 
   it("rejects a second signup with the same email", async () => {
     const { email } = await signUp();
-    const { res } = await signUp(email.toUpperCase());
+    const { res } = await signUp({ email: email.toUpperCase() });
     expect(res.status).toBe(422);
     expect(await userCount(email)).toBe(1);
   });
@@ -98,7 +96,7 @@ describe.skipIf(!hasDb)("signup", () => {
   it("never echoes the password in a response", async () => {
     for (const [pw, isBreached] of [[PASSWORD, false], ["Password1", false], [PASSWORD, true]] as const) {
       mockIsPwned.mockResolvedValue(isBreached);
-      const { res } = await signUp(uniqueEmail(), pw);
+      const { res } = await signUp({ password: pw });
       expect((await res.text()).toLowerCase()).not.toContain(pw.toLowerCase());
     }
   });
@@ -121,6 +119,27 @@ describe.skipIf(!hasDb)("login", () => {
     const [a, b] = [await wrong.json(), await unknown.json()];
     expect(a).toEqual(b);
     expect(wrong.headers.getSetCookie().some((c) => /session_token=[^;]/.test(c))).toBe(false);
+  });
+});
+
+describe.skipIf(!hasDb)("change password", () => {
+  it("applies the same password policy, so a weak new password is rejected", async () => {
+    const { res } = await signUp();
+    const cookie = sessionCookie(res);
+    const change = (newPassword: string) =>
+      callAuth("/change-password", { body: { currentPassword: PASSWORD, newPassword }, cookie });
+
+    const weak = await change("Password1");
+    expect(weak.status).toBe(422);
+    expect((await weak.json()).code).toBe("weak_password");
+
+    mockIsPwned.mockResolvedValue(true);
+    const breached = await change("another-lantern-quokka-meadow-9");
+    expect(breached.status).toBe(422);
+    expect((await breached.json()).code).toBe("breached_password");
+
+    mockIsPwned.mockResolvedValue(false);
+    expect((await change("another-lantern-quokka-meadow-9")).status).toBe(200);
   });
 });
 

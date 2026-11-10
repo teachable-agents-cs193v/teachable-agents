@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { getAuth } from "../auth";
 
-/** True when test/postgres.globalSetup.ts started a throwaway database. */
-export const hasDb = Boolean(process.env.DATABASE_URL);
+/** True only when test/postgres.globalSetup.ts started a throwaway database. */
+export const hasDb = process.env.TEST_THROWAWAY_DB === "1";
 
 // Test-only password: strong enough for zxcvbn; the breach check is mocked in each file.
 export const PASSWORD = "lantern-quokka-marigold-zephyr";
@@ -33,7 +33,7 @@ export function sessionCookie(res: Response): string {
   return cookie.split(";")[0];
 }
 
-export async function signUp(email = uniqueEmail(), password = PASSWORD, name = "Test Student") {
+export async function signUp({ email = uniqueEmail(), password = PASSWORD, name = "Test Student" } = {}) {
   const res = await callAuth("/sign-up/email", { body: { email, password, name } });
   return { res, email };
 }

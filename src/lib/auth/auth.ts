@@ -3,7 +3,6 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { getPool } from "@/lib/db/pool";
 import { authSchemaOptions } from "./options";
-import { checkSignupPassword } from "./passwordPolicy";
 
 /** The value in .env.example; a copy of it in production would make the signing key public. */
 const PLACEHOLDER_SECRET = "replace-with-output-of-openssl-rand-base64-32";
@@ -17,44 +16,42 @@ export function assertUsableSecret(secret: string | undefined): asserts secret i
     throw new Error(`BETTER_AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
 }
 
-/** HTTP status names Better Auth's APIError expects, keyed by our policy's status codes. */
-const STATUS_NAMES = { 422: "UNPROCESSABLE_ENTITY", 503: "SERVICE_UNAVAILABLE" } as const;
+/** Every Better Auth endpoint that sets a password, and the body field holding it. */
+const PASSWORD_FIELDS: Record<string, string> = {
+  "/sign-up/email": "password",
+  "/change-password": "newPassword",
+};
 
-/** Runs the signup password policy before Better Auth creates anything. */
-const signupPasswordPolicy = createAuthMiddleware(async (ctx) => {
-  if (ctx.path !== "/sign-up/email") return;
-  const { password, name, email } = (ctx.body ?? {}) as { password?: unknown; name?: unknown; email?: unknown };
+/** Runs the password policy (strength + breach check) before Better Auth stores any password. */
+const passwordPolicyHook = createAuthMiddleware(async (ctx) => {
+  const field = PASSWORD_FIELDS[ctx.path];
+  if (!field) return;
+  const body = (ctx.body ?? {}) as Record<string, unknown>;
+  const password = body[field];
   // Better Auth validates the body itself; this only skips what it will reject anyway.
   if (typeof password !== "string") return;
+  // Loaded only here, so zxcvbn's dictionaries stay off other auth requests' cold starts.
+  const { checkSignupPassword } = await import("./passwordPolicy");
   const result = await checkSignupPassword(password, {
-    name: typeof name === "string" ? name : undefined,
-    email: typeof email === "string" ? email : undefined,
+    name: typeof body.name === "string" ? body.name : undefined,
+    email: typeof body.email === "string" ? body.email : undefined,
   });
   if (result.ok) return;
-  // Body: code, message and any feedback. JSON drops the undefined fields.
-  const body = { ...result, message: result.error, ok: undefined, status: undefined, error: undefined };
-  throw new APIError(STATUS_NAMES[result.status], body);
+  // Response body: the code, a message and any feedback (warning, suggestions).
+  const { status, error, ...details } = result;
+  const responseBody: Record<string, unknown> = { ...details, message: error };
+  delete responseBody.ok;
+  throw new APIError(status, responseBody);
 });
 
 function createAuth() {
   const secret = process.env.BETTER_AUTH_SECRET;
   // Development and tests may use any secret; production must have a real one.
   if (process.env.NODE_ENV === "production") assertUsableSecret(secret);
-  return betterAuth({
-    ...authSchemaOptions(getPool()),
-    secret,
-    baseURL: process.env.BETTER_AUTH_URL,
-    hooks: { before: signupPasswordPolicy },
-  });
+  // Better Auth reads BETTER_AUTH_URL from the environment itself.
+  return betterAuth({ ...authSchemaOptions(getPool()), secret, hooks: { before: passwordPolicyHook } });
 }
 
-let instance: ReturnType<typeof createAuth> | undefined;
-
-/**
- * The Better Auth instance, created on first use rather than at import so
- * `next build` never needs secrets or a database.
- */
-export function getAuth() {
-  instance ??= createAuth();
-  return instance;
-}
+let auth: ReturnType<typeof createAuth> | undefined;
+/** The Better Auth instance, created on first use so `next build` needs no secrets or database. */
+export const getAuth = () => (auth ??= createAuth());
