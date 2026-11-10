@@ -1,6 +1,6 @@
 import "server-only";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { getPool } from "@/lib/db/pool";
 import { authSchemaOptions } from "./options";
 
@@ -16,27 +16,42 @@ export function assertUsableSecret(secret: string | undefined): asserts secret i
     throw new Error(`BETTER_AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
 }
 
-/** Every Better Auth endpoint that sets a password, and the body field holding it. */
-const PASSWORD_FIELDS: Record<string, string> = {
-  "/sign-up/email": "password",
-  "/change-password": "newPassword",
+/**
+ * Every Better Auth HTTP endpoint that sets a password: the body field holding
+ * it, and whether the caller must already be logged in. (Server code calling
+ * auth.api.setPassword directly is not covered; don't.)
+ */
+const PASSWORD_ENDPOINTS: Record<string, { field: string; needsSession: boolean }> = {
+  "/sign-up/email": { field: "password", needsSession: false },
+  "/change-password": { field: "newPassword", needsSession: true },
   // Unreachable until password reset is enabled (no reset emails are sent), but covered now.
-  "/reset-password": "newPassword",
+  "/reset-password": { field: "newPassword", needsSession: false },
 };
 
 /** Runs the password policy (strength + breach check) before Better Auth stores any password. */
 const passwordPolicyHook = createAuthMiddleware(async (ctx) => {
-  const field = PASSWORD_FIELDS[ctx.path];
-  if (!field) return;
+  const endpoint = PASSWORD_ENDPOINTS[ctx.path];
+  if (!endpoint) return;
   const body = (ctx.body ?? {}) as Record<string, unknown>;
-  const password = body[field];
+  const password = body[endpoint.field];
   // Better Auth validates the body itself; this only skips what it will reject anyway.
   if (typeof password !== "string") return;
+
+  // Hooks run before Better Auth's own session check. For endpoints that need a
+  // login, check it first: logged-out callers get Better Auth's 401, not a free
+  // run of the policy (and of the outbound breach lookup).
+  let user: { name?: unknown; email?: unknown } = body;
+  if (endpoint.needsSession) {
+    const session = await getSessionFromCtx(ctx);
+    if (!session) return;
+    user = session.user;
+  }
+
   // Loaded only here, so zxcvbn's dictionaries stay off other auth requests' cold starts.
   const { checkSignupPassword } = await import("./passwordPolicy");
   const result = await checkSignupPassword(password, {
-    name: typeof body.name === "string" ? body.name : undefined,
-    email: typeof body.email === "string" ? body.email : undefined,
+    name: typeof user.name === "string" ? user.name : undefined,
+    email: typeof user.email === "string" ? user.email : undefined,
   });
   if (result.ok) return;
   // Response body: the code, a message and any feedback (warning, suggestions).

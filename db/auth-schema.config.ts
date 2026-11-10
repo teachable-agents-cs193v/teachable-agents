@@ -11,4 +11,15 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { authSchemaOptions } from "../src/lib/auth/options";
 
-export const auth = betterAuth(authSchemaOptions(new Pool({ connectionString: process.env.DATABASE_URL })));
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function localDatabaseUrl(): string {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) throw new Error("Set DATABASE_URL to an empty throwaway local Postgres before running db:generate.");
+  const { hostname } = new URL(raw);
+  if (!LOCAL_HOSTS.has(hostname))
+    throw new Error(`db:generate only runs against a local Postgres, not ${hostname}. Never point it at Neon.`);
+  return raw;
+}
+
+export const auth = betterAuth(authSchemaOptions(new Pool({ connectionString: localDatabaseUrl() })));

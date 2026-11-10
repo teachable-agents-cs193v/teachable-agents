@@ -53,8 +53,16 @@ describe.skipIf(!hasDb)("without a valid session", () => {
     [
       "a tampered signature",
       async () => {
+        // Change one character inside the signature, keeping its length and encoding,
+        // so this tests a well-formed but wrong signature (not just a malformed one).
         const cookie = sessionCookie((await signUp()).res);
-        return cookie.slice(0, -3) + (cookie.endsWith("AAA") ? "BBB" : "AAA");
+        const [name, value] = [cookie.slice(0, cookie.indexOf("=")), decodeURIComponent(cookie.slice(cookie.indexOf("=") + 1))];
+        const dot = value.lastIndexOf(".");
+        const sig = value.slice(dot + 1);
+        const i = 2;
+        const flipped = sig.slice(0, i) + (sig[i] === "A" ? "B" : "A") + sig.slice(i + 1);
+        expect(flipped).toHaveLength(sig.length);
+        return `${name}=${encodeURIComponent(value.slice(0, dot + 1) + flipped)}`;
       },
     ],
     [

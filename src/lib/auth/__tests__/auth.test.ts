@@ -141,6 +141,24 @@ describe.skipIf(!hasDb)("change password", () => {
     mockIsPwned.mockResolvedValue(false);
     expect((await change("another-lantern-quokka-meadow-9")).status).toBe(200);
   });
+
+  it("counts the logged-in student's own name and email against the new password", async () => {
+    const { res } = await signUp({ name: "Jordan Lee" });
+    const r = await callAuth("/change-password", {
+      body: { currentPassword: PASSWORD, newPassword: "jordanlee2026!" },
+      cookie: sessionCookie(res),
+    });
+    expect(r.status).toBe(422);
+    expect((await r.json()).code).toBe("weak_password");
+  });
+
+  it("returns 401 to a logged-out caller without running the policy or the breach lookup", async () => {
+    for (const newPassword of ["Password1", "another-lantern-quokka-meadow-9"]) {
+      const r = await callAuth("/change-password", { body: { currentPassword: PASSWORD, newPassword } });
+      expect(r.status).toBe(401);
+    }
+    expect(mockIsPwned).not.toHaveBeenCalled();
+  });
 });
 
 describe.skipIf(!hasDb)("logout", () => {

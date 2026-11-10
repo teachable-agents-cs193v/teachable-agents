@@ -58,33 +58,43 @@ export default async function setup() {
     ["-D", data, "-p", String(port), "-h", "127.0.0.1", "-k", dir],
     { stdio: "ignore" },
   );
-  for (let i = 0; ; i++) {
-    try {
-      execFileSync(path.join(bin, "pg_isready"), ["-q", "-h", "127.0.0.1", "-p", String(port)]);
-      break;
-    } catch {
-      if (i > 100) throw new Error("Throwaway Postgres didn't start.");
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
-
-  // No password: the throwaway cluster trusts local connections and is deleted after the run.
-  const url = `postgres://postgres@127.0.0.1:${port}/postgres`;
-  process.env.DATABASE_URL = url;
-  // Database tests run only when this flag is set, i.e. only against this throwaway cluster.
-  process.env.TEST_THROWAWAY_DB = "1";
-
-  // Create the auth tables with Better Auth's own migration runner.
-  const pool = new Pool({ connectionString: url });
-  try {
-    const { runMigrations } = await getMigrations(authSchemaOptions(pool));
-    await runMigrations();
-  } finally {
-    await pool.end();
-  }
-
-  return () => {
+  const exited = new Promise<void>((resolve) => server.once("exit", () => resolve()));
+  const teardown = async () => {
     server.kill("SIGINT");
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   };
+
+  try {
+    for (let i = 0; ; i++) {
+      try {
+        execFileSync(path.join(bin, "pg_isready"), ["-q", "-h", "127.0.0.1", "-p", String(port)]);
+        break;
+      } catch {
+        if (i > 100) throw new Error("Throwaway Postgres didn't start.");
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    // No password: the throwaway cluster trusts local connections and is deleted after the run.
+    const url = `postgres://postgres@127.0.0.1:${port}/postgres`;
+    process.env.DATABASE_URL = url;
+    // Database tests run only when this flag is set, i.e. only against this throwaway cluster.
+    process.env.TEST_THROWAWAY_DB = "1";
+
+    // Create the auth tables with Better Auth's own migration runner.
+    const pool = new Pool({ connectionString: url });
+    try {
+      const { runMigrations } = await getMigrations(authSchemaOptions(pool));
+      await runMigrations();
+    } finally {
+      await pool.end();
+    }
+  } catch (e) {
+    // Don't leave a stray server or data directory behind when setup fails.
+    await teardown();
+    throw e;
+  }
+
+  return teardown;
 }
