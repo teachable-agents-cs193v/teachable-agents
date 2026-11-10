@@ -43,7 +43,7 @@ These helpers live in `src/lib/auth/server.ts`, which imports `server-only`, so 
 type AuthUser = { id: string; email: string; name: string };
 
 getCurrentUser(): Promise<AuthUser | null>     // null when logged out
-requireUser(): Promise<AuthUser>               // pages: redirects to /login?next=<path> if logged out
+requireUser(next?: string): Promise<AuthUser> // pages: redirects to /login?next=<next> if logged out
 requireApiUser(): Promise<AuthUser | Response> // API routes: returns a 401 JSON Response if logged out
 ```
 
@@ -75,13 +75,13 @@ Add two lines to the existing `src/app/teach/[sessionId]/page.tsx`:
 import { requireUser } from "@/lib/auth/server";   // add
 
 export default async function TeachPage({ params }: { params: Promise<{ sessionId: string }> }) {
-  await requireUser();                              // add: redirects to /login if logged out
   const { sessionId } = await params;
+  await requireUser(`/teach/${sessionId}`);        // add: logged out → /login, then back here
   return <TeachingWorkspace sessionId={sessionId} />;
 }
 ```
 
-The page check is a redirect for usability. **The API routes are the security boundary**, because that's where the data is. In client components, `useSession()` from the auth client is only for display, such as showing the student's name in the `Navbar`.
+Pass the page's own path to `requireUser()` so the student comes back to it after logging in. Only same-site paths are accepted; anything else falls back to plain `/login`. The page check is a redirect for usability. **The API routes are the security boundary**, because that's where the data is. In client components, `useSession()` from the auth client is only for display, such as showing the student's name in the `Navbar`.
 
 ## What is protected
 
