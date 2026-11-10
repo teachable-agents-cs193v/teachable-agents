@@ -6,6 +6,6 @@ export const metadata: Metadata = { title: "Teaching session" };
 
 export default async function TeachPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  await requireUser(`/teach/${sessionId}`);
+  await requireUser(`/teach/${encodeURIComponent(sessionId)}`);
   return <TeachingWorkspace sessionId={sessionId} />;
 }

@@ -1,8 +1,8 @@
 // Teaching pages require a login (#16): logged-out visits go to /login with the
 // page as `next`, and logging in returns there.
-import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { PASSWORDS } from "./fixtures";
+import { signUpTestStudent } from "./signIn";
 
 const PROTECTED = ["/learner/independence-vs-mutual-exclusivity", "/teach/session_any", "/reflect/session_any", "/sessions", "/sessions/session_any"];
 const PUBLIC = ["/", "/topics", "/login", "/signup"];
@@ -11,15 +11,10 @@ test.beforeAll(async ({ request }) => {
   for (const path of [...PUBLIC, ...PROTECTED, "/api/auth/get-session"]) await request.get(path);
 });
 
-async function createAccount(page: Page) {
-  const email = `student-${randomUUID()}@example.com`;
-  await page.goto("/signup");
-  await page.getByLabel("Name").fill("Avery Kim");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORDS.strong);
-  await page.getByRole("button", { name: "Sign up" }).click();
-  await expect(page).toHaveURL(/\/topics$/);
-  await page.context().clearCookies(); // log out again, for the tests below
+/** A student account to log in with, starting logged out. */
+async function createAccount(page: Page, baseURL: string | undefined) {
+  const email = await signUpTestStudent(page, baseURL);
+  await page.context().clearCookies();
   return email;
 }
 
@@ -29,8 +24,8 @@ async function logIn(page: Page, email: string) {
   await page.getByRole("button", { name: "Log in" }).click();
 }
 
-test("logged out, every teaching page redirects to login and comes back after it", async ({ page }) => {
-  const email = await createAccount(page);
+test("logged out, every teaching page redirects to login and comes back after it", async ({ page, baseURL }) => {
+  const email = await createAccount(page, baseURL);
   for (const path of PROTECTED) {
     await page.context().clearCookies();
     await page.goto(path);
@@ -49,8 +44,8 @@ test("public pages stay public", async ({ page }) => {
   }
 });
 
-test("logged out, picking a topic asks you to log in, then opens that topic", async ({ page }) => {
-  const email = await createAccount(page);
+test("logged out, picking a topic asks you to log in, then opens that topic", async ({ page, baseURL }) => {
+  const email = await createAccount(page, baseURL);
   await page.goto("/topics");
   await page.getByRole("button", { name: /^Probability/ }).click();
   await page.getByRole("link", { name: "Teach This Topic" }).click();
@@ -60,14 +55,15 @@ test("logged out, picking a topic asks you to log in, then opens that topic", as
   await expect(page.getByRole("button", { name: "Start Teaching" })).toBeVisible();
 });
 
-test("after logging out, going back doesn't show the protected page", async ({ page }) => {
-  const email = await createAccount(page);
+test("after logging out, going back doesn't show the protected page", async ({ page, baseURL }) => {
+  const email = await createAccount(page, baseURL);
   await page.goto("/login?next=%2Fsessions");
   await logIn(page, email);
   await expect(page).toHaveURL(/\/sessions$/);
   await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/localhost:3211\/$/);
+  // Straight after Back (no reload): the cached page must not reappear.
   await page.goBack();
-  await page.reload();
   await expect(page).toHaveURL(/\/login\?next=%2Fsessions$/);
+  await expect(page.getByRole("heading", { name: "Past sessions" })).toHaveCount(0);
 });

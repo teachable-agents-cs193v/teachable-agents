@@ -1,5 +1,7 @@
 // Every page must either require a login or be listed here as public, so a new
-// page can't be left unprotected by accident (docs/AUTH.md, "What is protected").
+// page can't be left unprotected by accident (docs/AUTH.md, "What is protected";
+// added in PR #23). It checks that the page calls requireUser(), not where:
+// call it first, before reading any student data.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,7 +15,7 @@ function findPages(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = path.join(dir, name);
     if (statSync(full).isDirectory()) return findPages(full);
-    return name === "page.tsx" ? [full] : [];
+    return /^page\.(tsx?|jsx?|mdx)$/.test(name) ? [full] : [];
   });
 }
 
@@ -32,10 +34,11 @@ describe("route guard", () => {
 
   it.each(pages.map((p) => [p.route, p.file] as const))("%s requires a login or is listed as public", (route, file) => {
     if (PUBLIC_PAGES.has(route)) return;
-    const source = readFileSync(file, "utf8");
+    // Ignore comments, so a commented-out call doesn't count.
+    const source = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     const guarded = /\bawait\s+requireUser\(/.test(source);
     // e.g. "/sessions" or `/teach/${sessionId}` for a route with parameters
-    const pathArg = route.includes("[") ? "`" + route.replace(/\[(\w+)\]/g, "${$1}") + "`" : `"${route}"`;
+    const pathArg = route.includes("[") ? "`" + route.replace(/\[(\w+)\]/g, "${encodeURIComponent($1)}") + "`" : `"${route}"`;
     expect(
       guarded,
       `${path.relative(process.cwd(), file)} (${route}) doesn't require a login.\n` +

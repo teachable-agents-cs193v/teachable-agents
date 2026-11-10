@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Reflect" };
 
 export default async function ReflectPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  await requireUser(`/reflect/${sessionId}`);
+  await requireUser(`/reflect/${encodeURIComponent(sessionId)}`);
   return (
     <>
       <Navbar />

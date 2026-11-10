@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Session review" };
 
 export default async function SessionReviewPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  await requireUser(`/sessions/${sessionId}`);
+  await requireUser(`/sessions/${encodeURIComponent(sessionId)}`);
   return (
     <>
       <Navbar />

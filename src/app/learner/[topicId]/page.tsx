@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ topicId: 
 
 export default async function LearnerPage({ params }: { params: Promise<{ topicId: string }> }) {
   const { topicId } = await params;
-  await requireUser(`/learner/${topicId}`);
+  await requireUser(`/learner/${encodeURIComponent(topicId)}`);
   const topic = getTopic(topicId);
   if (!topic) notFound();
 
