@@ -85,7 +85,7 @@ test.describe("password policy in the signup form", () => {
   test("a weak password is rejected with tips and no account is created", async ({ page }) => {
     const email = await signUp(page, { password: PASSWORDS.weak });
     const alert = signupError(page);
-    await expect(alert).toContainText("too easy to guess");
+    await expect(alert).toContainText("harder to guess");
     await expect(alert.getByRole("listitem").first()).toBeVisible();
     await expect(page).toHaveURL(/\/signup$/);
 
@@ -105,7 +105,7 @@ test.describe("password policy in the signup form", () => {
 
   test("if the breach check is down, signup fails closed with a try-again message", async ({ page }) => {
     await signUp(page, { password: PASSWORDS.breachCheckDown });
-    await expect(signupError(page)).toContainText("your account wasn't created");
+    await expect(signupError(page)).toContainText(/your account wasn.t created/);
     await expect(page).toHaveURL(/\/signup$/);
   });
 

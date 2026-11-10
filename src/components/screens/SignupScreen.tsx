@@ -1,53 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useState } from "react";
+import { AuthCard } from "@/components/auth/AuthCard";
 import { FormErrorAlert } from "@/components/auth/FormErrorAlert";
 import { PasswordFeedback } from "@/components/auth/PasswordFeedback";
+import { useAuthSubmit } from "@/components/auth/useAuthSubmit";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClasses } from "@/components/ui/Field";
 import { authClient } from "@/lib/auth/client";
-import { NETWORK_ERROR, describeAuthError, type FormError } from "@/lib/auth/errorMessages";
-import { AuthCard } from "./LoginScreen";
+import { withNext } from "@/lib/auth/nextPath";
 
 const ERROR_ID = "signup-error";
 const FEEDBACK_ID = "signup-password-feedback";
 
 /** `next` has already been checked with safeNextPath on the server. */
 export function SignupScreen({ next }: { next?: string }) {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<FormError | null>(null);
-  const [pending, setPending] = useState(false);
-  // State updates are async, so a ref also blocks a fast double-click.
-  const inFlight = useRef(false);
+  const { error, pending, onSubmit } = useAuthSubmit(
+    "signup",
+    () => authClient.signUp.email({ name: name.trim(), email, password }),
+    next,
+  );
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setPending(true);
-    setError(null);
-    try {
-      const { error } = await authClient.signUp.email({ name: name.trim(), email, password });
-      if (error) {
-        setError(describeAuthError(error, "signup"));
-      } else {
-        router.replace(next ?? "/topics");
-        router.refresh();
-        return; // stay "pending" while navigating away
-      }
-    } catch {
-      setError(NETWORK_ERROR);
-    }
-    inFlight.current = false;
-    setPending(false);
-  };
-
-  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+  const loginHref = withNext("/login", next);
   const passwordError = error && !error.offerLogin;
   return (
     <AuthCard title="Create your account" subtitle="Save your teaching sessions and come back to them anytime.">

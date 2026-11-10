@@ -23,3 +23,9 @@ export function safeNextPath(next: string | null | undefined): string | undefine
   if (path.startsWith("//")) return undefined;
   return path;
 }
+
+/** `path` with `?next=<next>` added when there is a (safe) next path. */
+export function withNext(path: string, next: string | null | undefined): string {
+  const safe = safeNextPath(next);
+  return safe ? `${path}?next=${encodeURIComponent(safe)}` : path;
+}

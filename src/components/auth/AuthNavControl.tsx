@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { authClient } from "@/lib/auth/client";
-import { firstName } from "@/lib/auth/errorMessages";
-import { safeNextPath } from "@/lib/auth/nextPath";
+import { firstName } from "@/lib/auth/displayName";
+import { withNext } from "@/lib/auth/nextPath";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,12 +50,11 @@ export function AuthNavControl({ layout = "bar", onNavigate }: { layout?: "bar" 
   }
 
   // Come back to this page after logging in (not to the login page itself).
-  const here = pathname === "/login" || pathname === "/signup" ? undefined : safeNextPath(pathname);
-  const query = here ? `?next=${encodeURIComponent(here)}` : "";
+  const here = pathname === "/login" || pathname === "/signup" ? undefined : pathname;
   return (
     <div className={cn("flex items-center gap-2", menu && "flex-col items-stretch")}>
       <Link
-        href={`/login${query}`}
+        href={withNext("/login", here)}
         onClick={onNavigate}
         className={cn(
           "focus-ring rounded-full px-4 py-2 text-[15px] font-medium text-charcoal/80 transition-colors hover:bg-sage/50 hover:text-forest",
@@ -64,7 +63,7 @@ export function AuthNavControl({ layout = "bar", onNavigate }: { layout?: "bar" 
       >
         Log in
       </Link>
-      <Button href={`/signup${query}`} variant="secondary" size={menu ? "md" : "sm"} className={cn(menu && "w-full")}>
+      <Button href={withNext("/signup", here)} variant="secondary" size={menu ? "md" : "sm"} className={cn(menu && "w-full")}>
         Sign up
       </Button>
     </div>

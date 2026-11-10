@@ -1,26 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { NETWORK_ERROR, describeAuthError, firstName } from "../errorMessages";
+import { firstName } from "../displayName";
+import { NETWORK_ERROR, describeAuthError } from "../errorMessages";
 
 describe("describeAuthError", () => {
-  it("shows the zxcvbn warning and tips for a weak password", () => {
+  it("shows the server's own wording, the zxcvbn warning and the tips for policy codes", () => {
     const r = describeAuthError(
-      { status: 422, code: "weak_password", warning: "This is a very common password.", suggestions: ["Add another word or two.", 3] },
+      {
+        status: 422,
+        code: "weak_password",
+        message: "Please choose a password that's harder to guess.",
+        warning: "This is a very common password.",
+        suggestions: ["Add another word or two.", 3],
+      },
       "signup",
     );
-    expect(r.message).toMatch(/too easy to guess\. This is a very common password\./);
+    expect(r.message).toBe("Please choose a password that's harder to guess. This is a very common password.");
     expect(r.tips).toEqual(["Add another word or two."]);
+    for (const code of ["breached_password", "breach_check_unavailable"]) {
+      expect(describeAuthError({ code, message: `server text for ${code}` }, "signup").message).toBe(`server text for ${code}`);
+    }
   });
 
-  it("explains a breached password with its tips", () => {
-    const r = describeAuthError({ status: 422, code: "breached_password", suggestions: ["Avoid reusing a password."] }, "signup");
-    expect(r.message).toMatch(/known data breach/);
-    expect(r.tips).toEqual(["Avoid reusing a password."]);
+  it("still says something if a policy error arrives without a message", () => {
+    expect(describeAuthError({ code: "breached_password" }, "signup").message).toBe("Please choose a different password.");
   });
 
-  it("says the account wasn't created when the breach check is down", () => {
-    expect(describeAuthError({ status: 503, code: "breach_check_unavailable" }, "signup").message).toMatch(
-      /wasn't created.*try again/,
-    );
+  it("explains when sign-in isn't set up (development without a database)", () => {
+    expect(describeAuthError({ status: 503, code: "auth_unavailable" }, "login").message).toMatch(/isn't set up/);
   });
 
   it("offers to log in when the email is taken", () => {

@@ -27,46 +27,36 @@ export const NETWORK_ERROR: FormError = {
   tips: [],
 };
 
+const MISMATCH = "That email and password don't match an account.";
+
 export function describeAuthError(error: AuthErrorLike, form: "login" | "signup"): FormError {
   switch (error.code) {
-    case "weak_password": {
-      const message = error.warning ? `This password is too easy to guess. ${error.warning}` : "This password is too easy to guess.";
-      return { message, tips: tipsFrom(error.suggestions) };
-    }
+    // Our password-policy codes: the server already sends the wording (passwordPolicy.ts).
+    case "weak_password":
     case "breached_password":
-      return {
-        message: "This password has appeared in a known data breach, so it can't be used. Please choose a different one.",
-        tips: tipsFrom(error.suggestions),
-      };
-    case "breach_check_unavailable":
-      return {
-        message: "We couldn't check this password against known data breaches just now, so your account wasn't created. Please try again in a few minutes.",
-        tips: [],
-      };
+    case "breach_check_unavailable": {
+      const message = [error.message, error.warning].filter(Boolean).join(" ");
+      return { message: message || "Please choose a different password.", tips: tipsFrom(error.suggestions) };
+    }
+    // Better Auth's codes are terse, so word them here.
     case "USER_ALREADY_EXISTS":
     case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
       return { message: "An account with this email already exists.", tips: [], offerLogin: true };
     case "INVALID_EMAIL_OR_PASSWORD":
-      return { message: "That email and password don't match an account.", tips: [] };
+      return { message: MISMATCH, tips: [] };
     case "INVALID_EMAIL":
       return { message: "Please enter a valid email address.", tips: [] };
     case "PASSWORD_TOO_SHORT":
       return { message: "Your password needs at least 8 characters.", tips: [] };
     case "PASSWORD_TOO_LONG":
       return { message: "Your password can be at most 128 characters.", tips: [] };
+    case "auth_unavailable":
+      return { message: "Sign-in isn't set up on this server yet.", tips: [] };
   }
   if (error.status === 429) return { message: "Too many attempts. Please wait a minute and try again.", tips: [] };
-  if (form === "login" && error.status === 401) {
-    return { message: "That email and password don't match an account.", tips: [] };
-  }
+  if (form === "login" && error.status === 401) return { message: MISMATCH, tips: [] };
   return {
     message: form === "login" ? "We couldn't log you in. Please try again." : "We couldn't create your account. Please try again.",
     tips: [],
   };
-}
-
-/** The first word of the student's name, for the Navbar greeting. */
-export function firstName(name: string | null | undefined, email?: string | null): string {
-  const first = name?.trim().split(/\s+/)[0];
-  return first || email?.split("@")[0] || "there";
 }
