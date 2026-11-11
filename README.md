@@ -93,9 +93,11 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 ### Betania · persistence
 
-- Interface: `SessionStore` in `src/lib/persistence/adapter.ts` (`listSessions`, `getSession`, `saveSession`, `deleteSession`, `findActiveSession`). All methods are async already.
-- Swap it in `getSessionStore()` in `src/lib/persistence/index.ts`. `TeachingSession` in `src/lib/types.ts` is the record shape to persist, including `messages`, `preExplanation`, and `reflection`.
-- `LocalStorageSessionStore` is the reference implementation and has unit tests you can reuse against a real backend.
+- Sessions live in Postgres, in `teaching_sessions` (`db/migrations/0002_teaching_sessions.sql`): one row per session, with `messages` and `reflection` as `jsonb`, owned by `user_id` (deleted with the user).
+- Browser: `getSessionStore()` in `src/lib/persistence/index.ts` returns `HttpSessionStore`, which calls `/api/sessions`. Components use the same `SessionStore` interface as before, plus `createSession(topicId, preExplanation?)`: the server picks every ID.
+- Server: `getUserSessionStore(user)` in `src/lib/persistence/server.ts` filters every query by the logged-in user. Routes call `requireApiUser()` first; another user's session answers 404, like a missing one. `PUT` bodies are checked by `parseSessionUpdate()` in `validate.ts` and may change only `status`, `endedAt`, `messages`, `learnerCursor` and `reflection`.
+- Routes: `GET`/`POST /api/sessions` (`?activeTopicId=` finds the in-progress session for a topic) and `GET`/`PUT`/`DELETE /api/sessions/[id]`.
+- Tests run against the throwaway Postgres, which applies `db/migrations/0002+` via `test/appMigrations.ts`. `LocalStorageSessionStore` remains as the reference implementation.
 
 ### Anahi · authentication
 

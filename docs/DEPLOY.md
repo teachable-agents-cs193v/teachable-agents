@@ -23,10 +23,11 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    ```bash
    read -rs DB_DIRECT_URL && export DB_DIRECT_URL     # paste the DIRECT string; hidden, not saved to history
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
-   psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions
    unset DB_DIRECT_URL
    ```
-   - `-1` runs the whole file in one transaction, so a failure halfway leaves nothing behind.
+   - Apply the files in number order. `-1` runs each whole file in one transaction, so a failure halfway leaves nothing behind.
    - "Already exists" means it was applied before. Stop and check; don't force it.
    - Never point `npm run db:generate` at this database. It refuses non-local databases anyway.
 4. **Get the pooled string to Chase privately.** The best option is to give Chase his own access to the database project, so he copies it himself. Otherwise use a password-manager share.

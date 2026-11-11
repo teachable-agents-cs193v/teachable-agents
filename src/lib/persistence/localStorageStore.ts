@@ -1,4 +1,6 @@
+import { PIP } from "../learner";
 import type { TeachingSession } from "../types";
+import { createId, nowIso } from "../utils";
 import type { SessionStore } from "./adapter";
 
 export const STORAGE_KEY = "teachable-agents:sessions:v1";
@@ -75,6 +77,21 @@ export class LocalStorageSessionStore implements SessionStore {
 
   async getSession(id: string): Promise<TeachingSession | null> {
     return this.readAll().find((s) => s.id === id) ?? null;
+  }
+
+  async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+    const session: TeachingSession = {
+      id: createId("session"),
+      topicId,
+      learnerId: PIP.id,
+      status: "in_progress",
+      startedAt: nowIso(),
+      messages: [],
+      learnerCursor: 0,
+      preExplanation: preExplanation?.trim() || undefined,
+    };
+    await this.saveSession(session);
+    return session;
   }
 
   async saveSession(session: TeachingSession): Promise<void> {
