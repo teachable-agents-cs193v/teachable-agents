@@ -11,7 +11,7 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
 
 ## Part A: Betania (database)
 
-**Before you start:** this PR (#28, `db/migrations/0001_auth.sql`) is approved by Betania and Anahi and merged to `main`.
+**Before you start:** #28 (`db/migrations/0001_auth.sql`) and #32 (`db/migrations/0002_teaching_sessions.sql`) are approved by Betania and Anahi and merged to `main`.
 
 1. **Create the database, if there isn't one yet.**
    - **Neon:** create a project, or use the existing one. Note its production branch and database name.

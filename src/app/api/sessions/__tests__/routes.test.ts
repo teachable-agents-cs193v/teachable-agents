@@ -94,6 +94,41 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     for (const body of bad) expect((await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)))).status).toBe(400);
   });
 
+  // #33: values Postgres would reject must be a 400 from validation, never a 500.
+  it("answers 400 for values the database can't store", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    const msg = (createdAt: string) => [{ id: "m", role: "student", text: "hi", createdAt }];
+    const bad = [
+      { ...update(s), learnerCursor: 3_000_000_000 },
+      { ...update(s), status: "completed", endedAt: "2026" },
+      { ...update(s), status: "completed", endedAt: "1000" },
+      { ...update(s), status: "completed", endedAt: "2026-02-30T00:00:00Z" },
+      { ...update(s), messages: msg("2026") },
+    ];
+    for (const body of bad) {
+      const res = await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)));
+      expect(res.status, JSON.stringify(body)).toBe(400);
+    }
+    const ok = { ...update(s), status: "completed", endedAt: "2026-11-12T02:48:47+05:30", learnerCursor: 2_147_483_647 };
+    expect((await as(cookie, () => put(jsonRequest("PUT", ok), ctx(s.id)))).status).toBe(200);
+  });
+
+  it("limits bodies by bytes, not characters", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    // 600k two-byte characters: under the limit in characters, over it in bytes.
+    const body = { ...update(s), messages: [{ id: "m", role: "student", text: "é".repeat(600_000), createdAt: new Date().toISOString() }] };
+    const req = new Request(`${URL_BASE}/${s.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect((await as(cookie, () => put(req, ctx(s.id)))).status).toBe(413);
+    const declared = new Request(`${URL_BASE}/${s.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "content-length": "5000000" },
+      body: "{}",
+    });
+    expect((await as(cookie, () => put(declared, ctx(s.id)))).status).toBe(413);
+  });
+
   it("saves a transcript and reflection, and finds the active session for a topic", async () => {
     const cookie = await newStudent();
     const older = await startSession(cookie);

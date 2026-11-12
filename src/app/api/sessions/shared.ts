@@ -16,8 +16,10 @@ export async function readJson(request: Request): Promise<{ body: unknown } | Re
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return error("Expected application/json.", 415);
   }
+  // Refuse early when the declared size is too big, then check the real size in bytes.
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return error("Request too large.", 413);
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return error("Request too large.", 413);
+  if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) return error("Request too large.", 413);
   try {
     return { body: JSON.parse(text) };
   } catch {
