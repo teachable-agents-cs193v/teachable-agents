@@ -99,14 +99,14 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 ### Anahi · authentication
 
-- There is no user concept in the UI yet. The natural seam is the `SessionStore`: once a user is known, the store can scope reads and writes to that user without touching components.
-- `Navbar.tsx` is the place for a sign-in/profile control. Pages that should require auth are `/teach/*`, `/reflect/*`, and `/sessions*`.
+- See [`docs/AUTH.md`](docs/AUTH.md) for the auth contract: how to get the current user, which pages and API routes are protected, and the data ownership rules.
 
 ## Documentation
 
 - [`docs/PRODUCT.md`](docs/PRODUCT.md): problem, approach, student journey, design decisions, what is real vs. mocked
 - [`docs/EVALUATION.md`](docs/EVALUATION.md): hypothesis, user-testing protocol, rubric, and how we separate engagement from learning
 - [`docs/CHECKPOINT_1.md`](docs/CHECKPOINT_1.md): Week 8/9 status, demo script, test results, integration plan
+- [`docs/AUTH.md`](docs/AUTH.md): authentication contract (helpers, protected routes, ownership rules, auth tables, env vars)
 
 ## What the demo deliberately does not do
 
