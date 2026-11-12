@@ -6,6 +6,7 @@
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { authSchemaOptions } from "../src/lib/auth/options";
+import { applyAppMigrations } from "./appMigrations";
 import { findPgBin, startThrowawayPostgres } from "./throwawayPostgres";
 
 export default async function setup() {
@@ -24,10 +25,11 @@ export default async function setup() {
     process.env.DATABASE_URL = pg.url;
     // Database tests run only when this flag is set, i.e. only against this throwaway cluster.
     process.env.TEST_THROWAWAY_DB = "1";
-    // Create the auth tables with Better Auth's own migration runner.
+    // Create the auth tables with Better Auth's own migration runner, then ours.
     const pool = new Pool({ connectionString: pg.url });
     try {
       await (await getMigrations(authSchemaOptions(pool))).runMigrations();
+      await applyAppMigrations(pool); // teaching_sessions
     } finally {
       await pool.end();
     }

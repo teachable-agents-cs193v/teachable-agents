@@ -1,7 +1,7 @@
 /**
  * Started by playwright.auth.config.ts (`npm run test:e2e:auth`). Runs:
- *   1. a throwaway Postgres (test/throwawayPostgres.ts) with the auth tables,
- *      created the same way the unit tests do (Better Auth's migration runner);
+ *   1. a throwaway Postgres (test/throwawayPostgres.ts) with the auth and
+ *      teaching_sessions tables, created the same way the unit tests do;
  *   2. a mock Pwned Passwords API that records every request it gets;
  *   3. `next dev` pointed at both, with test-only env values.
  * Everything is deleted when Playwright stops this process. Never touches Neon.
@@ -66,10 +66,12 @@ try {
   pg = await startThrowawayPostgres(bin, "teachable-e2e-pg-");
   const { authSchemaOptions } = await import(repo("src/lib/auth/options.ts"));
   const { getMigrations } = await import("better-auth/db/migration");
+  const { applyAppMigrations } = await import(repo("test/appMigrations.ts"));
   const { Pool } = (await import("pg")).default;
   const pool = new Pool({ connectionString: pg!.url });
   try {
     await (await getMigrations(authSchemaOptions(pool))).runMigrations();
+    await applyAppMigrations(pool); // teaching_sessions
   } finally {
     await pool.end();
   }

@@ -1,7 +1,8 @@
 import type { SessionStore } from "./adapter";
-import { LocalStorageSessionStore } from "./localStorageStore";
+import { HttpSessionStore } from "./httpStore";
 
 export type { SessionStore } from "./adapter";
+export { HttpSessionStore, SessionStoreError } from "./httpStore";
 export { LocalStorageSessionStore, STORAGE_KEY } from "./localStorageStore";
 
 let instance: SessionStore | null = null;
@@ -9,10 +10,11 @@ let instance: SessionStore | null = null;
 /**
  * Single place to swap persistence.
  *
- * Betania: return a database-backed `SessionStore` here. Anahi: once auth
- * exists, the store can scope sessions to the signed-in user internally.
+ * The browser talks to /api/sessions, which stores sessions in Postgres scoped to
+ * the logged-in user (server side: `getUserSessionStore()` in ./server.ts).
+ * `LocalStorageSessionStore` remains as the reference implementation.
  */
 export function getSessionStore(): SessionStore {
-  if (!instance) instance = new LocalStorageSessionStore();
+  if (!instance) instance = new HttpSessionStore();
   return instance;
 }
