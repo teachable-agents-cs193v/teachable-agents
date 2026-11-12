@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "db:generate": "npx --yes auth@1.7.14 generate --config db/auth-schema.config.ts --output db/migrations/0001_auth.sql --yes"
+    "db:generate": "npx --yes auth@1.7.14 generate --config db/auth-schema.config.ts --output db/migrations/0001_auth.sql --yes",
+    "test:e2e:auth": "playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "better-auth": "1.7.14",

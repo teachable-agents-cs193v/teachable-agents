@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "./ui/Button";
 import { Logo } from "./Logo";
+import { AuthNavControl } from "./auth/AuthNavControl";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -40,7 +41,8 @@ export function Navbar() {
             );
           })}
         </ul>
-        <div className="hidden md:block">
+        <div className="hidden md:flex md:items-center md:gap-3">
+          <AuthNavControl />
           <Button href="/topics" size="sm">
             Start Teaching
           </Button>
@@ -72,6 +74,9 @@ export function Navbar() {
                 </Link>
               </li>
             ))}
+            <li className="pt-2">
+              <AuthNavControl layout="menu" onNavigate={() => setOpen(false)} />
+            </li>
             <li className="pt-2">
               <Button href="/topics" className="w-full">
                 Start Teaching
