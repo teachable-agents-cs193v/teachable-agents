@@ -30,6 +30,7 @@ export function createNotebook(pack: TopicPack): Notebook {
       evidence: [],
     })),
     voicedMisconceptionIds: [],
+    moves: [],
     studentTurns: 0,
     lastProcessedMessageId: null,
   };
@@ -139,6 +140,11 @@ export function sanitizeMove(assessment: Assessment, notebook: Notebook): Assess
 export function recordVoiced(notebook: Notebook, misconceptionId: string | null): Notebook {
   if (!misconceptionId || notebook.voicedMisconceptionIds.includes(misconceptionId)) return notebook;
   return { ...notebook, voicedMisconceptionIds: [...notebook.voicedMisconceptionIds, misconceptionId] };
+}
+
+/** Records the move Pip just made. */
+export function recordMove(notebook: Notebook, move: Move): Notebook {
+  return { ...notebook, moves: [...notebook.moves, move] };
 }
 
 /* ---------------------------- What Pip sees ----------------------------- */

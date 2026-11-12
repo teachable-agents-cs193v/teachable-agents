@@ -1,7 +1,7 @@
 /**
  * Data shapes for the teachable learner ("Pip").
  *
- * Division of labour (see docs in ./README.md):
+ * Division of labour:
  * - Every judgment about language is made by a model call with a strong prompt.
  * - Code only stores the model's structured output, decides what each call is
  *   allowed to see, and enforces invariants on structured fields.
@@ -23,6 +23,8 @@ export interface PackConcept {
 export interface PackMisconception {
   id: string;
   conceptId: string;
+  /** Short label for the reflection page, e.g. "Independent events cannot happen at the same time". */
+  label: string;
   /** How Pip would say it, in its own words. Pip sees this: it is something Pip believes. */
   pipBelief: string;
   /** Why it's wrong. Only the assessor sees this. */
@@ -98,6 +100,8 @@ export interface Notebook {
   beliefs: Belief[];
   /** Misconceptions Pip has already said out loud. */
   voicedMisconceptionIds: string[];
+  /** Pip's moves so far, oldest first (the assessor uses these to avoid repeating itself). */
+  moves: Move[];
   /** Number of student messages processed so far. */
   studentTurns: number;
   /** Id of the last student message processed, so a retried request isn't counted twice. */

@@ -55,6 +55,7 @@ export const probabilityPack: TopicPack = {
   misconceptions: [
     {
       id: "independent-means-cannot-co-occur",
+      label: "Independent events cannot happen at the same time",
       conceptId: "independent-can-co-occur",
       pipBelief: "If two events are independent, I think that means they can't happen at the same time.",
       whyWrong:
@@ -64,6 +65,7 @@ export const probabilityPack: TopicPack = {
     },
     {
       id: "same-source-means-dependent",
+      label: "Events drawn from the same source must be dependent",
       conceptId: "multiplication-rule",
       pipBelief:
         "If two events come from the same thing, like the same deck of cards, I think they have to be dependent.",
@@ -74,6 +76,7 @@ export const probabilityPack: TopicPack = {
     },
     {
       id: "exclusive-means-independent",
+      label: "Mutually exclusive events are independent",
       conceptId: "exclusive-implies-dependent",
       pipBelief:
         "If two events can't both happen, like rolling a 2 and rolling a 5 on one roll, I think they don't affect each other, so they're independent.",
