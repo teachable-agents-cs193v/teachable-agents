@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ChatMessage } from "@/components/ChatMessage";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
+import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowLeftIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 
 const CONFIDENCE_LABELS = ["", "Not confident", "A little", "Somewhat", "Fairly", "Very confident"];
@@ -18,6 +19,7 @@ const CONFIDENCE_LABELS = ["", "Not confident", "A little", "Somewhat", "Fairly"
 export function SessionReview({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<TeachingSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +29,11 @@ export function SessionReview({ sessionId }: { sessionId: string }) {
         if (cancelled) return;
         setSession(found);
         setLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Please try again.");
+        setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -34,6 +41,8 @@ export function SessionReview({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   if (loading) return <p className="py-24 text-center text-muted" role="status">Loading session…</p>;
+
+  if (loadError) return <LoadErrorState message={loadError} />;
 
   const topic = session ? getTopic(session.topicId) : undefined;
   if (!session || !topic) {

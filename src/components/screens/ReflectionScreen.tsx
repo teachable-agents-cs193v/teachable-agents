@@ -11,12 +11,15 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ReflectionForm } from "@/components/ReflectionForm";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
+import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowRightIcon, CheckIcon, QuestionIcon, SparkleIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 
 export function ReflectionScreen({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<TeachingSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +28,11 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
       .then((found) => {
         if (cancelled) return;
         setSession(found);
+        setLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Please try again.");
         setLoading(false);
       });
     return () => {
@@ -40,13 +48,15 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
     );
   }
 
+  if (loadError) return <LoadErrorState message={loadError} />;
+
   const topic = session ? getTopic(session.topicId) : undefined;
   if (!session || !topic) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 px-4 py-24 text-center">
         <LearnerAvatar mood="confused" size={88} />
         <h1 className="font-display text-3xl text-forest">That session isn&rsquo;t here.</h1>
-        <p className="text-muted">Sessions live in this browser only. Start a new one from the library.</p>
+        <p className="text-muted">It may have been deleted, or it belongs to a different account. Start a new one from the library.</p>
         <Button href="/topics">Explore topics</Button>
       </div>
     );
@@ -69,7 +79,14 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
 
   const saveReflection = async (reflection: SessionReflection) => {
     const next = { ...session, reflection };
-    await getSessionStore().saveSession(next);
+    setSaveError(null);
+    try {
+      await getSessionStore().saveSession(next);
+    } catch (error) {
+      // The form keeps the student's answers, so they can submit again.
+      setSaveError(error instanceof Error ? error.message : "Your reflection couldn't be saved. Try again.");
+      return;
+    }
     setSession(next);
     setSaved(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -187,6 +204,11 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
             notice what you understand and what you do not.
           </p>
         </div>
+        {saveError && (
+          <p role="alert" className="rounded-2xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-charcoal">
+            <span className="font-medium text-danger">Reflection not saved.</span> {saveError}
+          </p>
+        )}
         <ReflectionForm postSessionPrompt={topic.postSessionPrompt} initial={session.reflection} onSubmit={saveReflection} />
       </section>
 
