@@ -125,6 +125,28 @@ export class PostgresSessionStore implements SessionStore {
     await this.deleteOwnSession(id);
   }
 
+  /**
+   * The server-only learner state for one of this user's sessions (Pip's notebook).
+   * `undefined` if there's no such session; `null` if it has no state yet.
+   * Never returned by GET /api/sessions/[id]: it holds the assessor's hidden verdicts.
+   */
+  async getLearnerState(id: string): Promise<unknown | null | undefined> {
+    const { rows } = await this.pool.query<{ learner_state: unknown }>(
+      `select learner_state from teaching_sessions where id = $1 and user_id = $2`,
+      [id, this.userId],
+    );
+    return rows[0] ? (rows[0].learner_state ?? null) : undefined;
+  }
+
+  /** Saves the learner state; false if there is no such session. Only the turn route calls this. */
+  async saveLearnerState(id: string, state: object): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      `update teaching_sessions set learner_state = $3, updated_at = now() where id = $1 and user_id = $2`,
+      [id, this.userId, JSON.stringify(state)],
+    );
+    return (rowCount ?? 0) > 0;
+  }
+
   /** Deletes one of this user's sessions; false if there is no such session. */
   async deleteOwnSession(id: string): Promise<boolean> {
     const { rowCount } = await this.pool.query(`delete from teaching_sessions where id = $1 and user_id = $2`, [id, this.userId]);
