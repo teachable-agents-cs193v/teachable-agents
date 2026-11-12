@@ -30,7 +30,9 @@ export function MeetLearner({ topic }: { topic: Topic }) {
       .findActiveSession(topic.id)
       .then((found) => {
         if (!cancelled) setActive(found);
-      });
+      })
+      // Without it there's just no "resume" option; starting a new session still works.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

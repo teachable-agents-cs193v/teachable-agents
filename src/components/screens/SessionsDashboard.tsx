@@ -6,10 +6,12 @@ import type { TeachingSession } from "@/lib/types";
 import { SessionCard } from "@/components/SessionCard";
 import { Button } from "@/components/ui/Button";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
+import { LoadErrorState } from "@/components/LoadErrorState";
 import { BookIcon } from "@/components/illustrations/Icons";
 
 export function SessionsDashboard() {
   const [sessions, setSessions] = useState<TeachingSession[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,11 +19,16 @@ export function SessionsDashboard() {
       .listSessions()
       .then((all) => {
         if (!cancelled) setSessions(all);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Please try again.");
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (loadError) return <LoadErrorState message={loadError} />;
 
   if (sessions === null) {
     return (
@@ -76,7 +83,7 @@ export function SessionsDashboard() {
         )}
       </section>
       <p className="text-xs text-muted">
-        Sessions are stored in this browser only. Clearing site data removes them.
+        Sessions are saved to your account, so they follow you to any browser you log in from.
       </p>
     </div>
   );

@@ -58,7 +58,7 @@ export default function HomePage() {
                 </Button>
               </div>
               <p className="text-sm text-muted">
-                No account needed for the demo. Sessions are saved in this browser.
+                Make an account to start. Your sessions are saved to it.
               </p>
             </div>
             <ConversationPreview className="animate-pop lg:rotate-[0.5deg]" />

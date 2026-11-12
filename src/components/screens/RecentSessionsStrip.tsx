@@ -7,7 +7,7 @@ import { SessionCard } from "@/components/SessionCard";
 import { Button } from "@/components/ui/Button";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-/** Landing-page strip showing the most recent sessions, if any exist in this browser. */
+/** Landing-page strip showing the logged-in student's most recent sessions, if any. */
 export function RecentSessionsStrip() {
   const [sessions, setSessions] = useState<TeachingSession[] | null>(null);
 
@@ -17,7 +17,9 @@ export function RecentSessionsStrip() {
       .listSessions()
       .then((all) => {
         if (!cancelled) setSessions(all.slice(0, 2));
-      });
+      })
+      // Logged out (401) or the load failed: the strip is optional, so show nothing.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

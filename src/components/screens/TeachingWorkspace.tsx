@@ -16,13 +16,15 @@ import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { TeachingTips } from "@/components/TeachingTips";
 import { SessionProgress } from "@/components/SessionProgress";
 import { Logo } from "@/components/Logo";
+import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const state = useTeachingSession(sessionId);
-  const { session, topic, learnerStatus, errorMessage, learnerFinished } = state;
+  const { session, topic, learnerStatus, errorKind, errorMessage, learnerFinished } = state;
   const [ending, setEnding] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -39,6 +41,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   }, [session, router]);
 
   if (state.loading) return <WorkspaceShell><LoadingState /></WorkspaceShell>;
+  if (state.loadError) return <WorkspaceShell><LoadErrorState message={state.loadError} /></WorkspaceShell>;
   if (state.notFound || !session || !topic) return <WorkspaceShell><NotFoundState /></WorkspaceShell>;
 
   const subject = getSubject(topic.subjectId);
@@ -50,9 +53,14 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
 
   const endSession = async () => {
     setEnding(true);
-    const ended = await state.endSession();
-    if (ended) router.push(`/reflect/${ended.id}`);
-    else setEnding(false);
+    setEndError(null);
+    try {
+      const ended = await state.endSession();
+      if (ended) return router.push(`/reflect/${ended.id}`);
+    } catch (error) {
+      setEndError(error instanceof Error ? error.message : "The session couldn't be ended. Try again.");
+    }
+    setEnding(false);
   };
 
   const sidebar = (
@@ -122,6 +130,11 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                   <Button size="sm" variant="ghost" onClick={() => setConfirmEnd(false)} disabled={ending}>
                     Keep going
                   </Button>
+                  {endError && (
+                    <span role="alert" className="text-sm text-danger">
+                      {endError}
+                    </span>
+                  )}
                 </div>
               ) : (
                 <Button size="sm" variant={learnerFinished ? "accent" : "outline"} onClick={() => setConfirmEnd(true)}>
@@ -162,7 +175,9 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                   {learnerStatus === "error" && (
                     <li>
                       <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-charcoal">
-                        <span className="font-medium text-danger">{PIP.name} couldn&rsquo;t respond.</span>
+                        <span className="font-medium text-danger">
+                          {errorKind === "save" ? "Not saved yet." : `${PIP.name} couldn\u2019t respond.`}
+                        </span>
                         <span className="text-muted">{errorMessage}</span>
                         <Button size="sm" variant="outline" onClick={() => void state.retry()}>Try again</Button>
                       </div>
@@ -226,8 +241,8 @@ function NotFoundState() {
       <LearnerAvatar mood="confused" size={88} />
       <h1 className="font-display text-3xl text-forest">We couldn&rsquo;t find that session.</h1>
       <p className="text-muted">
-        Sessions are stored in this browser. If you cleared your data or opened the link somewhere else, it
-        will not be here.
+        It may have been deleted, or it belongs to a different account. Your sessions are saved to the account
+        you&rsquo;re logged in with.
       </p>
       <div className="flex gap-3">
         <Button href="/topics">Start a new session</Button>
