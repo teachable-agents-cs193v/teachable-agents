@@ -42,6 +42,8 @@ export interface LlmConfig {
   timeoutMs?: number;
   /** Attempts per call, including the first. */
   attempts?: number;
+  /** Longest wait between attempts after a rate limit. Keep short in the app; the eval harness raises it. */
+  maxRetryWaitMs?: number;
 }
 
 /** Reads LLM_BASE_URL, LLM_API_KEY and LLM_MODEL. Returns null when any is missing. */
@@ -56,10 +58,10 @@ export function llmConfigFromEnv(env: Record<string, string | undefined> = proce
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Seconds to wait from a Retry-After header, capped so a request never hangs for long. */
-function retryAfterMs(response: Response, attempt: number): number {
+function retryAfterMs(response: Response, attempt: number, cap: number): number {
   const header = Number(response.headers.get("retry-after"));
   const base = Number.isFinite(header) && header > 0 ? header * 1000 : 1000 * 2 ** attempt;
-  return Math.min(base, 8000);
+  return Math.min(base, cap);
 }
 
 export class OpenAiCompatibleModel implements JsonModel {
@@ -113,7 +115,7 @@ export class OpenAiCompatibleModel implements JsonModel {
     }
 
     if (response.status === 429 || response.status >= 500) {
-      await sleep(retryAfterMs(response, 0));
+      await sleep(retryAfterMs(response, 0, this.config.maxRetryWaitMs ?? 8000));
       throw new LlmError(`${options.label}: provider returned ${response.status}`, true);
     }
     if (!response.ok) {
