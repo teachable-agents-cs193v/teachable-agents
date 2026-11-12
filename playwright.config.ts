@@ -13,9 +13,12 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `npm run dev -- -p ${PORT}`,
+    // Run against a production build rather than `next dev`: dev compiles each
+    // route on first visit and can live-reload the page mid-test, which made
+    // the student flow flaky on a cold `.next` (#30).
+    command: `npm run build && npm run start -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 });
