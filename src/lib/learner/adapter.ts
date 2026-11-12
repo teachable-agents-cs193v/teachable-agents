@@ -5,6 +5,8 @@ import type { ChatMessage, LearnerReply, Topic } from "../types";
  * A real backend would send `messages` (the transcript so far) to a model.
  */
 export interface LearnerContext {
+  /** The session being taught. Server-backed learners look the session up by this. */
+  sessionId?: string;
   topic: Topic;
   messages: ChatMessage[];
   /** Adapter-specific position marker stored on the session. */
