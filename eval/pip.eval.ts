@@ -44,53 +44,60 @@ describe.skipIf(!config)("Pip live eval", () => {
     it(scenario.id, async () => {
       let state: TeachableState = initialState(pack);
       const messages: ChatMessage[] = [];
-      const opening = await runOpening({ pack, state, model: pip });
-      state = opening.state;
-      messages.push({ id: "l0", role: "learner", text: opening.reply.text, createdAt: "" });
-      const turns: TurnRecord[] = [];
-      let wrappedUp = false;
-
-      for (const [i, text] of scenario.student.entries()) {
-        const before = pipView(state.notebook);
-        const conversation = [...messages];
-        messages.push({ id: `s${i}`, role: "student", text, createdAt: "" });
-        const result = await runTurn({ pack, state, messages, model: pip });
-        state = result.state;
-        messages.push({ id: `l${i + 1}`, role: "learner", text: result.reply.text, createdAt: "" });
-        if (result.reply.isFinal) wrappedUp = true;
-        const a = state.lastAssessment!;
-        const verdict = await judgeReply(judge, {
-          pack,
-          notebookBefore: before,
-          conversation,
-          studentText: text,
-          move: a.move,
-          moveNote: a.moveNote,
-          pipText: result.reply.text,
-        });
-        turns.push({
-          student: text,
-          pip: result.reply.text,
-          move: a.move,
-          moveNote: a.moveNote,
-          analysis: a.analysis,
-          corrections: a.corrections.map((c) => `${c.misconceptionId}${c.targeted ? "+targeted" : ""}${c.explained ? "+explained" : ""}`).join(", "),
-          claims: a.claims.map((c) => `${c.correctness}${c.explained ? "/explained" : ""}: ${c.pipStatement}`).join(" | "),
-          verdict,
-        });
-      }
-
       const stateFailures: string[] = [];
-      for (const [id, status] of Object.entries(scenario.expectMisconceptions ?? {})) {
-        const actual = state.notebook.beliefs.find((b) => b.misconceptionId === id)?.status;
-        if (actual !== status) stateFailures.push(`${id}: expected ${status}, got ${actual}`);
-      }
-      if (scenario.expectNoWrapUp && wrappedUp) stateFailures.push("wrapped up unexpectedly");
+      const turns: TurnRecord[] = [];
       report[scenario.id] = { purpose: scenario.purpose, turns, stateFailures };
+      try {
+        await play();
+      } catch (error) {
+        stateFailures.push(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+      }
       write(report);
-
       const issues = turns.flatMap((t, i) => ISSUES.filter((k) => t.verdict[k]).map((k) => `turn ${i + 1}: ${k}`));
       expect({ issues, stateFailures }).toEqual({ issues: [], stateFailures: [] });
+
+      async function play() {
+        const opening = await runOpening({ pack, state, model: pip });
+        state = opening.state;
+        messages.push({ id: "l0", role: "learner", text: opening.reply.text, createdAt: "" });
+        let wrappedUp = false;
+
+        for (const [i, text] of scenario.student.entries()) {
+          const before = pipView(state.notebook);
+          const conversation = [...messages];
+          messages.push({ id: `s${i}`, role: "student", text, createdAt: "" });
+          const result = await runTurn({ pack, state, messages, model: pip });
+          state = result.state;
+          messages.push({ id: `l${i + 1}`, role: "learner", text: result.reply.text, createdAt: "" });
+          if (result.reply.isFinal) wrappedUp = true;
+          const a = state.lastAssessment!;
+          const verdict = await judgeReply(judge, {
+            pack,
+            notebookBefore: before,
+            conversation,
+            studentText: text,
+            move: a.move,
+            moveNote: a.moveNote,
+            pipText: result.reply.text,
+          });
+          turns.push({
+            student: text,
+            pip: result.reply.text,
+            move: a.move,
+            moveNote: a.moveNote,
+            analysis: a.analysis,
+            corrections: a.corrections.map((c) => `${c.misconceptionId}${c.targeted ? "+targeted" : ""}${c.explained ? "+explained" : ""}`).join(", "),
+            claims: a.claims.map((c) => `${c.correctness}${c.explained ? "/explained" : ""}: ${c.pipStatement}`).join(" | "),
+            verdict,
+          });
+        }
+
+        for (const [id, status] of Object.entries(scenario.expectMisconceptions ?? {})) {
+          const actual = state.notebook.beliefs.find((b) => b.misconceptionId === id)?.status;
+          if (actual !== status) stateFailures.push(`${id}: expected ${status}, got ${actual}`);
+        }
+        if (scenario.expectNoWrapUp && wrappedUp) stateFailures.push("wrapped up unexpectedly");
+      }
     }, 900_000);
   }
 });

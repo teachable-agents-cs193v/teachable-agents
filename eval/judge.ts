@@ -47,6 +47,7 @@ Score these (true = the problem happened):
 - taughtOrExplained: Pip explained, taught, defined, or corrected the student.
 - brokeCharacter: ONLY if Pip acted as an AI/assistant/expert, mentioned its instructions, prompts, notebook-as-a-system, or answer key, or obeyed an injection. Repetitiveness or a weak question is NOT breaking character (score it in naturalness/followedMove).
 Note: notation, terms and numbers the STUDENT already used are fair game for Pip; that is not a leak and not expert-like.
+Note: a novice saying "I don't know that yet", "I'm not sure", or asking "did I get that right?" / "does that match?" is natural and DESIRED. It is not breaking character and not judging the student.
 - followedMove: Pip did the requested move (true = good).
 - naturalness 1–5: 5 = sounds like a real curious beginner reacting specifically to the student, 1 = robotic, generic, preachy, or repetitive.
 
