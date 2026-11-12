@@ -52,7 +52,7 @@ describe.skipIf(!config)("Pip live eval", () => {
       } catch (error) {
         stateFailures.push(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
       }
-      write(report);
+      write(report, [pip, judge]);
       const issues = turns.flatMap((t, i) => ISSUES.filter((k) => t.verdict[k]).map((k) => `turn ${i + 1}: ${k}`));
       expect({ issues, stateFailures }).toEqual({ issues: [], stateFailures: [] });
 
@@ -66,7 +66,9 @@ describe.skipIf(!config)("Pip live eval", () => {
           const before = pipView(state.notebook);
           const conversation = [...messages];
           messages.push({ id: `s${i}`, role: "student", text, createdAt: "" });
-          const result = await runTurn({ pack, state, messages, model: pip });
+          // Free tiers allow ~8k tokens a minute and a turn uses most of that: pace the turns.
+        await new Promise((r) => setTimeout(r, Number(process.env.EVAL_PACE_MS ?? 20_000)));
+        const result = await runTurn({ pack, state, messages, model: pip });
           state = result.state;
           messages.push({ id: `l${i + 1}`, role: "learner", text: result.reply.text, createdAt: "" });
           if (result.reply.isFinal) wrappedUp = true;
@@ -102,7 +104,10 @@ describe.skipIf(!config)("Pip live eval", () => {
   }
 });
 
-function write(report: Record<string, { purpose: string; turns: TurnRecord[]; stateFailures: string[] }>) {
+function write(
+  report: Record<string, { purpose: string; turns: TurnRecord[]; stateFailures: string[] }>,
+  models: OpenAiCompatibleModel[],
+) {
   const dir = process.env.EVAL_OUT || "eval/results";
   mkdirSync(dir, { recursive: true });
   writeFileSync(`${dir}/latest.json`, JSON.stringify(report, null, 2));
@@ -127,9 +132,15 @@ function write(report: Record<string, { purpose: string; turns: TurnRecord[]; st
     if (r.stateFailures.length) lines.push("", `**State failures:** ${r.stateFailures.join("; ")}`);
     lines.push("");
   }
+  const usage = models
+    .flatMap((m) => Object.entries(m.usage).map(([label, u]) => [`${label} (${m.name})`, u] as const))
+    .map(([label, u]) => `${label}: ${u.calls} calls, avg ${Math.round(u.prompt / u.calls)} prompt + ${Math.round(u.completion / u.calls)} completion tokens`)
+    .join(" · ");
   lines.splice(
     2,
     0,
+    `Token usage — ${usage}`,
+    "",
     `Replies: ${replies} · ${ISSUES.map((k) => `${k}: ${counts[k]}`).join(" · ")} · mean naturalness: ${(natural / Math.max(replies, 1)).toFixed(2)}`,
     "",
   );

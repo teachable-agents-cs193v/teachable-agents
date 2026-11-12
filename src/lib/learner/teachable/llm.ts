@@ -60,12 +60,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Seconds to wait from a Retry-After header, capped so a request never hangs for long. */
 function retryAfterMs(response: Response, attempt: number, cap: number): number {
   const header = Number(response.headers.get("retry-after"));
-  const base = Number.isFinite(header) && header > 0 ? header * 1000 : 1000 * 2 ** attempt;
+  const backoff = 1000 * 2 ** attempt;
+  const base = Number.isFinite(header) && header > 0 ? Math.max(header * 1000, backoff) : backoff;
   return Math.min(base, cap);
 }
 
 export class OpenAiCompatibleModel implements JsonModel {
   readonly name: string;
+  /** Tokens used so far by this client, per call label (for the eval report and quota planning). */
+  readonly usage: Record<string, { calls: number; prompt: number; completion: number }> = {};
 
   constructor(
     private readonly config: LlmConfig,
@@ -79,7 +82,7 @@ export class OpenAiCompatibleModel implements JsonModel {
     let lastError: LlmError | null = null;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        return await this.once(messages, options);
+        return await this.once(messages, options, attempt);
       } catch (error) {
         lastError = error instanceof LlmError ? error : new LlmError(String(error), true);
         if (!lastError.retryable || attempt === attempts - 1) break;
@@ -88,7 +91,7 @@ export class OpenAiCompatibleModel implements JsonModel {
     throw lastError ?? new LlmError(`${options.label}: no response`, false);
   }
 
-  private async once(messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
+  private async once(messages: ChatTurn[], options: JsonCallOptions, attempt: number): Promise<unknown> {
     const body: Record<string, unknown> = {
       model: this.config.model,
       messages,
@@ -115,7 +118,7 @@ export class OpenAiCompatibleModel implements JsonModel {
     }
 
     if (response.status === 429 || response.status >= 500) {
-      await sleep(retryAfterMs(response, 0, this.config.maxRetryWaitMs ?? 8000));
+      await sleep(retryAfterMs(response, attempt, this.config.maxRetryWaitMs ?? 8000));
       throw new LlmError(`${options.label}: provider returned ${response.status}`, true);
     }
     if (!response.ok) {
@@ -123,7 +126,14 @@ export class OpenAiCompatibleModel implements JsonModel {
       throw new LlmError(`${options.label}: provider returned ${response.status}`, response.status === 400);
     }
 
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
+    const data = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
+    const used = (this.usage[options.label] ??= { calls: 0, prompt: 0, completion: 0 });
+    used.calls += 1;
+    used.prompt += data.usage?.prompt_tokens ?? 0;
+    used.completion += data.usage?.completion_tokens ?? 0;
     const content = data.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
       throw new LlmError(`${options.label}: empty response`, true);
