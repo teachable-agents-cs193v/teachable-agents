@@ -110,6 +110,10 @@ try {
       BETTER_AUTH_SECRET: "test-only-e2e-secret-not-used-anywhere-else-0123",
       BETTER_AUTH_URL: `http://localhost:${APP_PORT}`,
       PWNED_PASSWORDS_API_URL: `http://127.0.0.1:${MOCK_PORT}/range/`,
+      // Browser tests use the scripted Pip, even if .env.local has a model key
+      // (env vars set here win over .env.local). E2E_AI_LEARNER=1 opts in to the
+      // real model for e2e/ai-learner.spec.ts.
+      ...(process.env.E2E_AI_LEARNER === "1" ? {} : { LLM_API_KEY: "" }),
     },
   });
   next.stdout!.pipe(log);
