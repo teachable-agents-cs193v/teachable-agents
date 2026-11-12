@@ -3,10 +3,12 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { SessionsDashboard } from "@/components/screens/SessionsDashboard";
 import { Button } from "@/components/ui/Button";
+import { requireUser } from "@/lib/auth/server";
 
 export const metadata: Metadata = { title: "My sessions" };
 
-export default function SessionsPage() {
+export default async function SessionsPage() {
+  await requireUser("/sessions");
   return (
     <>
       <Navbar />

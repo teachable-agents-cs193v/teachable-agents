@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { signUpTestStudent } from "../e2e-auth/signIn";
+
+// Teaching pages require a login: each test starts as a fresh, logged-in student.
+test.beforeEach(async ({ page, baseURL }) => signUpTestStudent(page, baseURL));
 
 /**
  * Walks the complete student journey against the scripted demo learner:
