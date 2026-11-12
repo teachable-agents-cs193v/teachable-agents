@@ -11,10 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "db:generate": "npx --yes auth@1.7.14 generate --config db/auth-schema.config.ts --output db/migrations/0001_auth.sql --yes"
   },
   "dependencies": {
+    "better-auth": "1.7.14",
     "next": "16.4.6",
+    "pg": "8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "0.0.1",
@@ -24,6 +27,7 @@
     "@playwright/test": "^1.62.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^24.19.2",
+    "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/zxcvbn": "4.4.5",
