@@ -81,6 +81,16 @@ describe("applyAssessment", () => {
     expect(belief.evidence).toEqual([3]);
   });
 
+  it("accepts a misconception's belief id where its misconception id is expected", () => {
+    const { notebook } = applyAssessment(
+      createNotebook(pack),
+      assessment({ corrections: [{ misconceptionId: "m:" + MISC, targeted: true, explained: true }] }),
+      pack,
+      student(0),
+    );
+    expect(notebook.beliefs.find((b) => b.misconceptionId === MISC)!.status).toBe("corrected");
+  });
+
   it("upgrades a heard belief to understood when the assessor says it's now explained", () => {
     const first = applyAssessment(
       createNotebook(pack),

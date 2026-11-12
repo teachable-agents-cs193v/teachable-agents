@@ -8,7 +8,7 @@
 import type { ChatMessage, LearnerMood, LearnerReply, LearnerTurnKind } from "../../types";
 import type { JsonModel } from "./llm";
 import { LlmError } from "./llm";
-import { applyAssessment, createNotebook, recordMove, recordVoiced } from "./notebook";
+import { applyAssessment, createNotebook, pipView, recordMove, recordVoiced } from "./notebook";
 import { assessorMessages, replyMessages } from "./prompts";
 import type { AssessedClaim, Assessment, Move, Notebook, PipReply, TaughtCorrectly, TopicPack } from "./types";
 import { MOVES } from "./types";
@@ -178,6 +178,9 @@ export async function runTurn(args: {
   const assessment = applied.assessment;
 
   const target = notebook.beliefs.find((b) => b.id === assessment.moveTarget || b.misconceptionId === assessment.moveTarget);
+  const beforeStatus = new Map(state.notebook.beliefs.map((b) => [b.id, b.status]));
+  const changedIds = new Set(notebook.beliefs.filter((b) => beforeStatus.get(b.id) !== b.status).map((b) => b.id));
+  const changed = pipView(notebook).filter((b) => changedIds.has(b.id));
   const reply = await callJson(
     model,
     () =>
@@ -191,6 +194,7 @@ export async function runTurn(args: {
           move: assessment.move,
           moveNote: assessment.moveNote,
           targetStatement: target?.statement ?? null,
+          changed,
         }),
         { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 700 },
       ),

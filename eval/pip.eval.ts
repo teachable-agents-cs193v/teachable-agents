@@ -29,6 +29,8 @@ interface TurnRecord {
   move: string;
   moveNote: string;
   analysis: string;
+  corrections: string;
+  claims: string;
   verdict: Verdict;
 }
 
@@ -66,7 +68,16 @@ describe.skipIf(!config)("Pip live eval", () => {
           moveNote: a.moveNote,
           pipText: result.reply.text,
         });
-        turns.push({ student: text, pip: result.reply.text, move: a.move, moveNote: a.moveNote, analysis: a.analysis, verdict });
+        turns.push({
+          student: text,
+          pip: result.reply.text,
+          move: a.move,
+          moveNote: a.moveNote,
+          analysis: a.analysis,
+          corrections: a.corrections.map((c) => `${c.misconceptionId}${c.targeted ? "+targeted" : ""}${c.explained ? "+explained" : ""}`).join(", "),
+          claims: a.claims.map((c) => `${c.correctness}${c.explained ? "/explained" : ""}: ${c.pipStatement}`).join(" | "),
+          verdict,
+        });
       }
 
       const stateFailures: string[] = [];
@@ -102,6 +113,7 @@ function write(report: Record<string, { purpose: string; turns: TurnRecord[]; st
       lines.push(
         `- **Student:** ${t.student}`,
         `  - **Pip** (${t.move}): ${t.pip}`,
+        `  - assessor: ${t.analysis}${t.corrections ? ` · corrections: ${t.corrections}` : ""}${t.claims ? ` · claims: ${t.claims}` : ""}`,
         `  - judge: ${flags.length ? "⚠ " + flags.join(", ") : "ok"} · natural ${t.verdict.naturalness} · ${t.verdict.notes}${t.verdict.leakDetail ? ` · leak: "${t.verdict.leakDetail}"` : ""}`,
       );
     }

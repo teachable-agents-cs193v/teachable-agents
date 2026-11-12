@@ -14,6 +14,9 @@ export const MAX_BELIEFS = 40;
 
 const misconceptionBeliefId = (misconceptionId: string) => `m:${misconceptionId}`;
 
+/** Models sometimes echo a misconception's belief id ("m:x") where its misconception id ("x") is wanted. */
+export const toMisconceptionId = (id: string) => id.replace(/^m:/, "");
+
 /** A fresh notebook: Pip starts out holding the topic's misconceptions and nothing else. */
 export function createNotebook(pack: TopicPack): Notebook {
   return {
@@ -60,7 +63,7 @@ export function applyAssessment(
   let beliefs = notebook.beliefs.map((b) => ({ ...b, evidence: [...b.evidence] }));
 
   for (const correction of assessment.corrections) {
-    const belief = beliefs.find((b) => b.misconceptionId === correction.misconceptionId);
+    const belief = beliefs.find((b) => b.misconceptionId === toMisconceptionId(correction.misconceptionId));
     if (!belief || belief.status !== "misconception") continue;
     belief.evidence.push(student.index);
     if (correction.targeted && correction.explained) belief.status = "corrected";
