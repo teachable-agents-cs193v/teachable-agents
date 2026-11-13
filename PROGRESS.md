@@ -33,7 +33,27 @@ Each team member adds their own section below.
 
 ### Database (Betania)
 
-TODO (Betania)
+**Progress so far**
+- This week, I worked on using PostgreSQL for the storage of teaching sessions. By allowing teaching sessions to use PostgreSQL, sessions can now be saved across browser sessions, and all session data is stored using JSONB and associated with a specific user (#17, PR #32).
+- I also implemented checks to ensure that users can only modify or access their own sessions, preventing unauthorized access.
+- I also worked on error handling, like restricting which fields can be changed in PR #32 and making sure invalid data returns a 400 error instead of a 500 error in PR #35 (#33). I also improved how screens handle failed loading and saving, along with adding tests (#34, PR #36).
+- I worked on making sure session IDs are generated securely (#19, PR #37).
+- I also reviewed Anahi's PRs #23 and #28, which focused on the authentication contract and database migration.
+
+**What we learned**
+- The biggest thing I learned was that I became a lot more comfortable with managing a database, particularly PostgreSQL through Neon, which will help me with future software applications as well.
+- I also learned more about how to connect a database to backend API routes and how to make sure users can only access their own data.
+
+**Changes from proposal**
+- There were no major changes, as I was mainly responsible for backend development and database design, such as managing data storage, and I was able to work on implementing PostgreSQL storage for the application.
+
+**Problems**
+- I initially had a challenge with connecting the database to our codebase, and we still need to verify that the production database is properly configured and can be used throughout different parts of the application.
+
+**Contributions and next steps**
+- I completed PRs #32, #35, #36, and #37, focusing on database storage, validation, error handling, and secure session IDs.
+- For Week 9, I plan to focus on verifying the production database and improving error handling for issue #22.
+- I will know these tasks are complete when a session saved on the live site can still be accessed after logging out and back in, and when users see a clear error message with a retry option while detailed errors are only shown in the server logs.
 
 ### Frontend (Arielle)
 
