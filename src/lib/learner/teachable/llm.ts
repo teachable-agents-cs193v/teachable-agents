@@ -118,8 +118,11 @@ export class OpenAiCompatibleModel implements JsonModel {
     }
 
     if (response.status === 429 || response.status >= 500) {
+      const retryAfter = response.headers.get("retry-after");
       await sleep(retryAfterMs(response, attempt, this.config.maxRetryWaitMs ?? 8000));
-      throw new LlmError(`${options.label}: provider returned ${response.status}`, true);
+      // Retry-After tells a per-minute limit (seconds) from a daily one (minutes or more).
+      const hint = retryAfter ? ` (retry after ${retryAfter}s)` : "";
+      throw new LlmError(`${options.label}: provider returned ${response.status}${hint}`, true);
     }
     if (!response.ok) {
       // Never include the response body: some providers echo request headers.
