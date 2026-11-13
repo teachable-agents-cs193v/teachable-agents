@@ -27,7 +27,8 @@ test("a student teaches the AI learner and the session survives a reload", async
   const log = page.getByRole("log");
   const learner = log.locator("[data-role=learner]");
   await expect(learner.first()).not.toBeEmpty({ timeout: 60_000 });
-  await expect(page.getByText("AI learner", { exact: true })).toBeVisible();
+  // The note is in both the mobile and desktop sidebars; only one is visible.
+  await expect(page.getByText("AI learner", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByText("Demo mode")).toHaveCount(0);
 
   const composer = page.getByLabel("Your message to Pip");
