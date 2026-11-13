@@ -62,6 +62,7 @@ Students sign up with a name, email and password, then log in and out. The teach
    ```
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql
    ```
 4. Run `npm install`, then `npm run dev`.
 

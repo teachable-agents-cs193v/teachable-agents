@@ -12,7 +12,7 @@ Pip only knows what the student teaches it in the session, including any mistake
    LLM_MODEL=openai/gpt-oss-120b
    ```
 3. Apply the migration to your database: `psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql`
-4. `npm run dev`, then start a session on **Independence vs. Mutual Exclusivity**. The note under the teaching tips says "AI learner" when the model is answering.
+4. `npm run dev`, then start a session on any topic. The note under the teaching tips says "AI learner" when the model is answering.
 
 With no key, or on a topic without a topic pack, Pip falls back to the scripted demo learner. Nothing breaks.
 
@@ -48,7 +48,7 @@ student message ─► ASSESSOR (model call, sees the hidden answer key)
 
 ## Adding a topic
 
-Write a pack in `src/lib/learner/teachable/packs/` with the same shape as `probability.ts`, register it in `packs/index.ts`, and add scenarios for it in `eval/scenarios.ts`. A model can draft the pack, but a person must check every concept and misconception.
+Write a pack in `src/lib/learner/teachable/packs/` with the same shape as `probability.ts`, register it in `packs/index.ts`, and add scenarios for it in `eval/scenarios.ts` (the current scenarios cover the probability topic only). A model can draft the pack, but a person must check every concept and misconception.
 
 ## Evaluating Pip
 
