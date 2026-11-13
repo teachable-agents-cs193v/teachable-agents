@@ -61,4 +61,21 @@ TODO (Arielle)
 
 ### Deployment and AI features (Chase)
 
-TODO (Chase)
+**Progress so far**
+- Built the AI learner (PR #42). Pip now runs on a real model (Groq, free tier) instead of the script.
+- Pip keeps a notebook of what it believes. It starts with 3 misconceptions per topic and only drops one when the student explains why it's wrong.
+- Added answer keys for all 5 topics, and an eval with 12 fake students that try to break Pip. Last run: Pip never leaked an answer or taught the student.
+- Merged the team's PRs.
+
+**What we learned**
+- One prompt can't make a model act like it doesn't know something. Splitting the model call that knows the answers from the one that talks fixed that.
+
+**Changes from proposal**
+- Switched from Gemini to Groq since Gemini isn't available on our Stanford accounts.
+
+**Problems**
+- The free quota is too small for class-size user tests. Need more accounts or API credits.
+
+**Contributions and next steps**
+- PR #42 (AI learner), plus merging teammates' PRs.
+- Week 9: get #42 merged (Betania applies migration 0003 first), deploy to Vercel, and rerun the eval.
