@@ -62,6 +62,7 @@ Students sign up with a name, email and password, then log in and out. The teach
    ```
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql
    ```
 4. Run `npm install`, then `npm run dev`.
 
@@ -137,6 +138,8 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 ### Chase · AI learner
 
+**Pip is now an AI learner.** See [`docs/AI_LEARNER.md`](docs/AI_LEARNER.md) for setup (a free Groq key in `.env.local`), how a turn works, and `npm run eval`. Without a key, the scripted learner described below still runs.
+
 - Interface: `LearnerAdapter` in `src/lib/learner/adapter.ts` with `open(context)` and `respond(context)`. The context carries the topic, the full transcript, the student's latest message, and an opaque numeric `cursor` stored on the session.
 - Return a `LearnerReply` (`text`, `kind`, `mood`, optional `concept` / `misconception`, `isFinal`, `nextCursor`). `concept` and `misconception` feed the reflection page, so if the model can tag its turns, the reflection screen lights up automatically.
 - Swap it in `getLearnerAdapter()` in `src/lib/learner/index.ts`. Keep the API key server-side (for example a route handler under `src/app/api/learner/`) and have the adapter call it.
@@ -160,6 +163,7 @@ The UI never talks to a model or a database directly. Each concern has one inter
 - [`docs/EVALUATION.md`](docs/EVALUATION.md): hypothesis, user-testing protocol, rubric, and how we separate engagement from learning
 - [`docs/CHECKPOINT_1.md`](docs/CHECKPOINT_1.md): Week 8/9 status, demo script, test results, integration plan
 - [`docs/AUTH.md`](docs/AUTH.md): authentication contract (helpers, protected routes, ownership rules, auth tables, env vars)
+- [`docs/AI_LEARNER.md`](docs/AI_LEARNER.md): the AI learner: setup, how a turn works, adding topics, evaluation
 
 ## What the demo deliberately does not do
 

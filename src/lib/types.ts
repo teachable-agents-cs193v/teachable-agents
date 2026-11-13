@@ -76,6 +76,8 @@ export interface LearnerReply {
   isFinal: boolean;
   /** Opaque adapter state carried on the session (e.g. script index). */
   nextCursor: number;
+  /** Which learner produced this reply, when the adapter knows (the server-side learner does). */
+  learner?: { id: string; displayName: string };
 }
 
 export type SessionStatus = "in_progress" | "completed";

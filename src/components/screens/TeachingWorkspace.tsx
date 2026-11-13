@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTeachingSession } from "@/lib/hooks/useTeachingSession";
-import { PIP, getLearnerAdapter } from "@/lib/learner";
+import { PIP } from "@/lib/learner";
 import { accentStyle, getSubject } from "@/lib/subjects";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -49,7 +49,6 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const studentMessages = session.messages.filter((m) => m.role === "student").length;
   const learnerMessages = session.messages.length - studentMessages;
   const latestMood = [...session.messages].reverse().find((m) => m.role === "learner")?.mood ?? "curious";
-  const adapter = getLearnerAdapter();
 
   const endSession = async () => {
     setEnding(true);
@@ -79,14 +78,24 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
         <p className="mt-1 text-[15px] leading-relaxed text-charcoal/90">{topic.learningObjective}</p>
       </section>
       <TeachingTips tips={topic.teachingTips} compact />
-      <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
-        <p className="font-semibold text-charcoal/80">Demo mode</p>
-        <p className="mt-1">
-          {PIP.name} is powered by the <em>{adapter.displayName}</em>. It follows a fixed sequence of
-          questions and mistakes for this topic and does not interpret your exact wording. The real AI
-          learner will replace this adapter.
-        </p>
-      </section>
+      {state.learnerInfo?.id === "teachable" ? (
+        <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
+          <p className="font-semibold text-charcoal/80">AI learner</p>
+          <p className="mt-1">
+            {PIP.name} only knows what you teach it in this session, including any mistakes. It is an AI
+            and can still misunderstand you, so check what it says back.
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
+          <p className="font-semibold text-charcoal/80">Demo mode</p>
+          <p className="mt-1">
+            {PIP.name} is powered by the <em>{state.learnerInfo?.displayName ?? "Scripted demo learner"}</em>. It
+            follows a fixed sequence of questions and mistakes for this topic and does not interpret your exact
+            wording.
+          </p>
+        </section>
+      )}
     </div>
   );
 

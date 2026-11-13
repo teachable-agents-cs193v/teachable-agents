@@ -24,6 +24,7 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    read -rs DB_DIRECT_URL && export DB_DIRECT_URL     # paste the DIRECT string; hidden, not saved to history
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql
    psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions
    unset DB_DIRECT_URL
    ```

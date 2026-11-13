@@ -24,6 +24,8 @@ export interface TeachingSessionState {
   errorMessage: string | null;
   /** True once the learner has signalled it has nothing further to ask. */
   learnerFinished: boolean;
+  /** Which learner answered last ("teachable" or "scripted-demo"), once known. */
+  learnerInfo: { id: string; displayName: string } | null;
   sendMessage: (text: string) => Promise<void>;
   retry: () => Promise<void>;
   /** Saves the session as completed. Throws a SessionStoreError if the save fails. */
@@ -66,6 +68,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
   const [errorKind, setErrorKind] = useState<SessionErrorKind | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [learnerFinished, setLearnerFinished] = useState(false);
+  const [learnerInfo, setLearnerInfo] = useState<{ id: string; displayName: string } | null>(null);
   const pendingRef = useRef<Pending | null>(null);
 
   const topic = session ? (getTopic(session.topicId) ?? null) : null;
@@ -112,6 +115,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       try {
         const adapter = getLearnerAdapter();
         const context = {
+          sessionId: current.id,
           topic: currentTopic,
           messages: current.messages,
           cursor: current.learnerCursor,
@@ -128,6 +132,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
         learnerCursor: reply.nextCursor,
       };
       setLearnerFinished(reply.isFinal);
+      if (reply.learner) setLearnerInfo(reply.learner);
       if (await persist(next, "saveLearner")) succeed();
     },
     [fail, persist, succeed],
@@ -215,6 +220,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     errorKind,
     errorMessage,
     learnerFinished,
+    learnerInfo,
     sendMessage,
     retry,
     endSession,
