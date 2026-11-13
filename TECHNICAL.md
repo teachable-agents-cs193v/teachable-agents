@@ -10,7 +10,11 @@ Each team member adds their own section below.
 - Helpers for teammates: `getCurrentUser()`, `requireUser()` for pages (sends logged-out users to login), and `requireApiUser()` for API routes (answers 401). A test fails if a new page is neither protected nor marked public.
 
 **Stored information**
-TODO (Anahi)
+- Auth stores data in our Postgres database:
+  - `users`: each student's name and email.
+  - `auth_session`: login records, so the app knows who is logged in and shows each student only their own teaching sessions. Better Auth also records the IP address and browser info for each login.
+  - `auth_account`: the password, stored only as a one-way hash. The plain-text password is never stored or logged.
+- In the browser, auth only keeps the login cookie.
 
 **Secrets and user information**
 - `BETTER_AUTH_SECRET` (signs login cookies) and `DATABASE_URL` (includes the database password) live only in Vercel and in each person's git-ignored `.env.local`. gitleaks hooks and the CI scan catch accidental commits.
@@ -18,7 +22,8 @@ TODO (Anahi)
 - Every PR gets CI checks plus AI code and security reviews before a teammate approves it.
 
 **Open questions**
-TODO (Anahi)
+- Signup shows whether an email already has an account. We accepted this because we don't have email verification, and we'll revisit it if we add verification.
+- Login attempts are rate-limited, but each server instance keeps its own count, so the limit isn't shared. Next step: decide in Week 9 whether to store the count in the database instead.
 
 ### Database (Betania)
 

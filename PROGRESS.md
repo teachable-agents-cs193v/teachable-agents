@@ -25,7 +25,11 @@ Each team member adds their own section below.
 - #30 / #38: Arielle's browser tests are flaky in development mode. A production build fixes it, and Arielle is updating her PR.
 
 **Contributions and next steps**
-TODO (Anahi)
+- My PRs: #23 (auth contract), #24 (CI), #25 (gitleaks), #26 (password checks), #27 (core auth), #28 (auth database setup), #29 (login and signup pages) and #31 (protected pages).
+- I reviewed Betania's #32, which saves teaching sessions in our database so each student only sees their own, and turned my review notes into issues (#33, #34). I also coordinated the merge order and reviewer split for our stacked PRs.
+- Week 9: work with Arielle to finish #38, which fixes the flaky browser tests in #30. Her fix needs to move into the shared test server I set up (e2e-auth/server.mts), so we'll do it together.
+- Week 9 (smaller): the tooling issues assigned to me: #8 (PR template), #18 (pin Playwright), #20 (Node version) and #21 (ESLint upgrade).
+- A task is done when CI passes, a teammate approves with no outstanding feedback, and the issue is closed.
 
 ### Database (Betania)
 
