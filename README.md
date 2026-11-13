@@ -2,7 +2,7 @@
 
 **The best way to learn is to teach.** Protégé is the student-facing frontend for our Stanford CS193V final project, *Teachable Agents and the Protégé Effect*. Instead of being tutored by an AI, the student teaches **Pip**, a curious AI learner who asks questions, makes plausible mistakes, and needs the student to explain concepts and correct misunderstandings.
 
-This repository currently contains the complete frontend MVP with a **scripted demo learner** and **browser-local persistence**. The real AI learner, database, and authentication are owned by teammates and plug in through the adapter interfaces described below.
+This repository contains the complete frontend MVP with a **scripted demo learner**. Teaching sessions are now stored using PostgreSQL, allowing users to save and access their sessions across browsers. The real AI learner plugs in through the adapter interface described below.
 
 ## Running the app
 
@@ -29,7 +29,7 @@ It turns on two git hooks and downloads [gitleaks](https://github.com/gitleaks/g
 - **CI scans every PR as well,** so skipping this doesn't skip the check. It just means you find out after pushing instead of before.
 - Please don't bypass the hooks with `--no-verify`. The push hook and CI will still catch the secret.
 
-Open http://localhost:3000. The demo needs no account and no environment variables. Sessions are stored in the browser's localStorage.
+Open http://localhost:3000. To run the application, users need to create an account and configure the `DATABASE_URL` environment variable to connect to PostgreSQL (see [Running auth locally](#running-auth-locally)).
 
 Other scripts:
 
@@ -115,7 +115,7 @@ src/
     topics.ts, subjects.ts  Mock topic catalogue and subject accent colors
     scripts/                Scripted learner conversations, one file per topic
     learner/                LearnerAdapter interface + ScriptedLearnerAdapter (Chase)
-    persistence/            SessionStore interface + LocalStorageSessionStore (Betania)
+    persistence/            SessionStore interface, HttpSessionStore, and PostgreSQL storage for teaching sessions (Betania)
     hooks/useTeachingSession.ts   Session lifecycle used by the workspace
     sessions.ts, utils.ts   Session creation, summaries, formatting
     __tests__/              Vitest unit tests
@@ -165,4 +165,3 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 - Pip does not interpret the student's wording. The scripted adapter advances through a fixed sequence of questions and misconceptions regardless of the reply, and says so on screen.
 - The reflection page reports counts and the student's own self-assessment. It does not compute accuracy, mastery, or learning gains.
-- Sessions are per-browser. Clearing site data removes them.
