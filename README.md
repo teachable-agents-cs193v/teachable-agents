@@ -45,6 +45,41 @@ Other scripts:
 
 Playwright is pinned to the browser already installed in the course container. If you run the e2e tests elsewhere, run `npx playwright install chromium` once.
 
+## Authentication
+
+Students sign up with a name, email and password, then log in and out. The teaching pages and the session API require a login. For how to use auth in code, see [docs/AUTH.md](docs/AUTH.md).
+
+**Try it live:** sign up at [YOUR LIVE SITE URL]/signup. Use a test password, not one you use anywhere else.
+
+### Running auth locally
+
+1. Install Node 24 and PostgreSQL.
+2. Copy the env file with `cp .env.example .env.local`, then fill in:
+   - `DATABASE_URL`: a Postgres database you control (local or a dev database, never production)
+   - `BETTER_AUTH_SECRET`: generate one with `openssl rand -base64 32`
+   - `BETTER_AUTH_URL`: `http://localhost:3000`
+3. Create the tables, in order:
+   ```
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   ```
+4. Run `npm install`, then `npm run dev`.
+
+Without a `DATABASE_URL`, the app still runs, but everyone appears logged out.
+
+### Tests
+
+- `npm run check`: lint, type check, unit tests and build. This also runs in CI on every PR.
+- `npm run test:e2e:auth`: browser tests for signup, login, logout and protected pages. Needs PostgreSQL installed. It starts a throwaway database and a fake breach-check service, and never touches a real database.
+
+### Before your first commit
+
+Run the [one-time secret-scanning setup](#one-time-setup-secret-scanning) above if you haven't already.
+
+### Deploying
+
+See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs the same three environment variables set in Vercel. Never commit real values, and never prefix them with `NEXT_PUBLIC_`.
+
 ## The student flow
 
 1. **Landing** (`/`): product pitch, example conversation, how it works, meet Pip.
