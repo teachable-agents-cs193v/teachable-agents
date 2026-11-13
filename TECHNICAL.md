@@ -49,4 +49,16 @@ TODO (Arielle)
 
 ### Deployment and AI features (Chase)
 
-TODO (Chase)
+**Main pieces and tools**
+- Each student message goes to `POST /api/sessions/[id]/turn`. The server makes two calls to Groq: one that sees the answer key and decides what Pip learned, and one that only sees Pip's notebook and writes the reply.
+- Answer keys live in `src/lib/learner/teachable/packs/`. Without an API key, Pip falls back to the scripted demo.
+
+**Stored information**
+- Pip's notebook is saved in `teaching_sessions.learner_state`. Only the server reads it.
+- Student messages are sent to Groq to generate replies.
+
+**Secrets and user information**
+- `LLM_API_KEY` lives only in `.env.local` and Vercel, and never reaches the browser.
+
+**Open questions**
+- How to cover quota for user tests, and whether students actually learn more by teaching Pip.
