@@ -42,7 +42,7 @@ export interface LlmConfig {
   timeoutMs?: number;
   /** Attempts per call, including the first. */
   attempts?: number;
-  /** Longest wait between attempts after a rate limit. Keep short in the app; the eval harness raises it. */
+  /** Longest wait between attempts after a rate limit (default 30s, enough for a per-minute limit). A longer Retry-After, like a daily cap, fails at once. */
   maxRetryWaitMs?: number;
 }
 
@@ -119,7 +119,7 @@ export class OpenAiCompatibleModel implements JsonModel {
 
     if (response.status === 429 || response.status >= 500) {
       const retryAfter = response.headers.get("retry-after");
-      const cap = this.config.maxRetryWaitMs ?? 8000;
+      const cap = this.config.maxRetryWaitMs ?? 30_000;
       // Retry-After tells a per-minute limit (seconds) from a daily one (minutes or more).
       const hint = retryAfter ? ` (retry after ${retryAfter}s)` : "";
       const message = `${options.label}: provider returned ${response.status}${hint}`;

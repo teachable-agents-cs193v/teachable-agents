@@ -75,4 +75,5 @@ It spends real quota (roughly 3 calls per student message), so it isn't part of 
 
 - Respect the provider's terms. Don't put real student names or personal details in messages during user tests.
 - There is also a daily cap of about 200,000 tokens on `openai/gpt-oss-120b`. One Pip turn uses about 4,000 tokens (assessor about 2,800, reply about 1,200), so one key handles about 50 student messages a day. A full `npm run eval` uses about half of that. When the daily cap runs out, every call returns 429 until it resets.
-- 8,000 tokens a minute is about 1–2 Pip turns a minute per key. A class-size user test on one key will hit it. Use several keys or a paid tier for that.
+- 8,000 tokens a minute is about 1–2 Pip turns a minute per account. Past that, Pip waits for the limit to clear (up to 30 seconds) before answering. A class-size user test on one account will hit it. Use several accounts or a paid tier for that.
+- Quotas are per Groq **account** and per model, not per key. A second key on the same account shares the same quota. Each model has its own, so `LLM_MODEL=openai/gpt-oss-20b` (smaller and weaker, but with separate quota) works as a fallback when `gpt-oss-120b` runs out.

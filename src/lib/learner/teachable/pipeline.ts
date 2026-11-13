@@ -137,7 +137,7 @@ export async function runOpening(args: { pack: TopicPack; state: TeachableState;
     moveNote: "Say hi, say briefly what you're trying to understand and that the words keep tripping you up, then ask the student where to start.",
     targetStatement: null,
   });
-  const reply = await callJson(model, () => model.completeJson(messages, { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 700 }), parseReply);
+  const reply = await callJson(model, () => model.completeJson(messages, { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 }), parseReply);
   const notebook = recordMove(state.notebook, "open");
   const learnerReply = toLearnerReply({ pack, notebook, reply, move: "open", moveTarget: null });
   return { reply: learnerReply, state: { notebook, last: { studentMessageId: null, reply: learnerReply }, lastAssessment: null } };
@@ -167,7 +167,7 @@ export async function runTurn(args: {
         label: "assessor",
         temperature: 0.2,
         reasoningEffort: "medium",
-        maxTokens: 2500,
+        maxTokens: 1500,
       }),
     parseAssessment,
   );
@@ -196,7 +196,7 @@ export async function runTurn(args: {
           targetStatement: target?.statement ?? null,
           changed,
         }),
-        { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 700 },
+        { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 },
       ),
     parseReply,
   );
