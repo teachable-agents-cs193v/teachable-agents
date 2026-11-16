@@ -56,6 +56,34 @@ function parseReflection(v: unknown): SessionReflection | null {
   return { postExplanation, confidence, hardestToExplain, misconceptionReflection, noticedGap, noticedGapDetail, freeReflection, submittedAt } as SessionReflection;
 }
 
+/** Longest student message for one turn. Keeps one message from using up a free tier's per-minute token limit. */
+export const MAX_TURN_TEXT = 1_500;
+
+const CLIENT_MESSAGE_ID = /^[\w-]{1,100}$/;
+
+/**
+ * Body of POST /api/sessions/[id]/turn.
+ * - `{ clientMessageId, text }`: the student's new message. The browser picks the id,
+ *   so retrying the same request never adds the message twice.
+ * - `{}`: answer whatever is waiting (Pip's opening, or a student message Pip hasn't answered).
+ */
+export interface TurnRequest {
+  clientMessageId: string | null;
+  text: string | null;
+}
+
+export function parseTurnRequest(body: unknown): Result<TurnRequest> {
+  if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
+  const { clientMessageId, text } = body;
+  if (clientMessageId === undefined && text === undefined) return { ok: true, value: { clientMessageId: null, text: null } };
+  if (typeof clientMessageId !== "string" || !CLIENT_MESSAGE_ID.test(clientMessageId)) {
+    return { ok: false, error: "Invalid clientMessageId." };
+  }
+  if (typeof text !== "string" || !text.trim()) return { ok: false, error: "Message can't be empty." };
+  if (text.trim().length > MAX_TURN_TEXT) return { ok: false, error: `Messages can be at most ${MAX_TURN_TEXT} characters.` };
+  return { ok: true, value: { clientMessageId, text: text.trim() } };
+}
+
 /** Checks a PUT /api/sessions/[id] body. Unknown fields (id, userId, topicId, ...) are ignored. */
 export function parseSessionUpdate(body: unknown): Result<SessionUpdate> {
   if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };

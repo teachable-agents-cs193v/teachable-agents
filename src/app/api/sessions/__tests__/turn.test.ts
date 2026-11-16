@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
-import type { ChatMessage, TeachingSession } from "@/lib/types";
+import { getUserSessionStore } from "@/lib/persistence/server";
+import type { AuthUser, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { GET as get, PUT as put } from "../[id]/route";
 import { POST as turn } from "../[id]/turn/route";
@@ -46,9 +47,10 @@ beforeEach(() => {
 const TOPIC = "independence-vs-mutual-exclusivity";
 const URL_BASE = "http://localhost:3000/api/sessions";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
-const post = () => new Request(`${URL_BASE}/x/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
 const jsonRequest = (method: string, body: unknown) =>
   new Request(URL_BASE, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const post = (body: unknown = {}) => jsonRequest("POST", body);
+const say = (clientMessageId: string, text: string) => post({ clientMessageId, text });
 
 async function as<T>(cookie: string | undefined, fn: () => Promise<T>): Promise<T> {
   requestCookie = cookie;
@@ -61,17 +63,21 @@ async function newStudentWithSession() {
   return { cookie, session: (await res.json()) as TeachingSession };
 }
 
-async function addMessage(cookie: string, session: TeachingSession, message: ChatMessage, learnerCursor = session.learnerCursor) {
-  const messages = [...session.messages, message];
-  const res = await as(cookie, () =>
-    put(jsonRequest("PUT", { status: session.status, messages, learnerCursor, reflection: session.reflection }), ctx(session.id)),
-  );
-  expect(res.status).toBe(200);
-  return (await res.json()) as TeachingSession;
+/** Runs one turn as `cookie` and returns the status and body. */
+async function turnAs(cookie: string, id: string, body: unknown = {}) {
+  const res = await as(cookie, () => turn(post(body), ctx(id)));
+  return { status: res.status, body: await res.json() };
 }
 
-const student = (id: string, text: string): ChatMessage => ({ id, role: "student", text, createdAt: new Date().toISOString() });
-const learner = (id: string, text: string): ChatMessage => ({ id, role: "learner", text, createdAt: new Date().toISOString() });
+/** A session with Pip's opening already saved. */
+async function openedSession() {
+  const { cookie, session } = await newStudentWithSession();
+  const opening = await turnAs(cookie, session.id);
+  expect(opening.status).toBe(200);
+  return { cookie, session: opening.body.session as TeachingSession };
+}
+
+const roles = (s: TeachingSession) => s.messages.map((m) => m.role);
 
 describe("POST /api/sessions/[id]/turn logged out", () => {
   it("answers 401", async () => {
@@ -86,70 +92,129 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     expect((await as(other, () => turn(post(), ctx(session.id)))).status).toBe(404);
   });
 
-  it("falls back to the scripted learner when no model is configured", async () => {
+  it("falls back to the scripted learner when no model is configured, and saves its messages", async () => {
     const { cookie, session } = await newStudentWithSession();
-    const res = await as(cookie, () => turn(post(), ctx(session.id)));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.learner.id).toBe("scripted-demo");
-    expect(body.reply).toMatchObject({ kind: "opening", nextCursor: 1 });
+    const opening = await turnAs(cookie, session.id);
+    expect(opening.status).toBe(200);
+    expect(opening.body.learner.id).toBe("scripted-demo");
+    expect(opening.body.reply).toMatchObject({ kind: "opening", nextCursor: 1 });
+    expect(roles(opening.body.session)).toEqual(["learner"]);
+
+    const next = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "Independent means no effect." });
+    expect(roles(next.body.session)).toEqual(["learner", "student", "learner"]);
+    expect(next.body.session.learnerCursor).toBe(next.body.reply.nextCursor);
   });
 
-  it("runs the AI learner, saves its state server-side and never returns it from GET", async () => {
+  it("saves the student's message and Pip's reply on the server, with the learner state", async () => {
     model = new FakeModel();
-    const { cookie, session: s0 } = await newStudentWithSession();
-
-    const opening = await (await as(cookie, () => turn(post(), ctx(s0.id)))).json();
-    expect(opening.learner.id).toBe("teachable");
-    expect(opening.reply.kind).toBe("opening");
-
-    let s = await addMessage(cookie, s0, learner("l0", opening.reply.text), opening.reply.nextCursor);
-    s = await addMessage(cookie, s, student("s0", "Independent means they don't affect each other."));
-    const reply = await (await as(cookie, () => turn(post(), ctx(s.id)))).json();
-    expect(reply.reply.text).toMatch(/^Pip reply/);
+    const { cookie, session } = await openedSession();
+    const res = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "  Independent means they don't affect each other.  " });
+    expect(res.status).toBe(200);
+    expect(res.body.learner.id).toBe("teachable");
+    expect(res.body.reply.text).toMatch(/^Pip reply/);
     expect(model.calls).toEqual(["reply", "assessor", "reply"]);
 
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [s.id]);
+    const stored = res.body.session as TeachingSession;
+    expect(stored.messages[1]).toMatchObject({ id: "msg_1", role: "student", text: "Independent means they don't affect each other." });
+    expect(stored.messages[2]).toMatchObject({ role: "learner", text: res.body.reply.text });
+
+    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [session.id]);
     expect(rows[0].learner_state.notebook.studentTurns).toBe(1);
-    const fetched = await (await as(cookie, () => get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id)))).json();
+    const fetched = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
+    expect(fetched.messages).toEqual(stored.messages);
     expect(JSON.stringify(fetched)).not.toMatch(/learner_?[sS]tate|notebook|taughtCorrectly/);
   });
 
-  it("returns the same reply when a turn is retried, without calling the model again", async () => {
+  it("never adds or answers a retried message twice", async () => {
     model = new FakeModel();
-    const { cookie, session: s0 } = await newStudentWithSession();
-    const s = await addMessage(cookie, s0, student("s0", "hello"));
-    const first = await (await as(cookie, () => turn(post(), ctx(s.id)))).json();
-    const again = await (await as(cookie, () => turn(post(), ctx(s.id)))).json();
-    expect(again.reply).toEqual(first.reply);
-    expect(model.calls).toEqual(["assessor", "reply"]);
+    const { cookie, session } = await openedSession();
+    const first = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    const again = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(again.status).toBe(200);
+    expect(again.body.reply).toBeNull(); // already answered: the session holds the reply
+    expect(again.body.session.messages).toEqual(first.body.session.messages);
+    expect(model.calls).toEqual(["reply", "assessor", "reply"]);
   });
 
-  it("answers 409 when the last message is already Pip's, or the session has ended", async () => {
+  it("answers 409 when a message id is reused for different text", async () => {
     model = new FakeModel();
-    const { cookie, session: s0 } = await newStudentWithSession();
-    const s = await addMessage(cookie, s0, learner("l0", "Hi"));
-    expect((await as(cookie, () => turn(post(), ctx(s.id)))).status).toBe(409);
-
-    const ended = await as(cookie, () =>
-      put(jsonRequest("PUT", { status: "completed", endedAt: new Date().toISOString(), messages: s.messages, learnerCursor: 0 }), ctx(s.id)),
-    );
-    expect(ended.status).toBe(200);
-    expect((await as(cookie, () => turn(post(), ctx(s.id)))).status).toBe(409);
+    const { cookie, session } = await openedSession();
+    await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    const reused = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "something else" });
+    expect(reused.status).toBe(409);
+    expect(roles(reused.body.session)).toEqual(["learner", "student", "learner"]);
   });
 
-  it("shows a friendly message, not the provider's error, when the model fails", async () => {
+  it("keeps the student's message when the model fails, and answers it on retry", async () => {
     model = new FakeModel();
+    const { cookie, session } = await openedSession();
+    const working = model.completeJson.bind(model);
     model.completeJson = async () => {
       const { LlmError } = await import("@/lib/learner/teachable/llm");
       throw new LlmError("assessor: provider returned 429", true);
     };
-    const { cookie, session: s0 } = await newStudentWithSession();
-    const s = await addMessage(cookie, s0, student("s0", "hello"));
-    const res = await as(cookie, () => turn(post(), ctx(s.id)));
-    expect(res.status).toBe(503);
-    const body = await res.json();
-    expect(body.error).toMatch(/Pip is having trouble/);
-    expect(JSON.stringify(body)).not.toMatch(/429|provider/);
+    const failed = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(failed.status).toBe(503);
+    expect(failed.body.error).toMatch(/Pip is having trouble/);
+    expect(JSON.stringify(failed.body)).not.toMatch(/429|provider/);
+
+    const stored = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
+    expect(roles(stored)).toEqual(["learner", "student"]);
+
+    // A different new message is refused while this one is waiting for Pip.
+    expect((await turnAs(cookie, session.id, { clientMessageId: "msg_2", text: "next" })).status).toBe(409);
+
+    model.completeJson = working;
+    const retried = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(retried.status).toBe(200);
+    expect(roles(retried.body.session)).toEqual(["learner", "student", "learner"]);
+  });
+
+  it("never interleaves two simultaneous turns", async () => {
+    model = new FakeModel();
+    const { cookie, session } = await openedSession();
+    requestCookie = cookie;
+    const results = await Promise.all([
+      turn(say("msg_a", "first tab"), ctx(session.id)),
+      turn(say("msg_b", "second tab"), ctx(session.id)),
+    ]);
+    const statuses = results.map((r) => r.status).sort();
+    // Either they ran one after the other (both fine) or they raced and one lost.
+    expect([[200, 200], [200, 409]]).toContainEqual(statuses);
+    const stored = await (await get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id))).json();
+    const expected = statuses[1] === 200 ? ["learner", "student", "learner", "student", "learner"] : ["learner", "student", "learner"];
+    expect(roles(stored)).toEqual(expected);
+  });
+
+  it("refuses a write based on a stale read (the race guard)", async () => {
+    const { session } = await openedSession();
+    const user = { id: (await getPool().query("select user_id from teaching_sessions where id = $1", [session.id])).rows[0].user_id } as AuthUser;
+    const store = getUserSessionStore(user);
+    const before = (await store.getTurnContext(session.id))!;
+    const message = { id: "msg_x", role: "student" as const, text: "hi", createdAt: new Date().toISOString() };
+    const first = await store.appendToSession(session.id, { version: before.version, append: [message] });
+    expect(first).not.toBe("conflict");
+    expect(await store.appendToSession(session.id, { version: before.version, append: [{ ...message, id: "msg_y" }] })).toBe("conflict");
+    expect(roles((await store.getTurnContext(session.id))!.session)).toEqual(["learner", "student"]);
+  });
+
+  it("rejects bad bodies: empty, too long, or a malformed id", async () => {
+    const { cookie, session } = await newStudentWithSession();
+    expect((await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "   " })).status).toBe(400);
+    expect((await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "x".repeat(1_501) })).status).toBe(400);
+    expect((await turnAs(cookie, session.id, { clientMessageId: "no spaces allowed", text: "hi" })).status).toBe(400);
+    expect((await turnAs(cookie, session.id, { text: "hi" })).status).toBe(400);
+  });
+
+  it("answers 409 when there's nothing to answer, or the session has ended", async () => {
+    model = new FakeModel();
+    const { cookie, session } = await openedSession();
+    expect((await turnAs(cookie, session.id)).status).toBe(409);
+
+    const ended = await as(cookie, () =>
+      put(jsonRequest("PUT", { status: "completed", endedAt: new Date().toISOString(), messages: session.messages, learnerCursor: session.learnerCursor }), ctx(session.id)),
+    );
+    expect(ended.status).toBe(200);
+    expect((await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hi" })).status).toBe(409);
   });
 });

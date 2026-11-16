@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { getPool } from "../db/pool";
 import { PIP } from "../learner";
-import type { AuthUser, TeachingSession } from "../types";
+import type { AuthUser, ChatMessage, TeachingSession } from "../types";
 import type { SessionStore } from "./adapter";
 import type { SessionUpdate } from "./validate";
 
@@ -126,25 +126,58 @@ export class PostgresSessionStore implements SessionStore {
   }
 
   /**
-   * The server-only learner state for one of this user's sessions (Pip's notebook).
-   * `undefined` if there's no such session; `null` if it has no state yet.
-   * Never returned by GET /api/sessions/[id]: it holds the assessor's hidden verdicts.
+   * One of this user's sessions with what a learner turn needs: the server-only
+   * learner state and a version for `appendToSession`. Null if there's no such session.
+   * The version is `updated_at` as text, which keeps Postgres's microseconds (a JS
+   * Date would round them off and never match again).
+   * Never returned by GET /api/sessions/[id]: the learner state holds the assessor's hidden verdicts.
    */
-  async getLearnerState(id: string): Promise<unknown | null | undefined> {
-    const { rows } = await this.pool.query<{ learner_state: unknown }>(
-      `select learner_state from teaching_sessions where id = $1 and user_id = $2`,
+  async getTurnContext(id: string): Promise<{ session: TeachingSession; learnerState: unknown; version: string } | null> {
+    const { rows } = await this.pool.query<Row & { learner_state: unknown; version: string }>(
+      `select ${COLUMNS}, learner_state, updated_at::text as version from teaching_sessions where id = $1 and user_id = $2`,
       [id, this.userId],
     );
-    return rows[0] ? (rows[0].learner_state ?? null) : undefined;
+    const row = rows[0];
+    return row ? { session: toSession(row), learnerState: row.learner_state ?? null, version: row.version } : null;
   }
 
-  /** Saves the learner state; false if there is no such session. Only the turn route calls this. */
-  async saveLearnerState(id: string, state: object): Promise<boolean> {
-    const { rowCount } = await this.pool.query(
-      `update teaching_sessions set learner_state = $3, updated_at = now() where id = $1 and user_id = $2`,
-      [id, this.userId, JSON.stringify(state)],
+  /**
+   * Appends messages to one of this user's sessions, optionally with Pip's new
+   * cursor and learner state, but only if nothing changed it since `version`
+   * (otherwise "conflict"). Null if there's no such session.
+   *
+   * The server is the only writer of the transcript: the browser can't PUT
+   * messages. This is also the one place the transcript is read and written for
+   * a turn, so encryption at rest wraps this method.
+   */
+  async appendToSession(
+    id: string,
+    change: { version: string; append: ChatMessage[]; learnerCursor?: number; learnerState?: object | null },
+  ): Promise<{ session: TeachingSession; version: string } | "conflict" | null> {
+    const current = await this.getTurnContext(id);
+    if (!current) return null;
+    if (current.version !== change.version) return "conflict";
+    const messages = [...current.session.messages, ...change.append];
+    const keepState = change.learnerState === undefined;
+    const { rows } = await this.pool.query<Row & { version: string }>(
+      `update teaching_sessions
+       set messages = $4, learner_cursor = $5,
+           learner_state = case when $7 then learner_state else $6::jsonb end,
+           updated_at = now()
+       where id = $1 and user_id = $2 and updated_at = $3::timestamptz
+       returning ${COLUMNS}, updated_at::text as version`,
+      [
+        id,
+        this.userId,
+        change.version,
+        JSON.stringify(messages),
+        change.learnerCursor ?? current.session.learnerCursor,
+        keepState ? null : JSON.stringify(change.learnerState),
+        keepState,
+      ],
     );
-    return (rowCount ?? 0) > 0;
+    // No row: another request changed the session between the read and this write.
+    return rows[0] ? { session: toSession(rows[0]), version: rows[0].version } : "conflict";
   }
 
   /** Deletes one of this user's sessions; false if there is no such session. */

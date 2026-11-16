@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getLearnerAdapter } from "../learner";
+import { postTurn, TurnError, type TurnBody } from "../learner";
 import { getSessionStore, SessionStoreError } from "../persistence";
 import { getTopic } from "../topics";
-import type { ChatMessage, LearnerReply, TeachingSession, Topic } from "../types";
+import type { ChatMessage, TeachingSession, Topic } from "../types";
 import { createId, nowIso } from "../utils";
 
 export type LearnerStatus = "idle" | "thinking" | "error";
@@ -32,32 +32,21 @@ export interface TeachingSessionState {
   endSession: () => Promise<TeachingSession | null>;
 }
 
-/** What "Try again" should redo. */
-type Pending = "open" | "respond" | "saveStudent" | "saveLearner";
-
 const SAVE_FAILED = "Your session couldn't be saved. Check your connection and try again.";
+const TURN_FAILED = "Pip could not respond. Please try again.";
 
 /** Store errors carry a student-safe message; anything else gets the fallback. */
 const saveErrorMessage = (error: unknown) => (error instanceof SessionStoreError ? error.message : SAVE_FAILED);
 
-function learnerMessageFrom(reply: LearnerReply): ChatMessage {
-  return {
-    id: createId("msg"),
-    role: "learner",
-    text: reply.text,
-    createdAt: nowIso(),
-    kind: reply.kind,
-    mood: reply.mood,
-    concept: reply.concept,
-    misconception: reply.misconception,
-  };
-}
+/** Pip still has to speak: its opening, or a reply to a saved student message. */
+const awaitingPip = (s: TeachingSession) => s.status === "in_progress" && (s.messages.length === 0 || s.messages.at(-1)?.role === "student");
 
 /**
- * Owns the lifecycle of one teaching session: loading it from the store,
- * requesting learner turns through the adapter, and persisting every change.
- * Messages appear immediately; if saving them fails, "Try again" re-saves
- * without asking the learner a second time.
+ * Owns the lifecycle of one teaching session: loading it, and asking the server
+ * for each turn. The server saves the transcript (the student's message, then
+ * Pip's reply), so the browser only shows what the server sends back.
+ * A student's message appears immediately; if the turn fails, it stays on
+ * screen and "Try again" re-sends it, which never saves or answers it twice.
  */
 export function useTeachingSession(sessionId: string): TeachingSessionState {
   const [session, setSession] = useState<TeachingSession | null>(null);
@@ -69,76 +58,49 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [learnerFinished, setLearnerFinished] = useState(false);
   const [learnerInfo, setLearnerInfo] = useState<{ id: string; displayName: string } | null>(null);
-  const pendingRef = useRef<Pending | null>(null);
+  /** The turn request "Try again" re-sends. Re-sending is always safe: the server never saves or answers it twice. */
+  const pendingRef = useRef<TurnBody | null>(null);
 
   const topic = session ? (getTopic(session.topicId) ?? null) : null;
 
-  const fail = useCallback((kind: SessionErrorKind, message: string, pending: Pending) => {
-    pendingRef.current = pending;
-    setErrorKind(kind);
-    setErrorMessage(message);
-    setLearnerStatus("error");
-  }, []);
-
-  const succeed = useCallback(() => {
-    pendingRef.current = null;
+  /**
+   * Asks the server for Pip's turn. The server saves the student's message and
+   * Pip's reply; the browser just shows the session it gets back.
+   */
+  const runTurn = useCallback(async (base: TeachingSession, body: TurnBody) => {
+    pendingRef.current = body;
+    setLearnerStatus("thinking");
     setErrorKind(null);
     setErrorMessage(null);
-    setLearnerStatus("idle");
-  }, []);
-
-  /** Shows `next` right away, then saves it. Returns false (with the error shown) if the save fails. */
-  const persist = useCallback(
-    async (next: TeachingSession, onFailure: Pending) => {
-      setSession(next);
-      try {
-        await getSessionStore().saveSession(next);
-        return true;
-      } catch (error) {
-        fail("save", saveErrorMessage(error), onFailure);
-        return false;
-      }
-    },
-    [fail],
-  );
-
-  /** Asks the learner for its next turn and appends it to the session. */
-  const requestLearnerTurn = useCallback(
-    async (current: TeachingSession, mode: "open" | "respond") => {
-      const currentTopic = getTopic(current.topicId);
-      if (!currentTopic) return;
-      pendingRef.current = mode;
-      setLearnerStatus("thinking");
-      setErrorKind(null);
-      setErrorMessage(null);
-      let reply: LearnerReply;
-      try {
-        const adapter = getLearnerAdapter();
-        const context = {
-          sessionId: current.id,
-          topic: currentTopic,
-          messages: current.messages,
-          cursor: current.learnerCursor,
-          studentMessage: [...current.messages].reverse().find((m) => m.role === "student")?.text,
-        };
-        reply = mode === "open" ? await adapter.open(context) : await adapter.respond(context);
-      } catch (error) {
-        fail("learner", error instanceof Error ? error.message : "Pip could not respond. Please try again.", mode);
+    try {
+      const result = await postTurn(base.id, body);
+      pendingRef.current = null;
+      setSession(result.session);
+      if (result.reply) setLearnerFinished(result.reply.isFinal);
+      if (result.learner) setLearnerInfo(result.learner);
+      setLearnerStatus("idle");
+    } catch (error) {
+      // Asked Pip to answer what was waiting, but it already had (e.g. in another tab): nothing went wrong.
+      if (error instanceof TurnError && error.status === 409 && error.session && !("clientMessageId" in body) && !awaitingPip(error.session)) {
+        pendingRef.current = null;
+        setSession(error.session);
+        setLearnerStatus("idle");
         return;
       }
-      const next: TeachingSession = {
-        ...current,
-        messages: [...current.messages, learnerMessageFrom(reply)],
-        learnerCursor: reply.nextCursor,
-      };
-      setLearnerFinished(reply.isFinal);
-      if (reply.learner) setLearnerInfo(reply.learner);
-      if (await persist(next, "saveLearner")) succeed();
-    },
-    [fail, persist, succeed],
-  );
+      if (error instanceof TurnError && error.session) {
+        // Show the server's copy, keeping the student's unsent message on screen so "Try again" can send it.
+        const unsent = "clientMessageId" in body && !error.session.messages.some((m) => m.id === body.clientMessageId)
+          ? base.messages.filter((m) => m.id === body.clientMessageId)
+          : [];
+        setSession({ ...error.session, messages: [...error.session.messages, ...unsent] });
+      }
+      setErrorKind("learner");
+      setErrorMessage(error instanceof Error ? error.message : TURN_FAILED);
+      setLearnerStatus("error");
+    }
+  }, []);
 
-  // Load the session once on mount.
+  // Load the session once on mount; if Pip still owes a message, ask for it.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -159,14 +121,12 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       }
       setSession(found);
       setLoading(false);
-      if (found.status === "in_progress" && found.messages.length === 0) {
-        void requestLearnerTurn(found, "open");
-      }
+      if (awaitingPip(found)) void runTurn(found, {});
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionId, requestLearnerTurn]);
+  }, [sessionId, runTurn]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -174,32 +134,19 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       if (!session || !trimmed || learnerStatus !== "idle" || session.status !== "in_progress") {
         return;
       }
-      const studentMessage: ChatMessage = {
-        id: createId("msg"),
-        role: "student",
-        text: trimmed,
-        createdAt: nowIso(),
-      };
+      const studentMessage: ChatMessage = { id: createId("msg"), role: "student", text: trimmed, createdAt: nowIso() };
+      // Shown right away; it stays on screen if the turn fails, and "Try again" sends it again.
       const next = { ...session, messages: [...session.messages, studentMessage] };
-      // On failure the message stays on screen and "Try again" saves it, then asks Pip.
-      if (!(await persist(next, "saveStudent"))) return;
-      await requestLearnerTurn(next, "respond");
+      setSession(next);
+      await runTurn(next, { clientMessageId: studentMessage.id, text: trimmed });
     },
-    [session, learnerStatus, persist, requestLearnerTurn],
+    [session, learnerStatus, runTurn],
   );
 
   const retry = useCallback(async () => {
     if (!session) return;
-    const pending = pendingRef.current ?? (session.messages.length === 0 ? "open" : "respond");
-    if (pending === "saveStudent" || pending === "saveLearner") {
-      setLearnerStatus("thinking");
-      if (!(await persist(session, pending))) return;
-      succeed();
-      if (pending === "saveStudent") await requestLearnerTurn(session, "respond");
-      return;
-    }
-    await requestLearnerTurn(session, pending);
-  }, [session, persist, succeed, requestLearnerTurn]);
+    await runTurn(session, pendingRef.current ?? {});
+  }, [session, runTurn]);
 
   const endSession = useCallback(async () => {
     if (!session) return null;

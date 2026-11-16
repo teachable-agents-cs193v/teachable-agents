@@ -1,53 +1,57 @@
-import type { LearnerReply } from "../types";
-import type { LearnerAdapter, LearnerContext } from "./adapter";
+import type { LearnerReply, TeachingSession } from "../types";
 
 type Fetch = typeof fetch;
 
 /** Shown when the server gives no student-safe message (never the raw error, #22). */
 const FALLBACK = "Pip couldn't respond. Check your connection and try again.";
+/** For any server error. The server's own text is only trusted for 4xx answers, which are written for students. */
+const BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
+const LOGGED_OUT = "You've been logged out. Log in again to keep going.";
+
+/** The student's new message, or `{}` to have Pip answer whatever is waiting (its opening, or an unanswered message). */
+export type TurnBody = { clientMessageId: string; text: string } | Record<string, never>;
+
+export interface TurnResponse {
+  /** The session as the server saved it: the source of truth for the transcript. */
+  session: TeachingSession;
+  /** Null when the request had already been answered (a retry after a lost response). */
+  reply: LearnerReply | null;
+  learner: { id: string; displayName: string } | null;
+}
+
+/** A failed turn. `message` is always safe to show a student; `session` is the server's copy when it sent one. */
+export class TurnError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly session?: TeachingSession,
+  ) {
+    super(message);
+    this.name = "TurnError";
+  }
+}
 
 /**
- * The browser's learner: asks POST /api/sessions/[id]/turn for Pip's next
- * message. The server holds the model key and Pip's notebook, and falls back to
- * the scripted demo learner when no model is configured. The reply says which
- * learner answered (`reply.learner`).
+ * Asks the server for Pip's next turn (POST /api/sessions/[id]/turn). The
+ * server saves the student's message and Pip's reply itself, so the browser
+ * never writes the transcript. Sending the same body again is always safe.
  */
-export class HttpLearnerAdapter implements LearnerAdapter {
-  readonly id = "http";
-  readonly displayName = "Pip";
-
-  constructor(
-    private readonly base = "/api/sessions",
-    private readonly fetchImpl: Fetch = (...args) => fetch(...args),
-  ) {}
-
-  open(context: LearnerContext): Promise<LearnerReply> {
-    return this.turn(context);
+export async function postTurn(sessionId: string, body: TurnBody, fetchImpl: Fetch = (...args) => fetch(...args)): Promise<TurnResponse> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`/api/sessions/${encodeURIComponent(sessionId)}/turn`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new TurnError(FALLBACK, 0);
   }
-
-  respond(context: LearnerContext): Promise<LearnerReply> {
-    return this.turn(context);
+  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & { error?: string }) | null;
+  if (!res.ok || !data?.session) {
+    const message = res.status === 401 ? LOGGED_OUT : res.status >= 500 ? BUSY : (data?.error ?? FALLBACK);
+    throw new TurnError(message, res.status, data?.session);
   }
-
-  private async turn(context: LearnerContext): Promise<LearnerReply> {
-    if (!context.sessionId) throw new Error(FALLBACK);
-    let res: Response;
-    try {
-      res = await this.fetchImpl(`${this.base}/${encodeURIComponent(context.sessionId)}/turn`, {
-        method: "POST",
-        cache: "no-store",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-      });
-    } catch {
-      throw new Error(FALLBACK);
-    }
-    const body = (await res.json().catch(() => null)) as
-      | { reply?: LearnerReply; learner?: LearnerReply["learner"]; error?: string }
-      | null;
-    if (!res.ok || !body?.reply) {
-      throw new Error(res.status === 401 ? "You've been logged out. Log in again to keep going." : (body?.error ?? FALLBACK));
-    }
-    return { ...body.reply, learner: body.learner };
-  }
+  return { session: data.session, reply: data.reply ?? null, learner: data.learner ?? null };
 }

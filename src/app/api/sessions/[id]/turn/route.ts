@@ -1,39 +1,44 @@
 import { requireApiUser } from "@/lib/auth/server";
 import { LlmError } from "@/lib/learner/teachable/llm";
-import { learnerTurn, modelsFromEnv, TurnConflictError } from "@/lib/learner/teachable/server";
+import { modelsFromEnv } from "@/lib/learner/teachable/server";
+import { runServerTurn } from "@/lib/learner/teachable/turnService";
 import { getUserSessionStore } from "@/lib/persistence/server";
-import { error, json, notFound } from "../../shared";
+import { parseTurnRequest } from "@/lib/persistence/validate";
+import { error, json, readJson } from "../../shared";
 
 /**
- * POST /api/sessions/[id]/turn → { reply: LearnerReply, learner: { id, displayName } }
+ * POST /api/sessions/[id]/turn
+ *   { clientMessageId, text } → saves the student's message, then Pip's reply
+ *   {}                        → Pip's opening, or a reply to a saved message Pip hasn't answered
+ * → { session, reply, learner }
  *
- * Works out Pip's next message from the session as saved on the server, so the
- * browser can't change what Pip "knows". The browser saves the student's
- * message first (PUT), then calls this, then saves Pip's reply (PUT).
- * Retrying after a failure is safe: the same student message gets the same reply.
+ * The server writes the whole transcript, so the stored record is what actually
+ * happened and the browser can't change what Pip "knows". Retrying a request is
+ * safe: the same clientMessageId is never saved or answered twice.
  * Another user's session answers 404, like a missing one (docs/AUTH.md).
  */
 type Context = { params: Promise<{ id: string }> };
 
+/** A turn can wait out a per-minute rate limit (see llm.ts), so allow more than the default. */
+export const maxDuration = 60;
+
 const BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
 
-export async function POST(_request: Request, { params }: Context) {
+export async function POST(request: Request, { params }: Context) {
   const user = await requireApiUser();
   if (user instanceof Response) return user;
 
-  const store = getUserSessionStore(user);
-  const id = (await params).id;
-  const session = await store.getSession(id);
-  if (!session) return notFound();
-  if (session.status !== "in_progress") return error("This session has ended.", 409);
+  const read = await readJson(request);
+  if (read instanceof Response) return read;
+  const parsed = parseTurnRequest(read.body);
+  if (!parsed.ok) return error(parsed.error, 400);
 
+  const id = (await params).id;
   try {
-    const storedState = await store.getLearnerState(id);
-    const { reply, learner, state } = await learnerTurn({ session, storedState, models: modelsFromEnv() });
-    if (state) await store.saveLearnerState(id, state);
-    return json({ reply, learner });
+    const result = await runServerTurn({ store: getUserSessionStore(user), id, request: parsed.value, models: modelsFromEnv() });
+    if (!result.ok) return json({ error: result.error, ...(result.session ? { session: result.session } : {}) }, result.status);
+    return json({ session: result.session, reply: result.reply, learner: result.learner });
   } catch (cause) {
-    if (cause instanceof TurnConflictError) return error(cause.message, 409);
     // Log the reason for us; the student only ever sees the friendly message (#22).
     console.error(`[turn] session ${id}:`, cause instanceof Error ? cause.message : cause);
     return error(BUSY, cause instanceof LlmError ? 503 : 500);

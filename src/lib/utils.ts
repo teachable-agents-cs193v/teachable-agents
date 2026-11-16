@@ -1,4 +1,4 @@
-import type { ChatMessage, SessionSummary, TeachingSession } from "./types";
+import type { ChatMessage, LearnerReply, SessionSummary, TeachingSession } from "./types";
 
 /**
  * A random v4 UUID from the platform's secure generator, never Math.random (#19).
@@ -23,6 +23,20 @@ export function createId(prefix = ""): string {
 
 export function nowIso(): string {
   return new Date().toISOString();
+}
+
+/** The transcript message for a learner reply. */
+export function learnerMessageFrom(reply: LearnerReply): ChatMessage {
+  return {
+    id: createId("msg"),
+    role: "learner",
+    text: reply.text,
+    createdAt: nowIso(),
+    kind: reply.kind,
+    mood: reply.mood,
+    concept: reply.concept,
+    misconception: reply.misconception,
+  };
 }
 
 export function formatDate(iso: string): string {
