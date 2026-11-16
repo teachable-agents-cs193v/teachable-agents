@@ -37,7 +37,7 @@ describe("HttpSessionStore", () => {
     const { store, fetchImpl } = storeReturning(Response.json(session));
     await store.saveSession({ ...session, preExplanation: "fixed at creation" });
     const body = JSON.parse(fetchImpl.mock.calls[0][1]!.body as string);
-    expect(Object.keys(body).sort()).toEqual(["learnerCursor", "messages", "status"]);
+    expect(Object.keys(body).sort()).toEqual(["status"]); // never the transcript: the server writes that
   });
 
   it("shows students a friendly message, never the server's error", async () => {

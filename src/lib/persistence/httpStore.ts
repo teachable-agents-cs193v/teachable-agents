@@ -68,11 +68,12 @@ export class HttpSessionStore implements SessionStore {
     return this.json<TeachingSession>(res);
   }
 
+  /** Saves the fields the browser may change: status, end time and reflection. The server writes the transcript itself. */
   async saveSession(session: TeachingSession): Promise<void> {
-    const { status, endedAt, messages, learnerCursor, reflection } = session;
+    const { status, endedAt, reflection } = session;
     const res = await this.request(`/${encodeURIComponent(session.id)}`, {
       method: "PUT",
-      body: JSON.stringify({ status, endedAt, messages, learnerCursor, reflection }),
+      body: JSON.stringify({ status, endedAt, reflection }),
     });
     if (!res.ok) throw new SessionStoreError(res.status);
   }

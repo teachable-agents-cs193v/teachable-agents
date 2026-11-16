@@ -95,22 +95,14 @@ export class PostgresSessionStore implements SessionStore {
     return toSession(rows[0]);
   }
 
-  /** Updates the changeable fields of one of this user's sessions; null if there is no such session. */
+  /** Updates the fields the browser may change (status, end time, reflection); null if there is no such session. */
   async updateSession(id: string, update: SessionUpdate): Promise<TeachingSession | null> {
     const { rows } = await this.pool.query<Row>(
       `update teaching_sessions
-       set status = $3, ended_at = $4, messages = $5, learner_cursor = $6, reflection = $7, updated_at = now()
+       set status = $3, ended_at = $4, reflection = $5, updated_at = now()
        where id = $1 and user_id = $2
        returning ${COLUMNS}`,
-      [
-        id,
-        this.userId,
-        update.status,
-        update.endedAt ?? null,
-        JSON.stringify(update.messages),
-        update.learnerCursor,
-        update.reflection ? JSON.stringify(update.reflection) : null,
-      ],
+      [id, this.userId, update.status, update.endedAt ?? null, update.reflection ? JSON.stringify(update.reflection) : null],
     );
     return rows[0] ? toSession(rows[0]) : null;
   }

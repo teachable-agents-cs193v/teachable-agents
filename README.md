@@ -142,14 +142,14 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 - Interface: `LearnerAdapter` in `src/lib/learner/adapter.ts` with `open(context)` and `respond(context)`. The context carries the topic, the full transcript, the student's latest message, and an opaque numeric `cursor` stored on the session.
 - Return a `LearnerReply` (`text`, `kind`, `mood`, optional `concept` / `misconception`, `isFinal`, `nextCursor`). `concept` and `misconception` feed the reflection page, so if the model can tag its turns, the reflection screen lights up automatically.
-- Swap it in `getLearnerAdapter()` in `src/lib/learner/index.ts`. Keep the API key server-side (for example a route handler under `src/app/api/learner/`) and have the adapter call it.
+- Which learner answers is chosen on the server, in `learnerTurn()` (`src/lib/learner/teachable/server.ts`). The browser only calls `POST /api/sessions/[id]/turn` through `postTurn()`; the API key never leaves the server.
 - The workspace shows the adapter's `displayName` in a "Demo mode" note so it is always transparent which learner is running. Thinking delay currently lives inside the scripted adapter, not the UI.
 
 ### Betania · persistence
 
 - Sessions live in Postgres, in `teaching_sessions` (`db/migrations/0002_teaching_sessions.sql`): one row per session, with `messages` and `reflection` as `jsonb`, owned by `user_id` (deleted with the user).
 - Browser: `getSessionStore()` in `src/lib/persistence/index.ts` returns `HttpSessionStore`, which calls `/api/sessions`. Components use the same `SessionStore` interface as before, plus `createSession(topicId, preExplanation?)`: the server picks every ID.
-- Server: `getUserSessionStore(user)` in `src/lib/persistence/server.ts` filters every query by the logged-in user. Routes call `requireApiUser()` first; another user's session answers 404, like a missing one. `PUT` bodies are checked by `parseSessionUpdate()` in `validate.ts` and may change only `status`, `endedAt`, `messages`, `learnerCursor` and `reflection`.
+- Server: `getUserSessionStore(user)` in `src/lib/persistence/server.ts` filters every query by the logged-in user. Routes call `requireApiUser()` first; another user's session answers 404, like a missing one. `PUT` bodies are checked by `parseSessionUpdate()` in `validate.ts` and may change only `status`, `endedAt` and `reflection`. The transcript is written only by the server, through `POST /api/sessions/[id]/turn` (see `docs/AI_LEARNER.md`), so the stored conversation is what actually happened.
 - Routes: `GET`/`POST /api/sessions` (`?activeTopicId=` finds the in-progress session for a topic) and `GET`/`PUT`/`DELETE /api/sessions/[id]`.
 - Tests run against the throwaway Postgres, which applies `db/migrations/0002+` via `test/appMigrations.ts`. `LocalStorageSessionStore` remains as the reference implementation.
 

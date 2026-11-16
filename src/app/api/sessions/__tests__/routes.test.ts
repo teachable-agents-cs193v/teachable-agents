@@ -45,8 +45,8 @@ async function startSession(cookie: string, body: Record<string, unknown> = { to
 }
 
 const update = (s: TeachingSession, changes: Partial<TeachingSession> = {}) => {
-  const { status, endedAt, messages, learnerCursor, reflection } = { ...s, ...changes };
-  return { status, endedAt, messages, learnerCursor, reflection };
+  const { status, endedAt, reflection } = { ...s, ...changes };
+  return { status, endedAt, reflection };
 };
 
 describe("logged out", () => {
@@ -87,8 +87,6 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const s = await startSession(cookie);
     const bad = [
       { ...update(s), status: "archived" },
-      { ...update(s), learnerCursor: -1 },
-      { ...update(s), messages: [{ id: "m", role: "teacher", text: "hi", createdAt: new Date().toISOString() }] },
       { ...update(s), reflection: { confidence: 9 } },
     ];
     for (const body of bad) expect((await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)))).status).toBe(400);
@@ -98,19 +96,16 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
   it("answers 400 for values the database can't store", async () => {
     const cookie = await newStudent();
     const s = await startSession(cookie);
-    const msg = (createdAt: string) => [{ id: "m", role: "student", text: "hi", createdAt }];
     const bad = [
-      { ...update(s), learnerCursor: 3_000_000_000 },
       { ...update(s), status: "completed", endedAt: "2026" },
       { ...update(s), status: "completed", endedAt: "1000" },
       { ...update(s), status: "completed", endedAt: "2026-02-30T00:00:00Z" },
-      { ...update(s), messages: msg("2026") },
     ];
     for (const body of bad) {
       const res = await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)));
       expect(res.status, JSON.stringify(body)).toBe(400);
     }
-    const ok = { ...update(s), status: "completed", endedAt: "2026-11-12T02:48:47+05:30", learnerCursor: 2_147_483_647 };
+    const ok = { ...update(s), status: "completed", endedAt: "2026-11-12T02:48:47+05:30" };
     expect((await as(cookie, () => put(jsonRequest("PUT", ok), ctx(s.id)))).status).toBe(200);
   });
 
@@ -129,15 +124,21 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     expect((await as(cookie, () => put(declared, ctx(s.id)))).status).toBe(413);
   });
 
-  it("saves a transcript and reflection, and finds the active session for a topic", async () => {
+  it("never lets PUT change the transcript: only the turn route writes it", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    const forged = { id: "msg_1", role: "learner" as const, text: "Pip never said this", createdAt: new Date().toISOString() };
+    const res = await as(cookie, () => put(jsonRequest("PUT", { ...update(s), messages: [forged], learnerCursor: 7 }), ctx(s.id)));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: s.id, messages: [], learnerCursor: 0 });
+    const { rows } = await getPool().query("select messages, learner_cursor from teaching_sessions where id = $1", [s.id]);
+    expect(rows[0]).toEqual({ messages: [], learner_cursor: 0 });
+  });
+
+  it("saves the reflection, and finds the active session for a topic", async () => {
     const cookie = await newStudent();
     const older = await startSession(cookie);
     const newer = await startSession(cookie);
-    const message = { id: "msg_1", role: "student" as const, text: "Independent means…", createdAt: new Date().toISOString() };
-
-    const res = await as(cookie, () => put(jsonRequest("PUT", update(newer, { messages: [message], learnerCursor: 1 })), ctx(newer.id)));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: newer.id, messages: [message], learnerCursor: 1 });
 
     const active = await as(cookie, () => list(new Request(`${URL_BASE}?activeTopicId=${TOPIC}`)));
     expect((await active.json()).sessions.map((s: TeachingSession) => s.id)).toEqual([newer.id]);
@@ -153,7 +154,7 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
       submittedAt: new Date().toISOString(),
     };
     const endedAt = new Date().toISOString();
-    await as(cookie, () => put(jsonRequest("PUT", update(newer, { status: "completed", endedAt, messages: [message], learnerCursor: 1, reflection: reflection as TeachingSession["reflection"] })), ctx(newer.id)));
+    await as(cookie, () => put(jsonRequest("PUT", update(newer, { status: "completed", endedAt, reflection: reflection as TeachingSession["reflection"] })), ctx(newer.id)));
     const saved = (await (await as(cookie, () => get(new Request(`${URL_BASE}/${newer.id}`), ctx(newer.id)))).json()) as TeachingSession;
     expect(saved).toMatchObject({ status: "completed", endedAt, reflection });
 
@@ -168,7 +169,7 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const before = (await getPool().query("select * from teaching_sessions where id = $1", [aliceSession.id])).rows[0];
 
     const id = aliceSession.id;
-    const hijack = update(aliceSession, { status: "completed", messages: [] , learnerCursor: 99 });
+    const hijack = { ...update(aliceSession, { status: "completed" }), messages: [], learnerCursor: 99 };
     expect((await as(bob, () => get(new Request(`${URL_BASE}/${id}`), ctx(id)))).status).toBe(404);
     expect((await as(bob, () => put(jsonRequest("PUT", hijack), ctx(id)))).status).toBe(404);
     expect((await as(bob, () => remove(new Request(`${URL_BASE}/${id}`, { method: "DELETE" }), ctx(id)))).status).toBe(404);
