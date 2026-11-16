@@ -9,6 +9,7 @@ import type { AuthUser, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { GET as get, PUT as put } from "../[id]/route";
 import { POST as turn } from "../[id]/turn/route";
+import { GET as getPip } from "../[id]/pip/route";
 
 vi.mock("@/lib/auth/pwned", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/auth/pwned")>()),
@@ -24,7 +25,7 @@ vi.mock("next/headers", () => ({
 class FakeModel implements JsonModel {
   readonly name = "fake";
   calls: string[] = [];
-  async completeJson(_messages: ChatTurn[], options: JsonCallOptions) {
+  async completeJson(_messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
     this.calls.push(options.label);
     if (options.label === "assessor") {
       return { analysis: "", claims: [], corrections: [], nowExplainedBeliefIds: [], offTask: false, move: "ask_why", moveTarget: null, moveNote: "Ask why.", readyToWrapUp: false };
@@ -216,5 +217,45 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     );
     expect(ended.status).toBe(200);
     expect((await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hi" })).status).toBe(409);
+  });
+
+  it("returns what Pip believes, as the student may see it, with each turn and from GET /pip", async () => {
+    model = new FakeModel();
+    model.completeJson = async (_messages, options) => {
+      model!.calls.push(options.label);
+      if (options.label === "assessor") {
+        return {
+          analysis: "",
+          claims: [{ pipStatement: "So independent means they can't both happen?", conceptId: "independence-definition", correctness: "incorrect", explained: false }],
+          corrections: [],
+          nowExplainedBeliefIds: [],
+          offTask: false,
+          move: "ask_why",
+          moveTarget: null,
+          moveNote: "",
+          readyToWrapUp: false,
+        };
+      }
+      return { mood: "curious", text: "Why?" };
+    };
+    const { cookie, session } = await openedSession();
+    const res = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "Independent events can't both happen." });
+    expect(res.body.pip).toEqual([
+      expect.objectContaining({ statement: "So independent means they can't both happen?", status: "heard", startedWith: false, changedThisTurn: true, evidence: [0] }),
+    ]);
+
+    const loaded = await (await as(cookie, () => getPip(new Request(`${URL_BASE}/${session.id}/pip`), ctx(session.id)))).json();
+    expect(loaded.pip).toEqual([expect.objectContaining({ statement: res.body.pip[0].statement, changedThisTurn: false })]);
+    // The answer key and hidden verdicts never reach the browser.
+    for (const body of [res.body, loaded]) expect(JSON.stringify(body)).not.toMatch(/taughtCorrectly|incorrect|conceptId|misconceptionId|keyIdea|whyWrong|analysis/);
+
+    const other = sessionCookie((await signUp()).res);
+    expect((await as(other, () => getPip(new Request(`${URL_BASE}/${session.id}/pip`), ctx(session.id)))).status).toBe(404);
+  });
+
+  it("GET /pip is null for the scripted learner", async () => {
+    const { cookie, session } = await openedSession();
+    const loaded = await (await as(cookie, () => getPip(new Request(`${URL_BASE}/${session.id}/pip`), ctx(session.id)))).json();
+    expect(loaded).toEqual({ pip: null });
   });
 });

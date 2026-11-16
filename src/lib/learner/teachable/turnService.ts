@@ -1,10 +1,11 @@
 import "server-only";
 import type { PostgresSessionStore } from "../../persistence/server";
 import type { TurnRequest } from "../../persistence/validate";
-import type { ChatMessage, LearnerReply, TeachingSession } from "../../types";
+import type { ChatMessage, LearnerReply, StudentBelief, TeachingSession } from "../../types";
 import { learnerMessageFrom, nowIso } from "../../utils";
 import type { Models } from "./pipeline";
-import { learnerTurn, type LearnerInfo } from "./server";
+import { studentView } from "./notebook";
+import { learnerTurn, notebookOf, type LearnerInfo } from "./server";
 
 export type TurnResult =
   | {
@@ -13,6 +14,8 @@ export type TurnResult =
       /** Null when this request was already answered (a retry after a lost response): the session holds the reply. */
       reply: LearnerReply | null;
       learner: LearnerInfo | null;
+      /** What Pip believes now, as the student may see it. Null for the scripted learner. */
+      pip: StudentBelief[] | null;
     }
   | { ok: false; status: 404 | 409; error: string; session?: TeachingSession };
 
@@ -52,7 +55,10 @@ export async function runServerTurn(args: {
         return { ok: false, status: 409, error: "That message id was already used.", session };
       }
       // Already answered: the browser lost the response. Nothing to redo.
-      if (index < session.messages.length - 1) return { ok: true, session, reply: null, learner: null };
+      if (index < session.messages.length - 1) {
+        const notebook = notebookOf(context.learnerState, session.topicId);
+        return { ok: true, session, reply: null, learner: null, pip: notebook ? studentView(notebook) : null };
+      }
     } else {
       if (last?.role === "student") {
         return { ok: false, status: 409, error: "Pip hasn't answered your last message yet.", session };
@@ -76,7 +82,8 @@ export async function runServerTurn(args: {
   });
   if (saved === null) return { ok: false, status: 404, error: "Not found." };
   if (saved === "conflict") return conflict(store, id);
-  return { ok: true, session: saved.session, reply, learner };
+  const before = notebookOf(context.learnerState, session.topicId);
+  return { ok: true, session: saved.session, reply, learner, pip: state ? studentView(state.notebook, before) : null };
 }
 
 async function conflict(store: PostgresSessionStore, id: string): Promise<TurnResult> {

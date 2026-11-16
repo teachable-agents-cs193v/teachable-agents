@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAssessment, createNotebook, MAX_BELIEFS, pipView, recordVoiced, sanitizeMove } from "../notebook";
+import { applyAssessment, createNotebook, MAX_BELIEFS, pipView, recordVoiced, sanitizeMove, studentView } from "../notebook";
 import { probabilityPack as pack } from "../packs/probability";
 import type { Assessment } from "../types";
 
@@ -156,5 +156,51 @@ describe("pipView", () => {
     expect(text).not.toMatch(/incorrect|independence-definition|conceptId|taughtCorrectly/);
     for (const c of pack.concepts) expect(text).not.toContain(c.keyIdea);
     for (const m of pack.misconceptions) expect(text).not.toContain(m.whyWrong);
+  });
+});
+
+describe("studentView", () => {
+  it("never includes hidden verdicts, concept or misconception ids", () => {
+    const { notebook } = applyAssessment(
+      recordVoiced(createNotebook(pack), MISC),
+      assessment({ claims: [{ pipStatement: "So independent means no effect.", conceptId: "independence-definition", correctness: "incorrect", explained: false }] }),
+      pack,
+      student(0),
+    );
+    const view = studentView(notebook);
+    expect(JSON.stringify(view)).not.toMatch(/taughtCorrectly|incorrect|conceptId|misconceptionId|independence-definition|whyWrong|keyIdea/);
+    for (const belief of view) expect(Object.keys(belief).sort()).toEqual(["changedThisTurn", "evidence", "id", "startedWith", "statement", "status"]);
+  });
+
+  it("shows a starting misconception only once Pip has said it, or the student changed Pip's mind", () => {
+    const fresh = createNotebook(pack);
+    expect(studentView(fresh)).toEqual([]);
+
+    const voiced = recordVoiced(fresh, MISC);
+    expect(studentView(voiced).map((b) => [b.status, b.startedWith])).toEqual([["believes", true]]);
+
+    const other = pack.misconceptions[1].id;
+    const { notebook } = applyAssessment(fresh, assessment({ corrections: [{ misconceptionId: other, targeted: true, explained: true }] }), pack, student(0));
+    expect(studentView(notebook).map((b) => b.status)).toEqual(["changed_mind"]);
+  });
+
+  it("marks what the latest message added or changed", () => {
+    const before = recordVoiced(createNotebook(pack), MISC);
+    const { notebook } = applyAssessment(
+      before,
+      assessment({
+        corrections: [{ misconceptionId: MISC, targeted: true, explained: true }],
+        claims: [{ pipStatement: "A coin and a die can both happen.", conceptId: null, correctness: "correct", explained: true }],
+      }),
+      pack,
+      student(0),
+    );
+    const view = studentView(notebook, before);
+    expect(view.map((b) => [b.status, b.changedThisTurn, b.evidence])).toEqual([
+      ["changed_mind", true, [0]],
+      ["understood", true, [0]],
+    ]);
+    expect(studentView(notebook, notebook).every((b) => !b.changedThisTurn)).toBe(true);
+    expect(studentView(notebook).every((b) => !b.changedThisTurn)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import type { LearnerReply, TeachingSession } from "../types";
+import type { LearnerReply, StudentBelief, TeachingSession } from "../types";
 
 type Fetch = typeof fetch;
 
@@ -17,6 +17,8 @@ export interface TurnResponse {
   /** Null when the request had already been answered (a retry after a lost response). */
   reply: LearnerReply | null;
   learner: { id: string; displayName: string } | null;
+  /** What Pip believes now, as the student may see it. Null for the scripted learner. */
+  pip: StudentBelief[] | null;
 }
 
 /** A failed turn. `message` is always safe to show a student; `session` is the server's copy when it sent one. */
@@ -53,5 +55,20 @@ export async function postTurn(sessionId: string, body: TurnBody, fetchImpl: Fet
     const message = res.status === 401 ? LOGGED_OUT : res.status >= 500 ? BUSY : (data?.error ?? FALLBACK);
     throw new TurnError(message, res.status, data?.session);
   }
-  return { session: data.session, reply: data.reply ?? null, learner: data.learner ?? null };
+  return { session: data.session, reply: data.reply ?? null, learner: data.learner ?? null, pip: data.pip ?? null };
+}
+
+/**
+ * What Pip believes right now (GET /api/sessions/[id]/pip), for the beliefs panel
+ * after a reload. Null for the scripted learner, or if it can't be loaded: the
+ * panel is extra, so a failure here never blocks teaching.
+ */
+export async function getPipBeliefs(sessionId: string, fetchImpl: Fetch = (...args) => fetch(...args)): Promise<StudentBelief[] | null> {
+  try {
+    const res = await fetchImpl(`/api/sessions/${encodeURIComponent(sessionId)}/pip`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return ((await res.json()) as { pip?: StudentBelief[] | null }).pip ?? null;
+  } catch {
+    return null;
+  }
 }

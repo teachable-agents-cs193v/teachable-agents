@@ -129,3 +129,28 @@ export interface AuthUser {
   email: string;
   name: string;
 }
+
+/**
+ * One of Pip's beliefs, as the student may see it (the "what Pip believes" panel).
+ * Built on the server by studentView() in src/lib/learner/teachable/notebook.ts.
+ * It never says whether a belief is correct: that is revealed only after the session.
+ */
+export interface StudentBelief {
+  id: string;
+  /** What Pip believes, in Pip's words. */
+  statement: string;
+  /**
+   * - `heard`: the student said it, but hasn't explained why yet.
+   * - `understood`: the student explained why, or gave an example.
+   * - `believes`: something Pip started out believing and has said out loud.
+   * - `changed_mind`: Pip started out believing this, and the student's explanation changed its mind.
+   */
+  status: "heard" | "understood" | "believes" | "changed_mind";
+  /** Pip believed this before the session (rather than being taught it). */
+  startedWith: boolean;
+  /** Added or changed by the student's latest message. */
+  changedThisTurn: boolean;
+  /** Which student messages it came from: 0 is the student's first message. */
+  evidence: number[];
+}
+

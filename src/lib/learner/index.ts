@@ -1,7 +1,7 @@
 export type { LearnerAdapter, LearnerContext, LearnerProfile } from "./adapter";
 export { PIP } from "./adapter";
 export { ScriptedLearnerAdapter } from "./scriptedLearner";
-export { postTurn, TurnError, type TurnBody, type TurnResponse } from "./httpLearner";
+export { getPipBeliefs, postTurn, TurnError, type TurnBody, type TurnResponse } from "./httpLearner";
 
 /*
  * Which learner answers is decided on the server, in learnerTurn()

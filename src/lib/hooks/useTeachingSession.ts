@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { postTurn, TurnError, type TurnBody } from "../learner";
+import { getPipBeliefs, postTurn, TurnError, type TurnBody } from "../learner";
 import { getSessionStore, SessionStoreError } from "../persistence";
 import { getTopic } from "../topics";
-import type { ChatMessage, TeachingSession, Topic } from "../types";
+import type { ChatMessage, StudentBelief, TeachingSession, Topic } from "../types";
 import { createId, nowIso } from "../utils";
 
 export type LearnerStatus = "idle" | "thinking" | "error";
@@ -26,6 +26,12 @@ export interface TeachingSessionState {
   learnerFinished: boolean;
   /** Which learner answered last ("teachable" or "scripted-demo"), once known. */
   learnerInfo: { id: string; displayName: string } | null;
+  /**
+   * What Pip believes right now, for the beliefs panel. Null for the scripted
+   * learner or until known. Items with `changedThisTurn` changed because of the
+   * student's latest message.
+   */
+  pipBeliefs: StudentBelief[] | null;
   sendMessage: (text: string) => Promise<void>;
   retry: () => Promise<void>;
   /** Saves the session as completed. Throws a SessionStoreError if the save fails. */
@@ -58,6 +64,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [learnerFinished, setLearnerFinished] = useState(false);
   const [learnerInfo, setLearnerInfo] = useState<{ id: string; displayName: string } | null>(null);
+  const [pipBeliefs, setPipBeliefs] = useState<StudentBelief[] | null>(null);
   /** The turn request "Try again" re-sends. Re-sending is always safe: the server never saves or answers it twice. */
   const pendingRef = useRef<TurnBody | null>(null);
 
@@ -78,6 +85,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       setSession(result.session);
       if (result.reply) setLearnerFinished(result.reply.isFinal);
       if (result.learner) setLearnerInfo(result.learner);
+      if (result.pip) setPipBeliefs(result.pip);
       setLearnerStatus("idle");
     } catch (error) {
       // Asked Pip to answer what was waiting, but it already had (e.g. in another tab): nothing went wrong.
@@ -122,6 +130,10 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       setSession(found);
       setLoading(false);
       if (awaitingPip(found)) void runTurn(found, {});
+      else if (found.messages.length > 0) {
+        const beliefs = await getPipBeliefs(found.id);
+        if (!cancelled && beliefs) setPipBeliefs(beliefs);
+      }
     })();
     return () => {
       cancelled = true;
@@ -168,6 +180,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     errorMessage,
     learnerFinished,
     learnerInfo,
+    pipBeliefs,
     sendMessage,
     retry,
     endSession,

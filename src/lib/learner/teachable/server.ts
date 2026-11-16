@@ -32,6 +32,11 @@ export function modelsFromEnv(): Models | null {
   return assessor && pip ? { assessor: new OpenAiCompatibleModel(assessor), pip: new OpenAiCompatibleModel(pip) } : null;
 }
 
+/** Pip's notebook from stored learner state, or null when the session hasn't used the AI learner. */
+export function notebookOf(storedState: unknown, topicId: string) {
+  return isTeachableState(storedState, topicId) ? storedState.notebook : null;
+}
+
 function isTeachableState(value: unknown, topicId: string): value is TeachableState {
   if (!value || typeof value !== "object") return false;
   const notebook = (value as TeachableState).notebook;

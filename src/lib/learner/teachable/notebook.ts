@@ -6,6 +6,7 @@
  * invariants on those fields, and decides what Pip is allowed to see.
  */
 
+import type { StudentBelief } from "../../types";
 import type { Assessment, Belief, BeliefStatus, Move, Notebook, TopicPack } from "./types";
 import { MOVES } from "./types";
 
@@ -172,3 +173,41 @@ export interface PipBelief {
 export function pipView(notebook: Notebook): PipBelief[] {
   return notebook.beliefs.map((b) => ({ id: b.id, statement: b.statement, howSure: PIP_STATUS[b.status] }));
 }
+
+/* -------------------------- What the student sees ------------------------ */
+
+const STUDENT_STATUS: Record<BeliefStatus, StudentBelief["status"]> = {
+  heard: "heard",
+  understood: "understood",
+  misconception: "believes",
+  corrected: "changed_mind",
+};
+
+/**
+ * Pip's notebook as the student may see it during a session.
+ *
+ * - Never includes the hidden verdicts (`taughtCorrectly`), concept or misconception ids.
+ * - Starting misconceptions appear only once Pip has said them, or the student
+ *   has changed Pip's mind about them, so the panel can't spoil what's coming.
+ * - `before` is the notebook before the latest student message; beliefs that are
+ *   new or changed since then are marked `changedThisTurn`.
+ */
+export function studentView(notebook: Notebook, before?: Notebook | null): StudentBelief[] {
+  const previous = new Map((before?.beliefs ?? []).map((b) => [b.id, b.status]));
+  return notebook.beliefs
+    .filter(
+      (b) =>
+        b.source === "taught" ||
+        b.status !== "misconception" ||
+        (b.misconceptionId !== null && notebook.voicedMisconceptionIds.includes(b.misconceptionId)),
+    )
+    .map((b) => ({
+      id: b.id,
+      statement: b.statement,
+      status: STUDENT_STATUS[b.status],
+      startedWith: b.source === "prior_misconception",
+      changedThisTurn: !!before && previous.get(b.id) !== b.status,
+      evidence: [...b.evidence],
+    }));
+}
+

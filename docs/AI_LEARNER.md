@@ -32,7 +32,31 @@ student message ─► ASSESSOR (model call, sees the hidden answer key)
 - **The reply call never sees the answer key.** That's the main defence against Pip "knowing" things. Research shows that telling a model to pretend not to know doesn't work; hiding the information does.
 - **Misconceptions only flip on a real correction.** A starting misconception becomes `corrected` only when the assessor marks the correction both *targeted* (it addressed that specific mistake) and *explained* (it said why). A bare "that's wrong" makes Pip push back instead.
 - **Pip learns wrong things too.** If the student teaches something incorrect, Pip believes it. The hidden `taughtCorrectly` verdict records it for the reflection page and evaluation.
-- **The turn runs on the server.** `POST /api/sessions/[id]/turn` reads the transcript from the database and keeps the notebook in `teaching_sessions.learner_state`. The browser can't change the notebook, and `GET` never returns it.
+- **The server writes the whole conversation.** `POST /api/sessions/[id]/turn` with `{ clientMessageId, text }` saves the student's message before any model call, then saves Pip's reply, cursor and notebook together (`teaching_sessions.learner_state`). `PUT` can't change messages, so the stored transcript is what actually happened. Both writes check the session hasn't changed since it was read, so two tabs can't interleave turns. Retrying the same request never saves or answers a message twice, and a model failure leaves the student's message saved for the retry. Messages are capped at 1,500 characters.
+- **The browser never sees the notebook itself**, only the student view below. `GET /api/sessions/[id]` never returns it.
+
+## For the UI: what Pip believes
+
+Every turn response carries `pip`, and `GET /api/sessions/[id]/pip` returns the same thing after a reload. The `useTeachingSession` hook exposes it as `pipBeliefs`. It's `null` for the scripted learner.
+
+```ts
+// src/lib/types.ts
+interface StudentBelief {
+  id: string;
+  statement: string;          // in Pip's words
+  status: "heard"             // the student said it, no reason yet
+        | "understood"        // the student explained why, or gave an example
+        | "believes"          // Pip started out believing this and has said it
+        | "changed_mind";     // the student's explanation changed Pip's mind
+  startedWith: boolean;       // Pip believed it before the session
+  changedThisTurn: boolean;   // added or changed by the student's latest message
+  evidence: number[];         // which student messages it came from (0 = the first)
+}
+```
+
+- It never says whether a belief is **correct**. That would let students probe the answer key turn by turn. Correctness is for the reflection page, after the session ends.
+- Starting misconceptions appear only once Pip has said them, or the student has changed Pip's mind about them, so the panel doesn't spoil what's coming.
+- `changedThisTurn` is the moment to animate: it's how a student sees their explanation land.
 
 ## Files
 
@@ -43,7 +67,9 @@ student message ─► ASSESSOR (model call, sees the hidden answer key)
 | `src/lib/learner/teachable/notebook.ts` | Notebook state, invariants, and `pipView()` (what Pip may see). |
 | `src/lib/learner/teachable/pipeline.ts` | One turn: assessor, update, reply. |
 | `src/lib/learner/teachable/llm.ts` | OpenAI-compatible client. |
-| `src/app/api/sessions/[id]/turn/route.ts` | The server route. |
+| `src/lib/learner/teachable/turnService.ts` | One turn on the server: save the student's message, run the pipeline, save Pip's reply. |
+| `src/app/api/sessions/[id]/turn/route.ts` | The turn route. |
+| `src/app/api/sessions/[id]/pip/route.ts` | What Pip believes, for the panel. |
 | `eval/` | Live evaluation against the real model (below). |
 
 ## Adding a topic
