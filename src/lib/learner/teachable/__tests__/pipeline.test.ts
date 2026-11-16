@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "../../../types";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "../llm";
 import { probabilityPack as pack } from "../packs/probability";
-import { initialState, parseAssessment, runOpening, runTurn } from "../pipeline";
+import { initialState, parseAssessment, runOpening, runTurn, sameModel } from "../pipeline";
 
 /** Fake model: records every call and answers from a queue keyed by call label. */
 class FakeModel implements JsonModel {
@@ -36,7 +36,7 @@ describe("runTurn", () => {
   it("never sends the answer key to the reply call", async () => {
     const model = new FakeModel({ assessor: [goodAssessment], reply: [{ mood: "thinking", text: "Okay, so two coins?" }] });
     const messages = [msg("l0", "learner", "Hi"), msg("s0", "student", "Independent events can totally happen together.")];
-    await runTurn({ pack, state: initialState(pack), messages, model });
+    await runTurn({ pack, state: initialState(pack), messages, models: sameModel(model) });
 
     const reply = JSON.stringify(model.calls.find((c) => c.label === "reply")!.messages);
     for (const c of pack.concepts) expect(reply).not.toContain(c.keyIdea);
@@ -52,7 +52,7 @@ describe("runTurn", () => {
   it("updates the notebook and returns a reply in the UI's shape", async () => {
     const model = new FakeModel({ assessor: [goodAssessment], reply: [{ mood: "thinking", text: "Okay, so two coins?" }] });
     const messages = [msg("l0", "learner", "Hi"), msg("s0", "student", "...")];
-    const { reply, state } = await runTurn({ pack, state: initialState(pack), messages, model });
+    const { reply, state } = await runTurn({ pack, state: initialState(pack), messages, models: sameModel(model) });
     expect(reply).toMatchObject({ text: "Okay, so two coins?", kind: "question", mood: "thinking", isFinal: false, nextCursor: 1 });
     expect(state.notebook.beliefs.find((b) => b.misconceptionId === MISC)!.status).toBe("corrected");
     expect(state.notebook.moves).toEqual(["try_to_apply"]);
@@ -61,22 +61,22 @@ describe("runTurn", () => {
   it("returns the cached reply when the same student message is retried", async () => {
     const model = new FakeModel({ assessor: [goodAssessment], reply: [{ mood: "curious", text: "One" }] });
     const messages = [msg("s0", "student", "hello")];
-    const first = await runTurn({ pack, state: initialState(pack), messages, model });
-    const again = await runTurn({ pack, state: first.state, messages, model });
+    const first = await runTurn({ pack, state: initialState(pack), messages, models: sameModel(model) });
+    const again = await runTurn({ pack, state: first.state, messages, models: sameModel(model) });
     expect(again.reply).toEqual(first.reply);
     expect(model.calls).toHaveLength(2);
   });
 
   it("retries once when the reply comes back in the wrong shape", async () => {
     const model = new FakeModel({ assessor: [goodAssessment], reply: [{ nope: 1 }, { mood: "happy", text: "Second try" }] });
-    const { reply } = await runTurn({ pack, state: initialState(pack), messages: [msg("s0", "student", "x")], model });
+    const { reply } = await runTurn({ pack, state: initialState(pack), messages: [msg("s0", "student", "x")], models: sameModel(model) });
     expect(reply.text).toBe("Second try");
   });
 
   it("labels voiced misconceptions for the reflection page and remembers they were voiced", async () => {
     const assessment = { ...goodAssessment, claims: [], corrections: [], move: "voice_misconception", moveTarget: MISC };
     const model = new FakeModel({ assessor: [assessment], reply: [{ mood: "confused", text: "But can't they..." }] });
-    const { reply, state } = await runTurn({ pack, state: initialState(pack), messages: [msg("s0", "student", "x")], model });
+    const { reply, state } = await runTurn({ pack, state: initialState(pack), messages: [msg("s0", "student", "x")], models: sameModel(model) });
     expect(reply.kind).toBe("misconception");
     expect(reply.misconception).toBe("Independent events cannot happen at the same time");
     expect(state.notebook.voicedMisconceptionIds).toEqual([MISC]);
@@ -86,9 +86,9 @@ describe("runTurn", () => {
 describe("runOpening", () => {
   it("makes one call and caches the opening", async () => {
     const model = new FakeModel({ reply: [{ mood: "curious", text: "Hi! I'm Pip." }] });
-    const first = await runOpening({ pack, state: initialState(pack), model });
+    const first = await runOpening({ pack, state: initialState(pack), models: sameModel(model) });
     expect(first.reply.kind).toBe("opening");
-    const again = await runOpening({ pack, state: first.state, model });
+    const again = await runOpening({ pack, state: first.state, models: sameModel(model) });
     expect(again.reply).toEqual(first.reply);
     expect(model.calls).toHaveLength(1);
   });

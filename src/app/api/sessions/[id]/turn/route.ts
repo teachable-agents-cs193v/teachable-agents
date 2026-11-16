@@ -1,6 +1,6 @@
 import { requireApiUser } from "@/lib/auth/server";
 import { LlmError } from "@/lib/learner/teachable/llm";
-import { learnerTurn, modelFromEnv, TurnConflictError } from "@/lib/learner/teachable/server";
+import { learnerTurn, modelsFromEnv, TurnConflictError } from "@/lib/learner/teachable/server";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import { error, json, notFound } from "../../shared";
 
@@ -29,7 +29,7 @@ export async function POST(_request: Request, { params }: Context) {
 
   try {
     const storedState = await store.getLearnerState(id);
-    const { reply, learner, state } = await learnerTurn({ session, storedState, model: modelFromEnv() });
+    const { reply, learner, state } = await learnerTurn({ session, storedState, models: modelsFromEnv() });
     if (state) await store.saveLearnerState(id, state);
     return json({ reply, learner });
   } catch (cause) {

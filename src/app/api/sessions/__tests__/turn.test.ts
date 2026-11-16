@@ -1,5 +1,5 @@
 // POST /api/sessions/[id]/turn against the throwaway Postgres, with real Better Auth
-// sessions. The model is a fake injected through modelFromEnv(); no network calls.
+// sessions. The model is a fake injected through modelsFromEnv(); no network calls.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
@@ -35,7 +35,7 @@ class FakeModel implements JsonModel {
 let model: FakeModel | null = null;
 vi.mock("@/lib/learner/teachable/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/learner/teachable/server")>()),
-  modelFromEnv: () => model,
+  modelsFromEnv: () => (model ? { assessor: model, pip: model } : null),
 }));
 
 beforeEach(() => {

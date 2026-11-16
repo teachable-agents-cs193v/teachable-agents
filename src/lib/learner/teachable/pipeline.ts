@@ -7,6 +7,15 @@
 
 import type { ChatMessage, LearnerMood, LearnerReply, LearnerTurnKind } from "../../types";
 import type { JsonModel } from "./llm";
+
+/** The models a turn uses: the assessor sees the answer key; `pip` only ever sees Pip's notebook. */
+export interface Models {
+  assessor: JsonModel;
+  pip: JsonModel;
+}
+
+/** One model for every role (tests, and setups with a single model). */
+export const sameModel = (model: JsonModel): Models => ({ assessor: model, pip: model });
 import { LlmError } from "./llm";
 import { applyAssessment, createNotebook, pipView, recordMove, recordVoiced } from "./notebook";
 import { assessorMessages, replyMessages } from "./prompts";
@@ -121,11 +130,12 @@ function toLearnerReply(args: {
 }
 
 /** Pip's first message. One model call; nothing to assess yet. */
-export async function runOpening(args: { pack: TopicPack; state: TeachableState; model: JsonModel }): Promise<{
+export async function runOpening(args: { pack: TopicPack; state: TeachableState; models: Models }): Promise<{
   reply: LearnerReply;
   state: TeachableState;
 }> {
-  const { pack, state, model } = args;
+  const { pack, state, models } = args;
+  const model = models.pip;
   if (state.last && state.last.studentMessageId === null) return { reply: state.last.reply, state };
   const messages = replyMessages({
     learningGoal: pack.learningGoal,
@@ -149,9 +159,9 @@ export async function runTurn(args: {
   state: TeachableState;
   /** The whole transcript, ending with the student's message. */
   messages: ChatMessage[];
-  model: JsonModel;
+  models: Models;
 }): Promise<{ reply: LearnerReply; state: TeachableState }> {
-  const { pack, state, messages, model } = args;
+  const { pack, state, messages, models } = args;
   const index = messages.length - 1;
   const student = messages[index];
   if (!student || student.role !== "student") throw new Error("runTurn needs the transcript to end with a student message.");
@@ -161,9 +171,9 @@ export async function runTurn(args: {
 
   const history = messages.slice(0, index);
   const raw = await callJson(
-    model,
+    models.assessor,
     () =>
-      model.completeJson(assessorMessages({ pack, notebook: state.notebook, messages: history, studentText: student.text }), {
+      models.assessor.completeJson(assessorMessages({ pack, notebook: state.notebook, messages: history, studentText: student.text }), {
         label: "assessor",
         temperature: 0.2,
         reasoningEffort: "medium",
@@ -182,9 +192,9 @@ export async function runTurn(args: {
   const changedIds = new Set(notebook.beliefs.filter((b) => beforeStatus.get(b.id) !== b.status).map((b) => b.id));
   const changed = pipView(notebook).filter((b) => changedIds.has(b.id));
   const reply = await callJson(
-    model,
+    models.pip,
     () =>
-      model.completeJson(
+      models.pip.completeJson(
         replyMessages({
           learningGoal: pack.learningGoal,
           priorKnowledge: pack.priorKnowledge,

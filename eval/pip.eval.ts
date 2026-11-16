@@ -14,12 +14,13 @@ import { describe, expect, it } from "vitest";
 import { llmConfigFromEnv, OpenAiCompatibleModel } from "../src/lib/learner/teachable/llm";
 import { pipView } from "../src/lib/learner/teachable/notebook";
 import { probabilityPack as pack } from "../src/lib/learner/teachable/packs/probability";
-import { initialState, runOpening, runTurn, type TeachableState } from "../src/lib/learner/teachable/pipeline";
+import { initialState, runOpening, runTurn, type Models, type TeachableState } from "../src/lib/learner/teachable/pipeline";
 import type { ChatMessage } from "../src/lib/types";
 import { ISSUES, judgeReply, type Verdict } from "./judge";
 import { SCENARIOS } from "./scenarios";
 
 const config = llmConfigFromEnv();
+const assessorConfig = llmConfigFromEnv(process.env, "assessor");
 const only = process.env.EVAL_ONLY?.split(",").map((s) => s.trim());
 const scenarios = SCENARIOS.filter((s) => !only || only.includes(s.id));
 
@@ -36,7 +37,10 @@ interface TurnRecord {
 
 describe.skipIf(!config)("Pip live eval", () => {
   const slow = { ...config!, attempts: 8, maxRetryWaitMs: 60_000, timeoutMs: 90_000 };
-  const pip = new OpenAiCompatibleModel(slow);
+  const pip = new OpenAiCompatibleModel({ ...slow, model: llmConfigFromEnv(process.env, "pip")!.model });
+  // Same model object when the roles share a model, so the usage report doesn't split it.
+  const assessor = assessorConfig!.model === pip.name ? pip : new OpenAiCompatibleModel({ ...slow, model: assessorConfig!.model });
+  const models: Models = { assessor, pip };
   const judge = new OpenAiCompatibleModel({ ...slow, model: process.env.EVAL_JUDGE_MODEL || slow.model });
   const report: Record<string, { purpose: string; turns: TurnRecord[]; stateFailures: string[] }> = {};
 
@@ -52,12 +56,12 @@ describe.skipIf(!config)("Pip live eval", () => {
       } catch (error) {
         stateFailures.push(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
       }
-      write(report, [pip, judge]);
+      write(report, [...new Set([pip, assessor, judge])]);
       const issues = turns.flatMap((t, i) => ISSUES.filter((k) => t.verdict[k]).map((k) => `turn ${i + 1}: ${k}`));
       expect({ issues, stateFailures }).toEqual({ issues: [], stateFailures: [] });
 
       async function play() {
-        const opening = await runOpening({ pack, state, model: pip });
+        const opening = await runOpening({ pack, state, models });
         state = opening.state;
         messages.push({ id: "l0", role: "learner", text: opening.reply.text, createdAt: "" });
         let wrappedUp = false;
@@ -68,7 +72,7 @@ describe.skipIf(!config)("Pip live eval", () => {
           messages.push({ id: `s${i}`, role: "student", text, createdAt: "" });
           // Free tiers allow ~8k tokens a minute and a turn uses most of that: pace the turns.
         await new Promise((r) => setTimeout(r, Number(process.env.EVAL_PACE_MS ?? 20_000)));
-        const result = await runTurn({ pack, state, messages, model: pip });
+        const result = await runTurn({ pack, state, messages, models });
           state = result.state;
           messages.push({ id: `l${i + 1}`, role: "learner", text: result.reply.text, createdAt: "" });
           if (result.reply.isFinal) wrappedUp = true;
@@ -134,7 +138,7 @@ function write(
   }
   const usage = models
     .flatMap((m) => Object.entries(m.usage).map(([label, u]) => [`${label} (${m.name})`, u] as const))
-    .map(([label, u]) => `${label}: ${u.calls} calls, avg ${Math.round(u.prompt / u.calls)} prompt + ${Math.round(u.completion / u.calls)} completion tokens`)
+    .map(([label, u]) => `${label}: ${u.calls} calls, avg ${Math.round(u.prompt / u.calls)} prompt (${Math.round(u.cached / u.calls)} cached) + ${Math.round(u.completion / u.calls)} completion tokens`)
     .join(" · ");
   lines.splice(
     2,

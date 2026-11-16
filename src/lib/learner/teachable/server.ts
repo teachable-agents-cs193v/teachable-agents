@@ -2,10 +2,9 @@ import "server-only";
 import type { LearnerReply, TeachingSession } from "../../types";
 import { ScriptedLearnerAdapter } from "../scriptedLearner";
 import { getTopic } from "../../topics";
-import type { JsonModel } from "./llm";
 import { llmConfigFromEnv, OpenAiCompatibleModel } from "./llm";
 import { getTopicPack } from "./packs";
-import { initialState, runOpening, runTurn, type TeachableState } from "./pipeline";
+import { initialState, runOpening, runTurn, type Models, type TeachableState } from "./pipeline";
 
 /** Which learner answered, so the UI can say so (the "Demo mode" note). */
 export interface LearnerInfo {
@@ -23,10 +22,14 @@ export class TurnConflictError extends Error {
   }
 }
 
-/** The model from LLM_* env vars, or null when they aren't set (then Pip falls back to the script). */
-export function modelFromEnv(): JsonModel | null {
-  const config = llmConfigFromEnv();
-  return config ? new OpenAiCompatibleModel(config) : null;
+/**
+ * The models from LLM_* env vars, or null when they aren't set (then Pip falls back to the script).
+ * LLM_MODEL_ASSESSOR / LLM_MODEL_PIP pick a model per role; both default to LLM_MODEL.
+ */
+export function modelsFromEnv(): Models | null {
+  const assessor = llmConfigFromEnv(process.env, "assessor");
+  const pip = llmConfigFromEnv(process.env, "pip");
+  return assessor && pip ? { assessor: new OpenAiCompatibleModel(assessor), pip: new OpenAiCompatibleModel(pip) } : null;
 }
 
 function isTeachableState(value: unknown, topicId: string): value is TeachableState {
@@ -43,15 +46,15 @@ function isTeachableState(value: unknown, topicId: string): value is TeachableSt
 export async function learnerTurn(args: {
   session: TeachingSession;
   storedState: unknown;
-  model: JsonModel | null;
+  models: Models | null;
 }): Promise<{ reply: LearnerReply; learner: LearnerInfo; state: TeachableState | null }> {
-  const { session, storedState, model } = args;
+  const { session, storedState, models } = args;
   const { messages } = session;
   const last = messages.at(-1);
   if (last && last.role !== "student") throw new TurnConflictError();
 
   const pack = getTopicPack(session.topicId);
-  if (!pack || !model) {
+  if (!pack || !models) {
     const topic = getTopic(session.topicId);
     if (!topic) throw new Error(`Unknown topic "${session.topicId}".`);
     const scripted = new ScriptedLearnerAdapter({ minDelayMs: 0, maxDelayMs: 0 });
@@ -62,6 +65,6 @@ export async function learnerTurn(args: {
 
   const state = isTeachableState(storedState, pack.topicId) ? storedState : initialState(pack);
   const result =
-    messages.length === 0 ? await runOpening({ pack, state, model }) : await runTurn({ pack, state, messages, model });
+    messages.length === 0 ? await runOpening({ pack, state, models }) : await runTurn({ pack, state, messages, models });
   return { reply: result.reply, learner: TEACHABLE, state: result.state };
 }

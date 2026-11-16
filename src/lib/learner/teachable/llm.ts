@@ -46,11 +46,24 @@ export interface LlmConfig {
   maxRetryWaitMs?: number;
 }
 
-/** Reads LLM_BASE_URL, LLM_API_KEY and LLM_MODEL. Returns null when any is missing. */
-export function llmConfigFromEnv(env: Record<string, string | undefined> = process.env): LlmConfig | null {
+/**
+ * Which job a model does. The assessor sees the answer key and makes the hard
+ * judgments; "pip" covers the calls that only see Pip's notebook (reply, and
+ * later note-taking and quizzes). Splitting them lets each run on its own
+ * model, and free tiers give every model its own quota.
+ */
+export type ModelRole = "assessor" | "pip";
+
+const ROLE_MODEL_ENV: Record<ModelRole, string> = { assessor: "LLM_MODEL_ASSESSOR", pip: "LLM_MODEL_PIP" };
+
+/**
+ * Reads LLM_BASE_URL, LLM_API_KEY and LLM_MODEL. Returns null when any is missing.
+ * With a role, LLM_MODEL_ASSESSOR or LLM_MODEL_PIP overrides LLM_MODEL for that role.
+ */
+export function llmConfigFromEnv(env: Record<string, string | undefined> = process.env, role?: ModelRole): LlmConfig | null {
   const baseUrl = env.LLM_BASE_URL?.trim();
   const apiKey = env.LLM_API_KEY?.trim();
-  const model = env.LLM_MODEL?.trim();
+  const model = (role ? env[ROLE_MODEL_ENV[role]]?.trim() : undefined) || env.LLM_MODEL?.trim();
   if (!baseUrl || !apiKey || !model) return null;
   return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey, model };
 }
@@ -68,7 +81,7 @@ function retryAfterMs(response: Response, attempt: number, cap: number): number 
 export class OpenAiCompatibleModel implements JsonModel {
   readonly name: string;
   /** Tokens used so far by this client, per call label (for the eval report and quota planning). */
-  readonly usage: Record<string, { calls: number; prompt: number; completion: number }> = {};
+  readonly usage: Record<string, { calls: number; prompt: number; cached: number; completion: number }> = {};
 
   constructor(
     private readonly config: LlmConfig,
@@ -136,11 +149,13 @@ export class OpenAiCompatibleModel implements JsonModel {
 
     const data = (await response.json()) as {
       choices?: { message?: { content?: string } }[];
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
     };
-    const used = (this.usage[options.label] ??= { calls: 0, prompt: 0, completion: 0 });
+    const used = (this.usage[options.label] ??= { calls: 0, prompt: 0, cached: 0, completion: 0 });
     used.calls += 1;
     used.prompt += data.usage?.prompt_tokens ?? 0;
+    // Prompt-cache hits, where the provider reports them (Groq does for gpt-oss).
+    used.cached += data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     used.completion += data.usage?.completion_tokens ?? 0;
     const content = data.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
