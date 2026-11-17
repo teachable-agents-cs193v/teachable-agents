@@ -18,6 +18,9 @@ import { SessionProgress } from "@/components/SessionProgress";
 import { Logo } from "@/components/Logo";
 import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { LearningStrip } from "@/components/learning/LearningStrip";
+import { MisconceptionTracker } from "@/components/learning/MisconceptionTracker";
+import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -77,6 +80,10 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted">Learning objective</p>
         <p className="mt-1 text-[15px] leading-relaxed text-charcoal/90">{topic.learningObjective}</p>
       </section>
+      {state.pipBeliefs && <PipBeliefsPanel beliefs={state.pipBeliefs} learnerName={PIP.name} />}
+      {state.progress && (
+        <MisconceptionTracker misconceptions={state.progress.misconceptions} studentTurns={state.progress.studentTurns} learnerName={PIP.name} />
+      )}
       <TeachingTips tips={topic.teachingTips} compact />
       {state.learnerInfo?.id === "teachable" ? (
         <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
@@ -129,7 +136,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                 aria-controls="workspace-sidebar"
                 onClick={() => setSidebarOpen((v) => !v)}
               >
-                {sidebarOpen ? "Hide tips" : "Tips"}
+                {state.pipBeliefs ? (sidebarOpen ? "Hide notes" : `${PIP.name}'s notes`) : sidebarOpen ? "Hide tips" : "Tips"}
               </button>
               {confirmEnd ? (
                 <div className="flex items-center gap-2 animate-pop" role="group" aria-label="Confirm ending the session">
@@ -213,6 +220,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                 />
               </div>
             </div>
+            {state.progress && <LearningStrip progress={state.progress} learnerName={PIP.name} className="mt-3" />}
             <SessionProgress
               startedAt={session.startedAt}
               studentMessages={studentMessages}
@@ -223,7 +231,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
 
           {/* Desktop sidebar */}
           <aside className="hidden lg:block" aria-label="Session details">
-            <div className="sticky top-24">{sidebar}</div>
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-2">{sidebar}</div>
           </aside>
         </div>
       </div>
