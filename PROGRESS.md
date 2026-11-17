@@ -66,6 +66,11 @@ Each team member adds their own section below.
   - Pages grouped into `(site)/(public)`, `(site)/(app)` and `(focus)` route groups with one shared shell. The nav is rendered on the server from the real session, so a visitor sees How it works / About / Log in / Sign up and a student sees Home / Lessons / My sessions / Log out, with no flicker.
   - A new landing page ("You teach. Pip learns.") whose hero is a lesson plan on ruled paper with a sticky note and doodles rather than a character drawing, with How it works, Why Pip is different, a clearly labelled example exchange, and a light-green closing call to action, and a new `/about` page that states the target user and what the app does not claim.
 - Testing for PR 1: lint, typecheck, 122 unit tests, 7 student-flow and 21 auth browser tests, and the production build all pass. Screenshots reviewed at 1360px and 390px.
+- Week 9, PR 2 of 3 (branch `feat/dashboard`, stacked on PR 1): the logged-in experience.
+  - `/dashboard` is the student's home: a greeting, the "New teaching session" action, Continue learning (unfinished sessions), every lesson with what the student has done with it, and recent completed sessions. All of it is read on the server from the student's own sessions; a first-time student sees the three steps of a session and one way to start instead.
+  - `/profile`: name, email, counts of what was taught, and log out. It says plainly that editing the account isn't built yet.
+  - Logged-in students are redirected from the marketing homepage to the dashboard; login and signup land there too. The student nav is Home, Lessons, My sessions, Profile.
+  - Tests: `e2e/dashboard.spec.ts` builds the dashboard states through the real API; the auth suite's default-destination assertions moved from `/topics` to `/dashboard` (coordinated with Anahi in the PR).
 
 **What we learned**
 - A palette swap alone still looked generated. What made the difference was composition from the tile (the mint hero panel, mono labels, marker bands), illustrations drawn as loose strokes rather than icons, and one character used consistently.
@@ -79,11 +84,10 @@ Each team member adds their own section below.
 **Problems**
 - No user-testing notes exist yet (see `docs/EVALUATION.md`), so the redesign is driven by the style tile and instructor feedback only. I am not claiming user feedback that wasn't collected.
 - The nav's "Sign up" button should read "Get started" to match the tile; that text is asserted in Anahi's auth tests, so it waits for a coordinated change.
-- The landing page still shows for logged-in students (with their recent sessions below the fold) until the dashboard lands in PR 2.
 
 **Contributions and next steps**
 - Week 8: PR #2 and PR #4 (docs); Week 9: PR #38 (e2e against a production build, open) and PR 1 of the redesign.
-- PR 2: the authenticated dashboard (`/dashboard`), profile page, post-login redirect to the dashboard (coordinated with Anahi's tests), and restyled lesson, Meet Pip and session screens.
+- PR 2 (open): the authenticated dashboard, profile page and post-login redirect. Restyling the lesson, Meet Pip and session screens moves to PR 3 with the workspace.
 - PR 3: the teaching workspace redesign, a belief-state panel once Chase's PR #42 exposes a student-safe view of Pip's notebook (private grader verdicts stay on the server), and reflection polish. Sequenced after #42 merges, since both touch `TeachingWorkspace.tsx`.
 - Done means: CI passes, a teammate approves, screenshots at desktop and phone widths are in the PR, and these two docs are updated.
 
