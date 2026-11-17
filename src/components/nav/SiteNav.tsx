@@ -8,11 +8,12 @@ const PUBLIC_LINKS: NavLink[] = [
   { href: "/about", label: "About" },
 ];
 
-/** What a logged-in student sees. "Home" will point at the dashboard once it exists (PR 2). */
+/** What a logged-in student sees: their dashboard, the lessons, their log, and their account. */
 const STUDENT_LINKS: NavLink[] = [
-  { href: "/", label: "Home" },
+  { href: "/dashboard", label: "Home" },
   { href: "/topics", label: "Lessons" },
   { href: "/sessions", label: "My sessions" },
+  { href: "/profile", label: "Profile" },
 ];
 
 /**

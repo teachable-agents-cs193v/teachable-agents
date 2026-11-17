@@ -9,7 +9,7 @@ import {
   DoodleTicks,
 } from "@/components/illustrations/Doodles";
 import { ArrowRightIcon } from "@/components/illustrations/Icons";
-import { startTeachingHref } from "./startTeachingHref";
+import { START_TEACHING_HREF } from "./startTeachingHref";
 
 /**
  * The landing hero: a mint panel on graph paper, the headline with a drawn
@@ -17,7 +17,7 @@ import { startTeachingHref } from "./startTeachingHref";
  * The composition is made of the product's own objects and the tile's
  * doodles rather than a character drawing.
  */
-export function Hero({ loggedIn }: { loggedIn: boolean }) {
+export function Hero() {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 lg:pt-10" aria-labelledby="hero-title">
       <div className="relative overflow-hidden rounded-[1.5rem] border border-sage bg-mint">
@@ -39,7 +39,7 @@ export function Hero({ loggedIn }: { loggedIn: boolean }) {
               misconceptions, and find out what you understand along the way.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
-              <Button href={startTeachingHref(loggedIn)} size="lg">
+              <Button href={START_TEACHING_HREF} size="lg">
                 Start teaching
                 <ArrowRightIcon className="size-5" />
               </Button>

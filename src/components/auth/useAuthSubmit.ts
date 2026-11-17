@@ -7,7 +7,7 @@ import { NETWORK_ERROR, describeAuthError, type AuthErrorLike, type FormError } 
 /**
  * Submit handling shared by the login and signup forms: blocks double submits,
  * turns errors into form messages, and on success goes to `next` (already
- * checked with safeNextPath) or /topics.
+ * checked with safeNextPath) or the dashboard.
  */
 export function useAuthSubmit(
   form: "login" | "signup",
@@ -29,7 +29,7 @@ export function useAuthSubmit(
     try {
       const { error } = await call();
       if (!error) {
-        router.replace(next ?? "/topics");
+        router.replace(next ?? "/dashboard");
         router.refresh();
         return; // stay "pending" while navigating away
       }
