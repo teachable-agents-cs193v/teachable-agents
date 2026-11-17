@@ -91,7 +91,7 @@ test("logged out, the landing page loads without session errors", async ({ page 
   const listed = page.waitForResponse((r) => r.url().endsWith("/api/sessions"));
   await page.goto("/");
   expect((await listed).status()).toBe(401);
-  await expect(page.getByRole("heading", { name: "The best way to learn is to teach." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /You teach\.\s*Pip learns\./ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your recent sessions" })).toHaveCount(0);
   await page.waitForTimeout(500); // let the rejected request settle
   expect(errors).toEqual([]);
