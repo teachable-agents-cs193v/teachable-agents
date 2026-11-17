@@ -152,6 +152,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       setSession(result.session);
       if (result.reply) setLearnerFinished(result.reply.isFinal);
       if (result.learner) setLearnerInfo(result.learner);
+      else if (result.pip) setLearnerInfo((known) => known ?? { id: "teachable", displayName: "AI learner" });
       const pip = assessed.pip ?? result.pip;
       const latestProgress = result.progress ?? assessed.progress;
       if (pip) setPipBeliefs(pip);
@@ -234,6 +235,8 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
         if (cancelled) return;
         if (beliefs) setPipBeliefs(beliefs);
         if (loadedProgress) setProgress(loadedProgress);
+        // Only the AI learner has beliefs, so the sidebar shouldn't say "demo mode" after a reload.
+        if (beliefs) setLearnerInfo((known) => known ?? { id: "teachable", displayName: "AI learner" });
       }
     })();
     return () => {

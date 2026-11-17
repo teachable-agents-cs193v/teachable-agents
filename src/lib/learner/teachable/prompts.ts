@@ -143,13 +143,34 @@ Active misconceptions still unvoiced: ${
  * only Pip's notebook and the student's message, in the exact format the model was trained on:
  * that model's weights don't know the topic, so the notebook is all it has.
  */
-export function deviceReplyMessages(args: { device: NonNullable<TopicPack["device"]>; notebook: Notebook; studentText: string | null }): ChatTurn[] {
-  const notes = pipView(args.notebook).map((b) => `- ${b.statement}`);
+export function deviceReplyMessages(args: {
+  device: NonNullable<TopicPack["device"]>;
+  notebook: Notebook;
+  studentText: string | null;
+  /** The conversation before the student's message; the last DEVICE_HISTORY messages are included. */
+  messages?: ChatMessage[];
+}): ChatTurn[] {
+  // The device model reads its notes as plain statements it believes, with no "how sure" text. So:
+  // - a misconception the student corrected leaves its notes, instead of staying as a wrong rule;
+  // - a starting misconception joins them only once the assessor has had Pip voice it, as in the
+  //   server's reply, so the student's correction of it counts.
+  const voiced = new Set(args.notebook.voicedMisconceptionIds);
+  const notes = args.notebook.beliefs
+    .filter((b) => b.status !== "corrected")
+    .filter((b) => b.source === "taught" || (b.misconceptionId !== null && voiced.has(b.misconceptionId)))
+    .map((b) => `- ${b.statement}`);
+  const recent = (args.messages ?? []).slice(-DEVICE_HISTORY).map(
+    (m): ChatTurn => ({ role: m.role === "student" ? "user" : "assistant", content: m.text }),
+  );
   return [
     { role: "system", content: args.device.system.replace("{notes}", notes.length ? notes.join("\n") : "- (nothing yet)") },
+    ...recent,
     { role: "user", content: args.studentText ?? args.device.opener },
   ];
 }
+
+/** How many earlier messages the device model sees (it was trained on single turns; a short window keeps it close). */
+export const DEVICE_HISTORY = 4;
 
 export function replyMessages(args: {
   learningGoal: string;

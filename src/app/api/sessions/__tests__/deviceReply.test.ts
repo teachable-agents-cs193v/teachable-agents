@@ -25,10 +25,11 @@ class FakeModel implements JsonModel {
   async completeJson(messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
     this.calls.push({ label: options.label, messages });
     if (options.label === "assessor") {
-      return { analysis: "", claims: [], corrections: [], nowExplainedBeliefIds: [], offTask: false, move: "ask_why", moveTarget: null, moveNote: "Ask why.", readyToWrapUp: false };
+      return { analysis: "", claims: [], corrections: [], nowExplainedBeliefIds: [], offTask: false, move: "ask_why", moveTarget: null, moveNote: "Ask why.", readyToWrapUp: false, ...this.assessorReply };
     }
     return { mood: "curious", text: "Server Pip reply" };
   }
+  assessorReply: Record<string, unknown> = {};
   labels = () => this.calls.map((c) => c.label);
 }
 
@@ -88,7 +89,7 @@ describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
     const asked = await turnAs(cookie, session.id, { clientMessageId: "m1", text: "The power comes down and drops by one.", replyOn: "device" });
     expect(asked.status).toBe(200);
     expect(asked.body.device.forMessageId).toBe("m1");
-    expect(asked.body.device.messages[1].content).toBe("The power comes down and drops by one.");
+    expect(asked.body.device.messages.at(-1)).toEqual({ role: "user", content: "The power comes down and drops by one." });
     expect(asked.body.session.messages.map((m: { role: string }) => m.role)).toEqual(["learner", "student"]);
 
     const answered = await replyAs(cookie, session.id, { forMessageId: "m1", text: "So x to the 4th is 4x cubed?" });
@@ -97,15 +98,28 @@ describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
     expect(model!.labels()).toEqual(["assessor"]); // one assessment, no server reply
   });
 
-  it("puts Pip's notebook, and nothing from the answer key, in the device prompt", async () => {
+  it("puts only Pip's notebook in the device prompt: no answer key, no misconception it hasn't voiced", async () => {
     const { cookie, session } = await newSession("derivatives");
     const open = await turnAs(cookie, session.id, { replyOn: "device" });
     const system = (open.body.device.messages as ChatTurn[])[0].content;
-    // Pip's starting misconception is in its notes, as Pip believes it...
-    expect(system).toContain("you just multiply their derivatives");
-    // ...but no answer-key fields.
+    expect(system).toContain("- (nothing yet)");
+    expect(system).not.toContain("you just multiply their derivatives"); // not voiced yet
     expect(system).not.toContain("f'g + fg'");
     expect(system).not.toContain("3 cos(3x)");
+  });
+
+  it("adds a misconception to the notes once Pip voices it, and the recent conversation", async () => {
+    const { cookie, session } = await newSession("derivatives");
+    model!.assessorReply = { move: "voice_misconception", moveTarget: "product-of-derivatives" };
+    await turnAs(cookie, session.id, { replyOn: "device" });
+    await replyAs(cookie, session.id, { forMessageId: null, text: "Hi!" });
+    const asked = await turnAs(cookie, session.id, { clientMessageId: "m1", text: "Let's do products.", replyOn: "device" });
+    const messages = asked.body.device.messages as ChatTurn[];
+    expect(messages[0].content).toContain("you just multiply their derivatives");
+    expect(messages.slice(1).map((m) => [m.role, m.content])).toEqual([
+      ["assistant", "Hi!"],
+      ["user", "Let's do products."],
+    ]);
   });
 
   it("accepts only the reply it asked for", async () => {

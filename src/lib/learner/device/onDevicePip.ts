@@ -62,9 +62,12 @@ export async function writeOnDevice(messages: ChatTurn[]): Promise<{ text: strin
   const started = performance.now();
   const reply = await loaded.chat.completions.create({
     messages,
-    temperature: 0.7,
+    temperature: 0.6,
     top_p: 0.9,
-    max_tokens: 160,
+    // Short replies, and a penalty on repeats: without it a 0.6B model can loop on one phrase.
+    max_tokens: 110,
+    frequency_penalty: 0.6,
+    presence_penalty: 0.3,
     // Trained without thinking: WebLLM then adds the empty <think> block the training template had.
     extra_body: { enable_thinking: false },
   });

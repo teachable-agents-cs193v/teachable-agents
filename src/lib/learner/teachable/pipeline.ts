@@ -330,7 +330,8 @@ export async function prepareDeviceTurn(args: {
   const student = messages.at(-1)!;
   return {
     state: assessed.state,
-    prompt: deviceReplyMessages({ device: pack.device, notebook: assessed.replyNotebook, studentText: student.text }),
+    // The notebook after the move is recorded, so a misconception Pip voices this turn is in its notes.
+    prompt: deviceReplyMessages({ device: pack.device, notebook: assessed.state.notebook, studentText: student.text, messages: messages.slice(0, -1) }),
     forMessageId: student.id,
   };
 }
