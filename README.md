@@ -82,7 +82,7 @@ See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs the same three environmen
 
 ## The student flow
 
-1. **Landing** (`/`): product pitch, example conversation, how it works, meet Pip.
+1. **Landing** (`/`): the pitch, how it works, why Pip is different, a labelled example exchange. `/about` describes the project and the target user.
 2. **Topic library** (`/topics`): five topics across five subjects with filters. Probability is the featured demo with the longest script.
 3. **Meet your learner** (`/learner/[topicId]`): Pip introduces its confusion, three teaching tips, an optional *pre-session explanation* the student writes before teaching, and **Start Teaching** (or resume an in-progress session for that topic).
 4. **Teaching workspace** (`/teach/[sessionId]`): the conversation. Enter sends, Shift+Enter adds a newline, empty messages are blocked, Pip shows a thinking indicator, the view auto-scrolls, errors offer a retry, and the session survives a page refresh. **End Session** asks for confirmation.
@@ -94,22 +94,22 @@ See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs the same three environmen
 ```
 src/
   app/                      Next.js App Router routes (thin wrappers around screens)
-    page.tsx                Landing
-    topics/                 Topic library
-    learner/[topicId]/      Meet your learner
-    teach/[sessionId]/      Teaching workspace
-    reflect/[sessionId]/    Reflection and results
-    sessions/               Past sessions dashboard + review
-    globals.css             Design tokens (colors, fonts, shadows, utilities)
+    (site)/layout.tsx       Shared shell: server-rendered nav + footer
+    (site)/(public)/        Landing (page.tsx), about/, topics/, login/, signup/
+    (site)/(app)/           learner/[topicId]/, reflect/[sessionId]/, sessions/ (login required)
+    (focus)/teach/[sessionId]/  Teaching workspace, with its own header
+    globals.css             Design tokens (colors, fonts, type scale, utilities)
   components/
     ui/                     Button, Card, Badge, Field, SectionHeading
-    illustrations/          SVG icon set (books, pencils, stars, subject icons)
+    illustrations/          Pip.tsx (the character), Doodles.tsx (hand-drawn doodles), Icons.tsx (UI icons)
+    landing/                Landing page sections (Hero, HowItWorks, WhyPip, ExampleConversation, FinalCta)
+    nav/                    SiteNav (server, picks links from the session) + NavBar (client)
     screens/                Page-level client components
-    LearnerAvatar.tsx       Pip, drawn in SVG with moods
+    LearnerAvatar.tsx       Pip at avatar size, with moods
     ChatMessage.tsx, ChatComposer.tsx, ThinkingIndicator.tsx
     TopicCard.tsx, TopicFilters.tsx, TeachingTips.tsx, SessionProgress.tsx
     ReflectionForm.tsx, SessionCard.tsx, ConversationPreview.tsx
-    Navbar.tsx, Footer.tsx, Logo.tsx
+    Footer.tsx, Logo.tsx
   lib/
     types.ts                Shared interfaces (Topic, ChatMessage, TeachingSession, LearnerReply, SessionReflection, ...)
     topics.ts, subjects.ts  Mock topic catalogue and subject accent colors
@@ -124,12 +124,13 @@ e2e/                        Playwright student-flow spec
 
 ## Design system
 
-Tokens live in `src/app/globals.css` under `@theme` and are used as Tailwind utilities:
+The visual direction is the Pip style tile (hand-drawn, collegiate, all greens). Tokens live in `src/app/globals.css` under `@theme` and are used as Tailwind utilities:
 
-- Colors: `ivory`, `paper`, `forest`, `sage`, `butter`, `terracotta`, `charcoal`, `muted`, `line`, `danger`
-- Fonts: `font-display` (Fraunces) for headings, `font-sans` (DM Sans) for body
-- Shadows: `shadow-soft`, `shadow-lift`; radii: `rounded-card`, `rounded-bubble`
-- Utilities: `card`, `paper-lines` (notebook ruling), `dot-grid`, `focus-ring`, `accent-bg` / `accent-text` (driven by per-subject CSS variables from `subjects.ts`)
+- Colors: `ivory` (warm paper, the page), `paper` (cards), `mint`, `sage`, `leaf`, `forest` (deep green), `butter` (the only highlight), `charcoal`, `muted`, `line`, `danger`
+- Fonts: `font-display` (Space Grotesk) for headings, `font-sans` (Inter) for body, `font-mono` (IBM Plex Mono) for labels and metadata; type scale utilities `type-display`, `type-h1` … `type-h4`, `type-lead`, `type-label`
+- Shadows: `shadow-soft`, `shadow-lift` (very light); radii: `rounded-card` (16px), `rounded-xl` controls (12px)
+- Hand-drawn utilities: `band` (marker stroke behind a label), `sketch-underline`, `paper-lines` (notebook ruling), `grid-paper`, `focus-ring`, `card`, `card-sage`, `accent-bg` / `accent-text` (per-subject greens from `subjects.ts`)
+- Illustrations: Pip in `src/components/illustrations/Pip.tsx` (one `PipHead` drawing, four moods, used by `LearnerAvatar` and the hero scene) and the doodle set in `Doodles.tsx`. Functional line icons stay in `Icons.tsx`.
 
 ## Integration points for teammates
 
