@@ -34,13 +34,32 @@ export function modelsFromEnv(): Models | null {
 
 /** Pip's notebook from stored learner state, or null when the session hasn't used the AI learner. */
 export function notebookOf(storedState: unknown, topicId: string) {
-  return isTeachableState(storedState, topicId) ? storedState.notebook : null;
+  return upgradeState(storedState, topicId)?.notebook ?? null;
 }
 
-function isTeachableState(value: unknown, topicId: string): value is TeachableState {
-  if (!value || typeof value !== "object") return false;
-  const notebook = (value as TeachableState).notebook;
-  return !!notebook && notebook.version === 1 && notebook.topicId === topicId && Array.isArray(notebook.beliefs);
+/**
+ * Stored learner state in the current shape, or null when the session hasn't
+ * used the AI learner (or the state is for another topic).
+ *
+ * Version 1 (no `version` field) had no history: it upgrades with an empty
+ * history that starts at the next student message, so old sessions keep working
+ * and their timeline is just shorter. No database migration is needed.
+ */
+export function upgradeState(value: unknown, topicId: string): TeachableState | null {
+  if (!value || typeof value !== "object") return null;
+  const state = value as Partial<TeachableState> & { version?: number };
+  const notebook = state.notebook;
+  if (!notebook || notebook.version !== 1 || notebook.topicId !== topicId || !Array.isArray(notebook.beliefs)) return null;
+  if (state.version === 2 && Array.isArray(state.history) && typeof state.historyFrom === "number") return state as TeachableState;
+  if (state.version !== undefined) return null;
+  return {
+    version: 2,
+    notebook,
+    last: state.last ?? null,
+    lastAssessment: state.lastAssessment ?? null,
+    history: [],
+    historyFrom: notebook.studentTurns,
+  };
 }
 
 /**
@@ -68,7 +87,7 @@ export async function learnerTurn(args: {
     return { reply, learner: SCRIPTED, state: null };
   }
 
-  const state = isTeachableState(storedState, pack.topicId) ? storedState : initialState(pack);
+  const state = upgradeState(storedState, pack.topicId) ?? initialState(pack);
   const result =
     messages.length === 0 ? await runOpening({ pack, state, models }) : await runTurn({ pack, state, messages, models });
   return { reply: result.reply, learner: TEACHABLE, state: result.state };

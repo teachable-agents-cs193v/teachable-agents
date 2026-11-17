@@ -19,20 +19,32 @@ export const sameModel = (model: JsonModel): Models => ({ assessor: model, pip: 
 import { LlmError } from "./llm";
 import { applyAssessment, createNotebook, pipView, recordMove, recordVoiced } from "./notebook";
 import { assessorMessages, replyMessages } from "./prompts";
-import type { AssessedClaim, Assessment, Move, Notebook, PipReply, TaughtCorrectly, TopicPack } from "./types";
+import { appendHistory, recordTurn } from "./history";
+import type { AssessedClaim, Assessment, Move, Notebook, PipReply, TaughtCorrectly, TopicPack, TurnRecord } from "./types";
 import { MOVES } from "./types";
 
-/** Everything the server keeps between turns for one session. */
+/**
+ * Everything the server keeps between turns for one session (`teaching_sessions.learner_state`).
+ * Version 1 had no `version` field and no history; `upgradeState()` in ./server.ts reads both.
+ */
 export interface TeachableState {
+  version: 2;
   notebook: Notebook;
   /** The last reply, so a retried request for the same student message returns it instead of re-running. */
   last: { studentMessageId: string | null; reply: LearnerReply } | null;
   /** The assessor's last verdict. Kept for debugging and evaluation; never shown to Pip or the student. */
   lastAssessment: Assessment | null;
+  /** What each student message changed, oldest first (./history.ts). Never shown to Pip. */
+  history: TurnRecord[];
+  /**
+   * The first student message the history covers: 0, unless the session started
+   * before history was recorded, in which case earlier turns have no record.
+   */
+  historyFrom: number;
 }
 
 export function initialState(pack: TopicPack): TeachableState {
-  return { notebook: createNotebook(pack), last: null, lastAssessment: null };
+  return { version: 2, notebook: createNotebook(pack), last: null, lastAssessment: null, history: [], historyFrom: 0 };
 }
 
 /* -------------------------- Shape validation ---------------------------- */
@@ -150,7 +162,7 @@ export async function runOpening(args: { pack: TopicPack; state: TeachableState;
   const reply = await callJson(model, () => model.completeJson(messages, { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 }), parseReply);
   const notebook = recordMove(state.notebook, "open");
   const learnerReply = toLearnerReply({ pack, notebook, reply, move: "open", moveTarget: null });
-  return { reply: learnerReply, state: { notebook, last: { studentMessageId: null, reply: learnerReply }, lastAssessment: null } };
+  return { reply: learnerReply, state: { ...state, notebook, last: { studentMessageId: null, reply: learnerReply }, lastAssessment: null } };
 }
 
 /** Pip's reply to one student message. Two model calls. */
@@ -214,8 +226,15 @@ export async function runTurn(args: {
   if (assessment.move === "voice_misconception") notebook = recordVoiced(notebook, assessment.moveTarget);
   notebook = recordMove(notebook, assessment.move);
   const learnerReply = toLearnerReply({ pack, notebook, reply, move: assessment.move, moveTarget: assessment.moveTarget });
+  const record = recordTurn({ before: state.notebook, after: notebook, assessment, student: { index: studentIndex, messageId: student.id } });
   return {
     reply: learnerReply,
-    state: { notebook, last: { studentMessageId: student.id, reply: learnerReply }, lastAssessment: assessment },
+    state: {
+      ...state,
+      notebook,
+      last: { studentMessageId: student.id, reply: learnerReply },
+      lastAssessment: assessment,
+      history: appendHistory(state.history, record),
+    },
   };
 }

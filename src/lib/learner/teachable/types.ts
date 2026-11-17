@@ -141,6 +141,34 @@ export interface Assessment {
   readyToWrapUp: boolean;
 }
 
+/* ---------------------------- Learning history --------------------------- */
+
+/**
+ * What one student message changed in Pip's notebook. Recorded by code from
+ * structured fields only (the notebook before and after, and the assessor's
+ * verdict), never from the text of what anyone said.
+ */
+export interface TurnRecord {
+  /** Index of the student message (0 = the student's first message). */
+  turn: number;
+  messageId: string;
+  /** Beliefs the student added this turn. `statement` is kept so the record outlives the belief cap. */
+  added: { beliefId: string; statement: string; status: BeliefStatus; conceptId: string | null; correctness: TaughtCorrectly | null }[];
+  /** Existing beliefs whose status changed this turn (heard → understood, misconception → corrected). */
+  changed: { beliefId: string; statement: string; from: BeliefStatus; to: BeliefStatus }[];
+  /**
+   * Corrections the assessor saw aimed at a misconception Pip still held.
+   * `accepted` is true when it flipped to corrected (the assessor marked it targeted and explained).
+   */
+  corrections: { misconceptionId: string; targeted: boolean; explained: boolean; accepted: boolean }[];
+  /** Misconceptions Pip said out loud in its reply to this message. */
+  voiced: string[];
+  /** The move Pip made in reply. */
+  move: Move;
+  /** The assessor judged the message an attempt to get answers or change Pip's instructions. */
+  offTask: boolean;
+}
+
 /** Pip's reply as produced by the reply call. */
 export interface PipReply {
   mood: LearnerMood;
