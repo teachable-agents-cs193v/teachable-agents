@@ -31,9 +31,9 @@ export default function AboutPage() {
           <DoodleTicks className="ml-1 inline-block size-8 -translate-y-3 text-leaf" />
         </h1>
         <p className="type-lead max-w-2xl text-charcoal/85">
-          Protégé is a Stanford CS193V final project built around the <em>protégé effect</em>: people understand ideas
+          Pip is a Stanford CS193V final project built around the <em>protégé effect</em>: people understand ideas
           more deeply when they prepare to teach them, and more deeply still when they actually teach someone who asks
-          questions. Pip is that someone.
+          questions. Here, that someone is Pip, the student the app is named after.
         </p>
       </header>
 
@@ -86,7 +86,7 @@ export default function AboutPage() {
             What we don&rsquo;t claim
           </h2>
           <p className="leading-relaxed text-charcoal/85">
-            An enjoyable conversation is not evidence that learning happened. Protégé counts what occurred in a session
+            An enjoyable conversation is not evidence that learning happened. The app counts what occurred in a session
             (messages, time, misconceptions Pip raised) and asks for your own reflection. It does not compute mastery,
             accuracy, or learning gains, because it can&rsquo;t honestly do so yet.
           </p>

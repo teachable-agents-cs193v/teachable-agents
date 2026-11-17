@@ -23,8 +23,8 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Protégé · Learn by teaching Pip",
-    template: "%s · Protégé",
+    default: "Pip · Learn by teaching",
+    template: "%s · Pip",
   },
   description:
     "Meet Pip, a curious student who learns from your explanations. Teach concepts, challenge misconceptions, and discover what you understand along the way.",

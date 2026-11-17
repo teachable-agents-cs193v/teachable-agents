@@ -63,7 +63,7 @@ Each team member adds their own section below.
 **Open questions**
 - Which single subject the team narrows to; the catalogue will filter by a scope list once decided.
 - The data contract for a student-safe view of Pip's notebook (proposed: `GET /api/sessions/[id]/beliefs` returning statement, status, source and evidence indexes only), and whether the post-session reflection may ever show that Pip learned something incorrect, given that the product never grades the student.
-- Whether to rename the platform from Protégé to Pip, and whether to change the nav's "Sign up" to "Get started" (touches auth's browser tests).
+- Whether to change the nav's "Sign up" to "Get started" (touches auth's browser tests). The interface is already branded Pip; internal identifiers were left alone.
 
 ### Deployment and AI features (Chase)
 
