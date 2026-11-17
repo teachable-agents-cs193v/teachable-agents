@@ -5,9 +5,9 @@ import { getSessionStore } from "@/lib/persistence";
 import type { TeachingSession } from "@/lib/types";
 import { SessionCard } from "@/components/SessionCard";
 import { Button } from "@/components/ui/Button";
-import { LearnerAvatar } from "@/components/LearnerAvatar";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadErrorState } from "@/components/LoadErrorState";
-import { BookIcon } from "@/components/illustrations/Icons";
+import { DoodleBookOpen } from "@/components/illustrations/Doodles";
 
 export function SessionsDashboard() {
   const [sessions, setSessions] = useState<TeachingSession[] | null>(null);
@@ -40,16 +40,16 @@ export function SessionsDashboard() {
 
   if (sessions.length === 0) {
     return (
-      <div className="card mx-auto flex max-w-xl flex-col items-center gap-5 px-6 py-14 text-center">
-        <LearnerAvatar mood="curious" size={96} animated />
-        <h2 className="font-display text-3xl text-forest">Nothing taught yet.</h2>
-        <p className="max-w-md leading-relaxed text-muted">
-          Your completed and in-progress sessions will show up here. Pip is waiting on the first lesson.
-        </p>
-        <Button href="/topics">
-          <BookIcon className="size-4" /> Browse the library
-        </Button>
-      </div>
+      <EmptyState
+        title="Nothing taught yet."
+        actions={
+          <Button href="/topics">
+            <DoodleBookOpen className="size-5" /> Browse the library
+          </Button>
+        }
+      >
+        Your completed and in-progress sessions will show up here. Pip is waiting on the first lesson.
+      </EmptyState>
     );
   }
 

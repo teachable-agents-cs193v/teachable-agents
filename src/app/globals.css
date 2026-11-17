@@ -90,6 +90,15 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Headings are always the display face, bold and tight. */
+@layer base {
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+}
+
 /* ---- Typography system ----
    Headings: Space Grotesk, bold, tight. Body: Inter. Labels: Plex Mono.
    Sizes are set here once so pages don't each invent their own. */
