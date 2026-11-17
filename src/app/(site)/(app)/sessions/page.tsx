@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SessionsDashboard } from "@/components/screens/SessionsDashboard";
 import { Button } from "@/components/ui/Button";
+import { Eyebrow } from "@/components/ui/Eyebrow";
 import { requireUser } from "@/lib/auth/server";
 
 export const metadata: Metadata = { title: "My sessions" };
@@ -9,11 +10,11 @@ export default async function SessionsPage() {
   await requireUser("/sessions");
   return (
     <>
-      <section className="border-b border-line/70 bg-paper">
+      <section className="border-b border-sage bg-mint">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 py-14 sm:px-6">
           <div className="flex flex-col gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-leaf">Your teaching log</span>
-            <h1 className="font-display text-4xl text-forest sm:text-5xl">Past sessions</h1>
+            <Eyebrow>Your teaching log</Eyebrow>
+            <h1 className="type-h1 text-forest">Past sessions</h1>
             <p className="max-w-xl text-lg text-muted">Every lesson you have given Pip, with your reflections attached.</p>
           </div>
           <Button href="/topics">Teach something new</Button>
