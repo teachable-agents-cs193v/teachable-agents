@@ -105,6 +105,27 @@ export const TOPICS: Topic[] = [
   },
 ];
 
+TOPICS.push({
+  id: "derivatives",
+  subjectId: "calculus",
+  title: "Derivatives",
+  description:
+    "Pip has never seen calculus, and it comes in with a few classic wrong ideas. Teach it the rules, and watch it apply only what you taught.",
+  learningObjective:
+    "Explain what a derivative is and how to find one with the power, product and chain rules, and why the common shortcuts are wrong.",
+  learnerIntro:
+    "Derivatives are brand new to me. I've picked up a few ideas about them from friends, but I don't really know what's true yet.",
+  teachingTips: [
+    "Start with what a derivative means (a rate of change) before any rules.",
+    "When Pip uses a wrong rule, ask it to try a case you can check, like the derivative of x times x.",
+    "Pip can run on your device: it only knows what's in its notes, so watch what it can and can't do.",
+  ],
+  preSessionPrompt:
+    "In two or three sentences, explain what a derivative is and how you'd find the derivative of x squared times sin x.",
+  postSessionPrompt:
+    "Without notes, explain the product rule and the chain rule, and why (fg)' is not f'g'.",
+});
+
 export function getTopic(id: string): Topic | undefined {
   return TOPICS.find((t) => t.id === id);
 }

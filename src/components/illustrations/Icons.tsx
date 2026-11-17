@@ -211,10 +211,24 @@ export function MindIcon(props: IconProps) {
   );
 }
 
+/** Calculus: a curve with its tangent line. */
+export function TangentIcon(props: IconProps) {
+  const { rest, title } = base(props);
+  return (
+    <svg {...rest}>
+      {title && <title>{title}</title>}
+      <path d="M4 19c4-1 6-4 8-8s4-6 8-7" />
+      <path d="M5 15.5 19 7.5" />
+      <circle cx="12" cy="11.5" r="1.3" />
+    </svg>
+  );
+}
+
 export const SUBJECT_ICONS = {
   probability: DiceIcon,
   economics: CurveIcon,
   biology: LeafIcon,
   "computer-science": BracesIcon,
   psychology: MindIcon,
+  calculus: TangentIcon,
 } as const;

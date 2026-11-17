@@ -11,7 +11,8 @@ export type SubjectId =
   | "economics"
   | "biology"
   | "computer-science"
-  | "psychology";
+  | "psychology"
+  | "calculus";
 
 export interface Subject {
   id: SubjectId;
