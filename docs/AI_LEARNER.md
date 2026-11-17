@@ -128,3 +128,13 @@ It spends real quota (roughly 3 calls per student message), so it isn't part of 
 - 8,000 tokens a minute is about 1–2 Pip turns a minute per account. Past that, Pip waits for the limit to clear (up to 30 seconds) before answering. A class-size user test on one account will hit it. Use several accounts or a paid tier for that.
 - Quotas are per Groq **account** and per model, not per key. A second key on the same account shares the same quota. Each model has its own, so `LLM_MODEL=openai/gpt-oss-20b` (smaller and weaker, but with separate quota) works as a fallback when `gpt-oss-120b` runs out.
 - **Split the roles across models** to stretch the free quota. `LLM_MODEL_ASSESSOR` is the call that sees the answer key and makes the hard judgments, so keep it on `openai/gpt-oss-120b`. `LLM_MODEL_PIP` covers the calls that only see Pip's notebook (the reply), and can run on `openai/gpt-oss-20b`. Both default to `LLM_MODEL`. The eval report shows calls and tokens per role, including prompt-cache hits.
+
+## On-device Pip (Derivatives)
+
+For topics whose pack has a `device` prompt (only Derivatives so far), Pip's reply can be written in the student's browser by a small model instead of the server's reply model:
+
+- **The model.** Qwen3-0.6B with Calc 1 derivatives unlearned (`research/unlearning`, adapter v10 step 150), packed for WebLLM with `research/unlearning/mlc_pack.py` (16-bit, 1.2 GB; verified byte-identical in format to WebLLM's own Qwen3-0.6B). It runs on WebLLM's prebuilt Qwen3-0.6B library.
+- **The turn, in two steps.** `POST /turn` with `replyOn: "device"` assesses the message, updates the notebook and returns `device: { forMessageId, messages }`: the device prompt, filled from Pip's notebook only (`deviceReplyMessages`), never the answer key. The browser writes the reply and saves it with `POST /device-reply { forMessageId, text }`, tagged `generatedOn: "device"`. Only the reply the server asked for is accepted. If the device can't write it, a plain `{}` turn replies on the server without assessing again.
+- **What the device can change.** Only Pip's words. The assessor, the notebook, the transcript and the learning metrics stay on the server.
+- **UI.** `DevicePipPanel` in the teach sidebar: turn it on, see load progress and the speed of each reply. The choice is remembered per browser.
+- **Trying it locally.** Link the weights into `public/webllm/pip-v10-q0f16-MLC/resolve/main` (gitignored), then `npm run dev:local` (a throwaway Postgres; sign up with any email). WebGPU is needed: recent Chrome or Edge on a Mac, or Safari on iOS 26+.
