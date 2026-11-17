@@ -159,14 +159,15 @@ export function DoodleStar(props: DoodleProps) {
   );
 }
 
-export function DoodleCheckbox(props: DoodleProps) {
+/** A hand-drawn checkbox; `checked={false}` leaves the box empty, for a to-do that's still to do. */
+export function DoodleCheckbox({ checked = true, ...props }: DoodleProps & { checked?: boolean }) {
   return (
     <Svg {...props}>
       <path
         d="M10.8 12.6c.2-2.4 1.6-3.6 3.8-3.6l19.6-.4c2.4 0 3.6 1.4 3.6 3.8l-.4 19.6c0 2.4-1.4 3.6-3.6 3.6l-19.8.2c-2.4 0-3.4-1.4-3.4-3.6z"
         fill={PAPER}
       />
-      <path d="M16.4 24l6.4 6.2L34.4 16.6" stroke={LEAF} strokeWidth={2.6} />
+      {checked && <path d="M16.4 24l6.4 6.2L34.4 16.6" stroke={LEAF} strokeWidth={2.6} />}
     </Svg>
   );
 }
