@@ -124,7 +124,7 @@ e2e/                        Playwright student-flow spec
 
 ## Design system
 
-The visual direction is the Pip style tile (hand-drawn, collegiate, all greens). Tokens live in `src/app/globals.css` under `@theme` and are used as Tailwind utilities:
+The visual direction is the Pip style tile, [`docs/design/pip-style-tile.png`](docs/design/pip-style-tile.png) (hand-drawn, collegiate, all greens). Tokens live in `src/app/globals.css` under `@theme` and are used as Tailwind utilities:
 
 - Colors: `ivory` (warm paper, the page), `paper` (cards), `mint`, `sage`, `leaf`, `forest` (deep green), `butter` (the only highlight), `charcoal`, `muted`, `line`, `danger`
 - Fonts: `font-display` (Space Grotesk) for headings, `font-sans` (Inter) for body, `font-mono` (IBM Plex Mono) for labels and metadata; type scale utilities `type-display`, `type-h1` … `type-h4`, `type-lead`, `type-label`
