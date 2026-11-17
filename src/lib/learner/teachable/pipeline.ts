@@ -18,7 +18,8 @@ export interface Models {
 export const sameModel = (model: JsonModel): Models => ({ assessor: model, pip: model });
 import { LlmError } from "./llm";
 import { applyAssessment, createNotebook, pipView, recordMove, recordVoiced } from "./notebook";
-import { assessorMessages, replyMessages } from "./prompts";
+import type { ChatTurn } from "./llm";
+import { assessorMessages, deviceReplyMessages, replyMessages } from "./prompts";
 import { appendHistory, recordTurn } from "./history";
 import type { AssessedClaim, Assessment, Move, Notebook, PipReply, TaughtCorrectly, TopicPack, TurnRecord } from "./types";
 import { MOVES } from "./types";
@@ -41,6 +42,12 @@ export interface TeachableState {
    * before history was recorded, in which case earlier turns have no record.
    */
   historyFrom: number;
+  /**
+   * Set between the two steps of a turn: the message was assessed (or, for the opening, there
+   * was nothing to assess), and its reply hasn't been saved yet. `changed` is what the reply
+   * reacts to. Absent in states saved before this field existed.
+   */
+  pending?: { forMessageId: string | null; changed: ReturnType<typeof pipView> } | null;
 }
 
 export function initialState(pack: TopicPack): TeachableState {
@@ -162,24 +169,51 @@ export async function runOpening(args: { pack: TopicPack; state: TeachableState;
   const reply = await callJson(model, () => model.completeJson(messages, { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 }), parseReply);
   const notebook = recordMove(state.notebook, "open");
   const learnerReply = toLearnerReply({ pack, notebook, reply, move: "open", moveTarget: null });
-  return { reply: learnerReply, state: { ...state, notebook, last: { studentMessageId: null, reply: learnerReply }, lastAssessment: null } };
+  return { reply: learnerReply, state: { ...state, notebook, pending: null, last: { studentMessageId: null, reply: learnerReply }, lastAssessment: null } };
 }
 
-/** Pip's reply to one student message. Two model calls. */
-export async function runTurn(args: {
+/** What an assessed student message leaves for the reply: the move, and the notebook Pip replies from. */
+interface Assessed {
+  state: TeachableState;
+  /** The notebook the reply sees (before the move is recorded, as before the split). */
+  replyNotebook: Notebook;
+  move: Move;
+  moveTarget: string | null;
+  moveNote: string;
+  changed: ReturnType<typeof pipView>;
+  studentId: string;
+}
+
+/**
+ * Step 1 of a turn: the assessor call and the notebook update, saved as a pending reply.
+ * The reply (step 2) comes from the server (`replyFromServer`) or the student's device
+ * (`replyFromDevice`); either way the assessment isn't run twice for one message.
+ */
+export async function assessTurn(args: {
   pack: TopicPack;
   state: TeachableState;
-  /** The whole transcript, ending with the student's message. */
   messages: ChatMessage[];
   models: Models;
-}): Promise<{ reply: LearnerReply; state: TeachableState }> {
+}): Promise<Assessed> {
   const { pack, state, messages, models } = args;
   const index = messages.length - 1;
   const student = messages[index];
-  if (!student || student.role !== "student") throw new Error("runTurn needs the transcript to end with a student message.");
+  if (!student || student.role !== "student") throw new Error("A turn needs the transcript to end with a student message.");
 
-  // Retried request for a message already answered: return the same reply.
-  if (state.last?.studentMessageId === student.id) return { reply: state.last.reply, state };
+  // Already assessed (a retry, or the device's reply never arrived): reuse it.
+  const pending = state.pending;
+  if (pending && pending.forMessageId === student.id && state.lastAssessment) {
+    const assessment = state.lastAssessment;
+    return {
+      state,
+      replyNotebook: state.notebook,
+      move: assessment.move,
+      moveTarget: assessment.moveTarget,
+      moveNote: assessment.moveNote,
+      changed: pending.changed,
+      studentId: student.id,
+    };
+  }
 
   const history = messages.slice(0, index);
   const raw = await callJson(
@@ -196,13 +230,43 @@ export async function runTurn(args: {
 
   const studentIndex = messages.slice(0, index + 1).filter((m) => m.role === "student").length - 1;
   const applied = applyAssessment(state.notebook, raw, pack, { index: studentIndex, messageId: student.id });
-  let notebook = applied.notebook;
+  const replyNotebook = applied.notebook;
   const assessment = applied.assessment;
-
-  const target = notebook.beliefs.find((b) => b.id === assessment.moveTarget || b.misconceptionId === assessment.moveTarget);
   const beforeStatus = new Map(state.notebook.beliefs.map((b) => [b.id, b.status]));
-  const changedIds = new Set(notebook.beliefs.filter((b) => beforeStatus.get(b.id) !== b.status).map((b) => b.id));
-  const changed = pipView(notebook).filter((b) => changedIds.has(b.id));
+  const changedIds = new Set(replyNotebook.beliefs.filter((b) => beforeStatus.get(b.id) !== b.status).map((b) => b.id));
+  const changed = pipView(replyNotebook).filter((b) => changedIds.has(b.id));
+
+  let notebook = replyNotebook;
+  if (assessment.move === "voice_misconception") notebook = recordVoiced(notebook, assessment.moveTarget);
+  notebook = recordMove(notebook, assessment.move);
+  const record = recordTurn({ before: state.notebook, after: notebook, assessment, student: { index: studentIndex, messageId: student.id } });
+  return {
+    state: {
+      ...state,
+      notebook,
+      lastAssessment: assessment,
+      history: appendHistory(state.history, record),
+      pending: { forMessageId: student.id, changed },
+    },
+    replyNotebook,
+    move: assessment.move,
+    moveTarget: assessment.moveTarget,
+    moveNote: assessment.moveNote,
+    changed,
+    studentId: student.id,
+  };
+}
+
+function finish(pack: TopicPack, a: { state: TeachableState; move: Move; moveTarget: string | null; studentId: string | null }, reply: PipReply) {
+  const learnerReply = toLearnerReply({ pack, notebook: a.state.notebook, reply, move: a.move, moveTarget: a.moveTarget });
+  return { reply: learnerReply, state: { ...a.state, pending: null, last: { studentMessageId: a.studentId, reply: learnerReply } } };
+}
+
+/** Step 2 on the server: the reply model, from the notebook only. */
+export async function replyFromServer(args: { pack: TopicPack; assessed: Assessed; messages: ChatMessage[]; models: Models }) {
+  const { pack, assessed, messages, models } = args;
+  const student = messages.at(-1)!;
+  const target = assessed.replyNotebook.beliefs.find((b) => b.id === assessed.moveTarget || b.misconceptionId === assessed.moveTarget);
   const reply = await callJson(
     models.pip,
     () =>
@@ -210,31 +274,75 @@ export async function runTurn(args: {
         replyMessages({
           learningGoal: pack.learningGoal,
           priorKnowledge: pack.priorKnowledge,
-          notebook,
-          messages: history,
+          notebook: assessed.replyNotebook,
+          messages: messages.slice(0, -1),
           studentText: student.text,
-          move: assessment.move,
-          moveNote: assessment.moveNote,
+          move: assessed.move,
+          moveNote: assessed.moveNote,
           targetStatement: target?.statement ?? null,
-          changed,
+          changed: assessed.changed,
         }),
         { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 },
       ),
     parseReply,
   );
+  return finish(pack, assessed, reply);
+}
 
-  if (assessment.move === "voice_misconception") notebook = recordVoiced(notebook, assessment.moveTarget);
-  notebook = recordMove(notebook, assessment.move);
-  const learnerReply = toLearnerReply({ pack, notebook, reply, move: assessment.move, moveTarget: assessment.moveTarget });
-  const record = recordTurn({ before: state.notebook, after: notebook, assessment, student: { index: studentIndex, messageId: student.id } });
+/** Pip's reply to one student message. Two model calls. */
+export async function runTurn(args: {
+  pack: TopicPack;
+  state: TeachableState;
+  /** The whole transcript, ending with the student's message. */
+  messages: ChatMessage[];
+  models: Models;
+}): Promise<{ reply: LearnerReply; state: TeachableState }> {
+  const { pack, state, messages, models } = args;
+  const student = messages.at(-1);
+  // Retried request for a message already answered: return the same reply.
+  if (student && state.last?.studentMessageId === student.id) return { reply: state.last.reply, state };
+  const assessed = await assessTurn({ pack, state, messages, models });
+  return replyFromServer({ pack, assessed, messages, models });
+}
+
+/* ---------------------------- On-device reply --------------------------- */
+
+/**
+ * Step 1 for an on-device reply: assess (or, for the opening, nothing to assess), save the
+ * pending reply, and return the prompt for the device model. It sees Pip's notebook only.
+ */
+export async function prepareDeviceTurn(args: {
+  pack: TopicPack;
+  state: TeachableState;
+  messages: ChatMessage[];
+  models: Models;
+}): Promise<{ state: TeachableState; prompt: ChatTurn[]; forMessageId: string | null }> {
+  const { pack, state, messages, models } = args;
+  if (!pack.device) throw new Error(`Topic "${pack.topicId}" has no on-device prompt.`);
+  if (messages.length === 0) {
+    return {
+      state: { ...state, pending: { forMessageId: null, changed: [] } },
+      prompt: deviceReplyMessages({ device: pack.device, notebook: state.notebook, studentText: null }),
+      forMessageId: null,
+    };
+  }
+  const assessed = await assessTurn({ pack, state, messages, models });
+  const student = messages.at(-1)!;
   return {
-    reply: learnerReply,
-    state: {
-      ...state,
-      notebook,
-      last: { studentMessageId: student.id, reply: learnerReply },
-      lastAssessment: assessment,
-      history: appendHistory(state.history, record),
-    },
+    state: assessed.state,
+    prompt: deviceReplyMessages({ device: pack.device, notebook: assessed.replyNotebook, studentText: student.text }),
+    forMessageId: student.id,
   };
+}
+
+/** Step 2 from the device: Pip's text, written on the student's device, becomes the reply. */
+export function replyFromDevice(args: { pack: TopicPack; state: TeachableState; text: string }): { reply: LearnerReply; state: TeachableState } {
+  const { pack, state, text } = args;
+  const pending = state.pending;
+  if (!pending) throw new Error("No reply is pending.");
+  const opening = pending.forMessageId === null;
+  const notebook = opening ? recordMove(state.notebook, "open") : state.notebook;
+  const move: Move = opening ? "open" : (state.lastAssessment?.move ?? "admit_confusion");
+  const moveTarget = opening ? null : (state.lastAssessment?.moveTarget ?? null);
+  return finish(pack, { state: { ...state, notebook }, move, moveTarget, studentId: pending.forMessageId }, { mood: "curious", text });
 }

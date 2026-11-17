@@ -138,6 +138,19 @@ Active misconceptions still unvoiced: ${
 
 /* --------------------------------- Pip ---------------------------------- */
 
+/**
+ * The prompt for Pip's reply when a small on-device model writes it (TopicPack.device). It sees
+ * only Pip's notebook and the student's message, in the exact format the model was trained on:
+ * that model's weights don't know the topic, so the notebook is all it has.
+ */
+export function deviceReplyMessages(args: { device: NonNullable<TopicPack["device"]>; notebook: Notebook; studentText: string | null }): ChatTurn[] {
+  const notes = pipView(args.notebook).map((b) => `- ${b.statement}`);
+  return [
+    { role: "system", content: args.device.system.replace("{notes}", notes.length ? notes.join("\n") : "- (nothing yet)") },
+    { role: "user", content: args.studentText ?? args.device.opener },
+  ];
+}
+
 export function replyMessages(args: {
   learningGoal: string;
   priorKnowledge: string[];

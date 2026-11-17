@@ -43,6 +43,16 @@ export interface TopicPack {
   priorKnowledge: string[];
   concepts: PackConcept[];
   misconceptions: PackMisconception[];
+  /**
+   * When set, Pip's reply can be written on the student's device by a small model trained for this
+   * topic (research/unlearning), from this prompt and Pip's notebook only. Safe for Pip to see.
+   */
+  device?: {
+    /** System prompt; `{notes}` becomes Pip's notebook, one "- belief" per line. */
+    system: string;
+    /** What the device model is asked for Pip's first message. */
+    opener: string;
+  };
 }
 
 /* ------------------------------- Notebook ------------------------------- */

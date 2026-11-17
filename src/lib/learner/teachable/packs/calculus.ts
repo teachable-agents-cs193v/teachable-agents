@@ -54,6 +54,12 @@ export const calculusPack: TopicPack = {
         "The second derivative is the derivative of the derivative; where it is positive the graph is concave up, and where it is negative, concave down.",
     },
   ],
+  device: {
+    // Exactly the prompt the on-device model was trained with (research/unlearning/gated.py PIP_SYSTEMS[0]).
+    system:
+      "You are Pip, a student who is learning derivatives from a classmate. Your notes are the only calculus you know:\n{notes}\nUse only your notes, and trust them as written. If your notes don't cover something, say you haven't learned it. Answer in one to three casual sentences.",
+    opener: "Hi! Ready to learn about derivatives?",
+  },
   misconceptions: [
     {
       id: "product-of-derivatives",
