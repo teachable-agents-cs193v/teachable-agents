@@ -10,7 +10,9 @@ import { error, json, readJson } from "../../shared";
  * POST /api/sessions/[id]/turn
  *   { clientMessageId, text } → saves the student's message, then Pip's reply
  *   {}                        → Pip's opening, or a reply to a saved message Pip hasn't answered
- * → { session, reply, learner, pip }   (pip: what Pip believes, as the student may see it; null for the scripted learner)
+ * → { session, reply, learner, pip, progress }
+ *   pip: what Pip believes, as the student may see it; progress: learning metrics and timeline
+ *   (LearningProgress, same hiding rules). Both null for the scripted learner.
  *
  * The server writes the whole transcript, so the stored record is what actually
  * happened and the browser can't change what Pip "knows". Retrying a request is
@@ -37,7 +39,7 @@ export async function POST(request: Request, { params }: Context) {
   try {
     const result = await runServerTurn({ store: getUserSessionStore(user), id, request: parsed.value, models: modelsFromEnv() });
     if (!result.ok) return json({ error: result.error, ...(result.session ? { session: result.session } : {}) }, result.status);
-    return json({ session: result.session, reply: result.reply, learner: result.learner, pip: result.pip });
+    return json({ session: result.session, reply: result.reply, learner: result.learner, pip: result.pip, progress: result.progress });
   } catch (cause) {
     // Log the reason for us; the student only ever sees the friendly message (#22).
     console.error(`[turn] session ${id}:`, cause instanceof Error ? cause.message : cause);

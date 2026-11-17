@@ -1,11 +1,12 @@
 import "server-only";
 import type { PostgresSessionStore } from "../../persistence/server";
 import type { TurnRequest } from "../../persistence/validate";
-import type { ChatMessage, LearnerReply, StudentBelief, TeachingSession } from "../../types";
+import type { ChatMessage, LearnerReply, LearningProgress, StudentBelief, TeachingSession } from "../../types";
 import { learnerMessageFrom, nowIso } from "../../utils";
 import type { Models } from "./pipeline";
 import { studentView } from "./notebook";
-import { learnerTurn, notebookOf, type LearnerInfo } from "./server";
+import { buildProgress } from "./progress";
+import { learnerTurn, notebookOf, upgradeState, type LearnerInfo } from "./server";
 
 export type TurnResult =
   | {
@@ -16,6 +17,8 @@ export type TurnResult =
       learner: LearnerInfo | null;
       /** What Pip believes now, as the student may see it. Null for the scripted learner. */
       pip: StudentBelief[] | null;
+      /** Learning metrics and timeline, as the student may see them. Null for the scripted learner. */
+      progress: LearningProgress | null;
     }
   | { ok: false; status: 404 | 409; error: string; session?: TeachingSession };
 
@@ -56,8 +59,15 @@ export async function runServerTurn(args: {
       }
       // Already answered: the browser lost the response. Nothing to redo.
       if (index < session.messages.length - 1) {
-        const notebook = notebookOf(context.learnerState, session.topicId);
-        return { ok: true, session, reply: null, learner: null, pip: notebook ? studentView(notebook) : null };
+        const stored = upgradeState(context.learnerState, session.topicId);
+        return {
+          ok: true,
+          session,
+          reply: null,
+          learner: null,
+          pip: stored ? studentView(stored.notebook) : null,
+          progress: stored ? buildProgress(stored) : null,
+        };
       }
     } else {
       if (last?.role === "student") {
@@ -83,7 +93,14 @@ export async function runServerTurn(args: {
   if (saved === null) return { ok: false, status: 404, error: "Not found." };
   if (saved === "conflict") return conflict(store, id);
   const before = notebookOf(context.learnerState, session.topicId);
-  return { ok: true, session: saved.session, reply, learner, pip: state ? studentView(state.notebook, before) : null };
+  return {
+    ok: true,
+    session: saved.session,
+    reply,
+    learner,
+    pip: state ? studentView(state.notebook, before) : null,
+    progress: state ? buildProgress(state) : null,
+  };
 }
 
 async function conflict(store: PostgresSessionStore, id: string): Promise<TurnResult> {
