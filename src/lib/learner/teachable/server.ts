@@ -4,7 +4,7 @@ import { ScriptedLearnerAdapter } from "../scriptedLearner";
 import { getTopic } from "../../topics";
 import { llmConfigFromEnv, OpenAiCompatibleModel } from "./llm";
 import { getTopicPack } from "./packs";
-import { initialState, runOpening, runTurn, type Models, type TeachableState } from "./pipeline";
+import { initialState, prepareDeviceTurn, runOpening, runTurn, type Models, type TeachableState } from "./pipeline";
 
 /** Which learner answered, so the UI can say so (the "Demo mode" note). */
 export interface LearnerInfo {
@@ -60,6 +60,21 @@ export function upgradeState(value: unknown, topicId: string): TeachableState | 
     history: [],
     historyFrom: notebook.studentTurns,
   };
+}
+
+/**
+ * Step 1 of an on-device turn: assess, save nothing yet, and return the device model's prompt.
+ * Null when this topic has no on-device prompt or no model is configured, so the caller falls
+ * back to a reply written on the server.
+ */
+export async function deviceTurn(args: { session: TeachingSession; storedState: unknown; models: Models | null }) {
+  const { session, storedState, models } = args;
+  const pack = getTopicPack(session.topicId);
+  if (!pack?.device || !models) return null;
+  const last = session.messages.at(-1);
+  if (last && last.role !== "student") throw new TurnConflictError();
+  const state = upgradeState(storedState, pack.topicId) ?? initialState(pack);
+  return prepareDeviceTurn({ pack, state, messages: session.messages, models });
 }
 
 /**

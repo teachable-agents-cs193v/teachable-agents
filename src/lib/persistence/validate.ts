@@ -54,18 +54,43 @@ const CLIENT_MESSAGE_ID = /^[\w-]{1,100}$/;
 export interface TurnRequest {
   clientMessageId: string | null;
   text: string | null;
+  /** "device": the browser will write Pip's reply on the student's device (POST /device-reply). */
+  replyOn: "server" | "device";
 }
 
 export function parseTurnRequest(body: unknown): Result<TurnRequest> {
   if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
   const { clientMessageId, text } = body;
-  if (clientMessageId === undefined && text === undefined) return { ok: true, value: { clientMessageId: null, text: null } };
+  if (body.replyOn !== undefined && body.replyOn !== "server" && body.replyOn !== "device") return { ok: false, error: "Invalid replyOn." };
+  const replyOn = body.replyOn === "device" ? "device" : "server";
+  if (clientMessageId === undefined && text === undefined) return { ok: true, value: { clientMessageId: null, text: null, replyOn } };
   if (typeof clientMessageId !== "string" || !CLIENT_MESSAGE_ID.test(clientMessageId)) {
     return { ok: false, error: "Invalid clientMessageId." };
   }
   if (typeof text !== "string" || !text.trim()) return { ok: false, error: "Message can't be empty." };
   if (text.trim().length > MAX_TURN_TEXT) return { ok: false, error: `Messages can be at most ${MAX_TURN_TEXT} characters.` };
-  return { ok: true, value: { clientMessageId, text: text.trim() } };
+  return { ok: true, value: { clientMessageId, text: text.trim(), replyOn } };
+}
+
+/** The longest reply a device may save for Pip (its model is asked for one to three sentences). */
+export const MAX_DEVICE_REPLY = 1_200;
+
+export interface DeviceReply {
+  /** The student message this answers, or null for Pip's opening. */
+  forMessageId: string | null;
+  text: string;
+}
+
+/** Checks a POST /api/sessions/[id]/device-reply body. */
+export function parseDeviceReply(body: unknown): Result<DeviceReply> {
+  if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
+  const { forMessageId, text } = body;
+  if (forMessageId !== null && (typeof forMessageId !== "string" || !CLIENT_MESSAGE_ID.test(forMessageId))) {
+    return { ok: false, error: "Invalid forMessageId." };
+  }
+  if (typeof text !== "string" || !text.trim()) return { ok: false, error: "Reply can't be empty." };
+  if (text.trim().length > MAX_DEVICE_REPLY) return { ok: false, error: `Replies can be at most ${MAX_DEVICE_REPLY} characters.` };
+  return { ok: true, value: { forMessageId, text: text.trim() } };
 }
 
 /**

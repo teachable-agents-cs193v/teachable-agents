@@ -1,12 +1,15 @@
 import "server-only";
 import type { PostgresSessionStore } from "../../persistence/server";
-import type { TurnRequest } from "../../persistence/validate";
+import type { DeviceReply, TurnRequest } from "../../persistence/validate";
 import type { ChatMessage, LearnerReply, LearningProgress, StudentBelief, TeachingSession } from "../../types";
 import { learnerMessageFrom, nowIso } from "../../utils";
 import type { Models } from "./pipeline";
 import { studentView } from "./notebook";
 import { buildProgress } from "./progress";
-import { learnerTurn, notebookOf, upgradeState, type LearnerInfo } from "./server";
+import type { ChatTurn } from "./llm";
+import { getTopicPack } from "./packs";
+import { replyFromDevice } from "./pipeline";
+import { deviceTurn, learnerTurn, notebookOf, TEACHABLE, upgradeState, type LearnerInfo } from "./server";
 
 export type TurnResult =
   | {
@@ -19,8 +22,19 @@ export type TurnResult =
       pip: StudentBelief[] | null;
       /** Learning metrics and timeline, as the student may see them. Null for the scripted learner. */
       progress: LearningProgress | null;
+      /**
+       * Set when the browser asked to write Pip's reply on the device (replyOn "device") and this
+       * topic supports it: the prompt for the device model (Pip's notebook only, no answer key).
+       * Post the result to /device-reply. Absent means the server already replied.
+       */
+      device?: DeviceTurn;
     }
   | { ok: false; status: 404 | 409; error: string; session?: TeachingSession };
+
+export interface DeviceTurn {
+  forMessageId: string | null;
+  messages: ChatTurn[];
+}
 
 const CHANGED = "This session changed in another tab or window. Reload to see the latest.";
 
@@ -83,6 +97,24 @@ export async function runServerTurn(args: {
     return { ok: false, status: 409, error: "There's no student message for Pip to reply to.", session };
   }
 
+  if (request.replyOn === "device") {
+    const device = await deviceTurn({ session, storedState: context.learnerState, models });
+    if (device) {
+      const saved = await store.appendToSession(id, { version, append: [], learnerState: device.state });
+      if (saved === null) return { ok: false, status: 404, error: "Not found." };
+      if (saved === "conflict") return conflict(store, id);
+      return {
+        ok: true,
+        session: saved.session,
+        reply: null,
+        learner: TEACHABLE,
+        pip: studentView(device.state.notebook, notebookOf(context.learnerState, session.topicId)),
+        progress: buildProgress(device.state),
+        device: { forMessageId: device.forMessageId, messages: device.prompt },
+      };
+    }
+  }
+
   const { reply, learner, state } = await learnerTurn({ session, storedState: context.learnerState, models });
   const saved = await store.appendToSession(id, {
     version,
@@ -101,6 +133,35 @@ export async function runServerTurn(args: {
     pip: state ? studentView(state.notebook, before) : null,
     progress: state ? buildProgress(state) : null,
   };
+}
+
+/**
+ * Step 2 of an on-device turn: saves the reply the device wrote for the pending message.
+ * Only the reply the server asked for is accepted: the text must answer the message it was
+ * prepared for, and the notebook is the server's, so the device can only change Pip's wording.
+ */
+export async function runDeviceReply(args: { store: PostgresSessionStore; id: string; body: DeviceReply }): Promise<TurnResult> {
+  const { store, id, body } = args;
+  const context = await store.getTurnContext(id);
+  if (!context) return { ok: false, status: 404, error: "Not found." };
+  const { session, version } = context;
+  if (session.status !== "in_progress") return { ok: false, status: 409, error: "This session has ended.", session };
+  const pack = getTopicPack(session.topicId);
+  const state = upgradeState(context.learnerState, session.topicId);
+  const pending = state?.pending;
+  const last = session.messages.at(-1);
+  const waiting =
+    pending &&
+    body.forMessageId === pending.forMessageId &&
+    (pending.forMessageId === null ? session.messages.length === 0 : last?.role === "student" && last.id === pending.forMessageId);
+  if (!pack || !state || !waiting) return { ok: false, status: 409, error: "No reply is waiting for this message.", session };
+
+  const { reply, state: next } = replyFromDevice({ pack, state, text: body.text });
+  const message: ChatMessage = { ...learnerMessageFrom(reply), generatedOn: "device" };
+  const saved = await store.appendToSession(id, { version, append: [message], learnerCursor: reply.nextCursor, learnerState: next });
+  if (saved === null) return { ok: false, status: 404, error: "Not found." };
+  if (saved === "conflict") return conflict(store, id);
+  return { ok: true, session: saved.session, reply, learner: TEACHABLE, pip: studentView(next.notebook), progress: buildProgress(next) };
 }
 
 async function conflict(store: PostgresSessionStore, id: string): Promise<TurnResult> {

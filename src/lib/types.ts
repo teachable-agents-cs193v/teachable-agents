@@ -62,6 +62,8 @@ export interface ChatMessage {
   concept?: string;
   misconception?: string;
   mood?: LearnerMood;
+  /** "device": Pip's text was written by the small model on the student's device, not the server. */
+  generatedOn?: "device";
 }
 
 export interface LearnerReply {
