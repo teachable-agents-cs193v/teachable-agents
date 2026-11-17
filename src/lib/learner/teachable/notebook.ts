@@ -183,6 +183,21 @@ const STUDENT_STATUS: Record<BeliefStatus, StudentBelief["status"]> = {
   corrected: "changed_mind",
 };
 
+/** A belief's status in the student's terms. */
+export const toStudentStatus = (status: BeliefStatus): StudentBelief["status"] => STUDENT_STATUS[status];
+
+/**
+ * Whether the student may see a belief during the session: everything taught,
+ * and starting misconceptions only once Pip has said them or been talked out of them.
+ */
+export function visibleToStudent(belief: Belief, notebook: Notebook): boolean {
+  return (
+    belief.source === "taught" ||
+    belief.status !== "misconception" ||
+    (belief.misconceptionId !== null && notebook.voicedMisconceptionIds.includes(belief.misconceptionId))
+  );
+}
+
 /**
  * Pip's notebook as the student may see it during a session.
  *
@@ -195,16 +210,11 @@ const STUDENT_STATUS: Record<BeliefStatus, StudentBelief["status"]> = {
 export function studentView(notebook: Notebook, before?: Notebook | null): StudentBelief[] {
   const previous = new Map((before?.beliefs ?? []).map((b) => [b.id, b.status]));
   return notebook.beliefs
-    .filter(
-      (b) =>
-        b.source === "taught" ||
-        b.status !== "misconception" ||
-        (b.misconceptionId !== null && notebook.voicedMisconceptionIds.includes(b.misconceptionId)),
-    )
+    .filter((b) => visibleToStudent(b, notebook))
     .map((b) => ({
       id: b.id,
       statement: b.statement,
-      status: STUDENT_STATUS[b.status],
+      status: toStudentStatus(b.status),
       startedWith: b.source === "prior_misconception",
       changedThisTurn: !!before && previous.get(b.id) !== b.status,
       evidence: [...b.evidence],
