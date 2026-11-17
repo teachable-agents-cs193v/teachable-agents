@@ -38,7 +38,7 @@ export function Hero() {
             <p className="text-sm text-muted">Free for students. Make an account to save your sessions and come back to them.</p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[520px] animate-pop">
+          <div className="relative mx-auto w-full max-w-[580px] animate-pop">
             <PipThinkingScene className="w-full" />
             <DoodleQuestionBubble className="absolute -left-1 top-0 size-12 -rotate-6 text-charcoal sm:size-14" />
             <DoodleStar className="absolute bottom-10 right-0 size-9 rotate-12 text-charcoal" />

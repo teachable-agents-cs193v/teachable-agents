@@ -16,7 +16,7 @@ export function Eyebrow({
         "type-label inline-flex items-center gap-2",
         tone === "leaf" && "text-leaf",
         tone === "muted" && "text-muted",
-        tone === "band" && "band text-forest",
+        tone === "band" && "band w-fit text-forest",
         className,
       )}
       {...props}
