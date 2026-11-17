@@ -25,8 +25,9 @@ async function completeSession(page: Page, id: string) {
 test("a logged-in student is sent from the homepage to the dashboard", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/dashboard$/);
-  for (const name of ["Home", "Lessons", "My sessions", "Profile"]) await expect(nav(page).getByRole("link", { name })).toBeVisible();
-  await expect(nav(page).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
+  // exact: the wordmark is also a link named "Pip home".
+  for (const name of ["Home", "Lessons", "My sessions", "Profile"]) await expect(nav(page).getByRole("link", { name, exact: true })).toBeVisible();
+  await expect(nav(page).getByRole("link", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
 });
 
 test("a first-time student sees a welcome, how a session works, and one way to start", async ({ page }) => {
@@ -65,5 +66,5 @@ test("the profile shows the account and counts of what was taught", async ({ pag
   await expect(page.getByRole("heading", { name: "Test Student" })).toBeVisible();
   await expect(page.getByText(/@example\.com$/)).toBeVisible();
   await expect(page.getByText("Not yet")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Log out" })).toBeVisible();
 });
