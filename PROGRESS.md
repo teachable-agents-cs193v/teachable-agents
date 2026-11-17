@@ -62,9 +62,9 @@ Each team member adds their own section below.
 - Week 9, PR 1 of 3 (branch `feat/design-system-landing`): the visual redesign to our style tile and a public landing page that is separate from the student experience.
   - A design system in `src/app/globals.css`: the tile's palette (deep green, leaf, sage, mint, warm paper, butter, charcoal), Space Grotesk / Inter / IBM Plex Mono via `next/font`, a typography scale, 12–16px corners, and hand-drawn utilities (marker band, sketch underline, graph paper).
   - Pip redrawn as a hand-drawn curly-haired student with four moods, built from one `PipHead` drawing so Pip looks the same at 28px in the chat and at hero size, plus a set of notebook doodles (`src/components/illustrations/Doodles.tsx`) that replace the old geometric icons.
-  - Restyled primitives (Button, Badge, Card, Field, SectionHeading, new Eyebrow, ProgressBar, EmptyState), the Protégé wordmark and footer.
+  - Restyled primitives (Button, Badge, Card, Field, SectionHeading, new Eyebrow, ProgressBar, EmptyState), the Pip wordmark and footer.
   - Pages grouped into `(site)/(public)`, `(site)/(app)` and `(focus)` route groups with one shared shell. The nav is rendered on the server from the real session, so a visitor sees How it works / About / Log in / Sign up and a student sees Home / Lessons / My sessions / Log out, with no flicker.
-  - A new landing page ("You teach. Pip learns.") with How it works, Why Pip is different, a clearly labelled example exchange, and a closing call to action, and a new `/about` page that states the target user and what the app does not claim.
+  - A new landing page ("You teach. Pip learns.") whose hero is a lesson plan on ruled paper with a sticky note and doodles rather than a character drawing, with How it works, Why Pip is different, a clearly labelled example exchange, and a light-green closing call to action, and a new `/about` page that states the target user and what the app does not claim.
 - Testing for PR 1: lint, typecheck, 122 unit tests, 7 student-flow and 21 auth browser tests, and the production build all pass. Screenshots reviewed at 1360px and 390px.
 
 **What we learned**
@@ -74,7 +74,7 @@ Each team member adds their own section below.
 
 **Changes from proposal**
 - Following Mara's feedback to narrow to one subject and name the target user, the About page and landing copy say who the product is for (college students in introductory conceptual courses) and that the lessons start with probability. The topic catalogue itself is unchanged until the team decides the scope; the catalogue code is flexible enough to filter by subject later.
-- Branding stays "Protégé" for the platform and "Pip" for the student, pending a team decision on renaming.
+- The interface is branded "Pip", as on the style tile, after Arielle's review of the first build. "Protégé" now appears only in the project's academic title and the protégé-effect term. No package, table, route or identifier was renamed.
 
 **Problems**
 - No user-testing notes exist yet (see `docs/EVALUATION.md`), so the redesign is driven by the style tile and instructor feedback only. I am not claiming user feedback that wasn't collected.

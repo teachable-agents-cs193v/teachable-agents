@@ -1,4 +1,4 @@
-# Teachable Agents · Protégé
+# Teachable Agents · Pip
 
 **The best way to learn is to teach.** Protégé is the student-facing frontend for our Stanford CS193V final project, *Teachable Agents and the Protégé Effect*. Instead of being tutored by an AI, the student teaches **Pip**, a curious AI learner who asks questions, makes plausible mistakes, and needs the student to explain concepts and correct misunderstandings.
 
@@ -130,7 +130,7 @@ The visual direction is the Pip style tile, [`docs/design/pip-style-tile.png`](d
 - Fonts: `font-display` (Space Grotesk) for headings, `font-sans` (Inter) for body, `font-mono` (IBM Plex Mono) for labels and metadata; type scale utilities `type-display`, `type-h1` … `type-h4`, `type-lead`, `type-label`
 - Shadows: `shadow-soft`, `shadow-lift` (very light); radii: `rounded-card` (16px), `rounded-xl` controls (12px)
 - Hand-drawn utilities: `band` (marker stroke behind a label), `sketch-underline`, `paper-lines` (notebook ruling), `grid-paper`, `focus-ring`, `card`, `card-sage`, `accent-bg` / `accent-text` (per-subject greens from `subjects.ts`)
-- Illustrations: Pip in `src/components/illustrations/Pip.tsx` (one `PipHead` drawing, four moods, used by `LearnerAvatar` and the hero scene) and the doodle set in `Doodles.tsx`. Functional line icons stay in `Icons.tsx`.
+- Illustrations: Pip in `src/components/illustrations/Pip.tsx` (one `PipHead` drawing, four moods, used by `LearnerAvatar` at avatar size only) and the doodle set in `Doodles.tsx`, which the landing hero is composed from. Functional line icons stay in `Icons.tsx`. The tile and screenshots of each redesign PR are in [`docs/design/`](docs/design/README.md).
 
 ## Integration points for teammates
 
