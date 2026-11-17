@@ -37,7 +37,7 @@ export default function HomePage() {
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:pt-24">
             <div className="flex flex-col gap-7 animate-fade-up">
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-line bg-paper px-3.5 py-1.5 text-sm font-medium text-forest shadow-soft">
-                <LeafIcon className="size-4 text-terracotta" />
+                <LeafIcon className="size-4 text-leaf" />
                 Built on the protégé effect
               </span>
               <h1 className="font-display text-5xl leading-[1.05] text-forest sm:text-6xl lg:text-7xl">
@@ -117,7 +117,7 @@ export default function HomePage() {
                 <LearnerAvatar size={170} animated />
               </div>
               <StarIcon className="absolute -right-2 top-6 size-7 text-butter-deep" />
-              <QuestionIcon className="absolute -left-3 bottom-10 size-8 text-terracotta" />
+              <QuestionIcon className="absolute -left-3 bottom-10 size-8 text-leaf" />
             </div>
             <div className="flex flex-col gap-6">
               <SectionHeading
@@ -128,7 +128,7 @@ export default function HomePage() {
               <ul className="flex flex-col gap-3">
                 {PIP.personality.map((trait) => (
                   <li key={trait} className="flex items-start gap-3 text-[17px] text-charcoal/85">
-                    <span className="mt-2 size-2 shrink-0 rounded-full bg-terracotta" aria-hidden="true" />
+                    <span className="mt-2 size-2 shrink-0 rounded-full bg-leaf" aria-hidden="true" />
                     {trait}
                   </li>
                 ))}

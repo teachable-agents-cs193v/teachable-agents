@@ -16,7 +16,7 @@ export default async function SessionsPage() {
         <section className="border-b border-line/70 bg-paper">
           <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 py-14 sm:px-6">
             <div className="flex flex-col gap-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-terracotta">Your teaching log</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-leaf">Your teaching log</span>
               <h1 className="font-display text-4xl text-forest sm:text-5xl">Past sessions</h1>
               <p className="max-w-xl text-lg text-muted">Every lesson you have given Pip, with your reflections attached.</p>
             </div>

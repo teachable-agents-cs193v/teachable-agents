@@ -1,30 +1,42 @@
 import type { Metadata } from "next";
-import { Fraunces, DM_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+// The three families from the style tile. next/font self-hosts them at build
+// time, so the browser never calls Google and there is no layout shift.
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
+  weight: ["500", "600", "700"],
 });
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Protégé · Learn by teaching",
+    default: "Protégé · Learn by teaching Pip",
     template: "%s · Protégé",
   },
   description:
-    "Deepen your understanding by teaching Pip, a curious AI learner who asks questions, makes mistakes, and needs you to explain.",
+    "Meet Pip, a curious student who learns from your explanations. Teach concepts, challenge misconceptions, and discover what you understand along the way.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${fraunces.variable} ${dmSans.variable} h-full`}>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable} h-full`}
+    >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

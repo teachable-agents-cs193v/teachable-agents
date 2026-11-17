@@ -13,7 +13,7 @@ export default function TopicsPage() {
       <main className="flex-1">
         <section className="border-b border-line/70 bg-paper">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-14 sm:px-6">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-terracotta">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-leaf">
               <BookIcon className="size-4" /> The library
             </span>
             <h1 className="font-display text-4xl text-forest sm:text-5xl">What will you teach today?</h1>

@@ -146,7 +146,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
         <div className="card p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
-              <SparkleIcon className="size-5 text-terracotta" /> Concepts discussed
+              <SparkleIcon className="size-5 text-leaf" /> Concepts discussed
             </h2>
             <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
           </div>
@@ -165,7 +165,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
         <div className="card p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
-              <QuestionIcon className="size-5 text-terracotta" /> Misconceptions {PIP.name} introduced
+              <QuestionIcon className="size-5 text-leaf" /> Misconceptions {PIP.name} introduced
             </h2>
             <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
           </div>
@@ -173,7 +173,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
             <ul className="mt-4 flex flex-col gap-2.5">
               {summary.misconceptions.map((m) => (
                 <li key={m} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-charcoal/90">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-terracotta" aria-hidden="true" /> {m}
+                  <span className="mt-2 size-2 shrink-0 rounded-full bg-leaf" aria-hidden="true" /> {m}
                 </li>
               ))}
             </ul>

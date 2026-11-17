@@ -13,7 +13,7 @@ const variants: Record<Variant, string> = {
   secondary: "bg-sage text-forest hover:bg-sage-deep",
   outline: "border border-forest/30 bg-transparent text-forest hover:border-forest hover:bg-sage/40",
   ghost: "text-forest hover:bg-sage/50",
-  accent: "bg-terracotta text-ivory hover:bg-terracotta-deep shadow-soft",
+  accent: "bg-leaf text-ivory hover:bg-leaf-deep shadow-soft",
   danger: "border border-danger/30 text-danger hover:bg-danger/5",
 };
 

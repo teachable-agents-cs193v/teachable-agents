@@ -2,38 +2,54 @@
 
 /* ------------------------------------------------------------------
    Design tokens — the small design system every component builds on.
-   Palette: warm ivory, forest + sage greens, butter yellow, terracotta.
+   Source of truth: the Pip style tile (docs/design). Greens carry the
+   hierarchy (deep green → leaf → sage → mint), warm paper is the page,
+   butter is the only highlight. No other hues.
    ------------------------------------------------------------------ */
 @theme {
-  --color-ivory: #faf8f3;
-  --color-ivory-deep: #f1ecdf;
-  --color-paper: #fffdf8;
-  --color-forest: #254d3c;
-  --color-forest-deep: #1a382b;
-  --color-sage: #dde9dc;
-  --color-sage-deep: #c5d8c4;
-  --color-butter: #f4e8b4;
-  --color-butter-deep: #e6d281;
-  --color-terracotta: #c77b63;
-  --color-terracotta-deep: #a65f49;
-  --color-charcoal: #26332d;
-  --color-muted: #5f6b64;
-  --color-line: #e3dccb;
+  /* Surfaces */
+  --color-ivory: #f8f7f2;        /* warm paper: the page background */
+  --color-ivory-deep: #efeee7;   /* slightly deeper paper for quiet bands */
+  --color-paper: #fffefb;        /* cards and inputs */
+  --color-mint: #eef6ef;         /* pale mint section backgrounds */
+
+  /* Greens, dark to light */
+  --color-forest: #204f3e;       /* deep green: headings, primary actions, brand */
+  --color-forest-deep: #173a2d;  /* hover for deep green */
+  --color-leaf: #4d8b6a;         /* leaf green: secondary elements, accents */
+  --color-leaf-deep: #3f7558;    /* hover for leaf */
+  --color-sage: #dde9df;         /* card backgrounds, selected states */
+  --color-sage-deep: #c8dbcd;    /* hover for sage, emphasised lines */
+
+  /* Highlight */
+  --color-butter: #eadf9b;       /* small highlights, in-progress states */
+  --color-butter-deep: #d8c877;
+
+  /* Ink */
+  --color-charcoal: #222222;     /* text and illustration outlines */
+  --color-muted: #5c6862;        /* secondary text, green-tinted */
+  --color-line: #d6e0d8;         /* borders */
   --color-danger: #a8463a;
 
-  --font-display: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
-  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Type */
+  --font-display: var(--font-space-grotesk), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 
-  --shadow-soft: 0 1px 2px rgba(38, 51, 45, 0.05), 0 10px 30px -18px rgba(38, 51, 45, 0.25);
-  --shadow-lift: 0 2px 4px rgba(38, 51, 45, 0.06), 0 18px 40px -20px rgba(38, 51, 45, 0.3);
+  /* Very light shadows: the tile relies on borders, not depth. */
+  --shadow-soft: 0 1px 2px rgba(32, 79, 62, 0.04), 0 6px 20px -14px rgba(32, 79, 62, 0.18);
+  --shadow-lift: 0 2px 4px rgba(32, 79, 62, 0.05), 0 14px 30px -16px rgba(32, 79, 62, 0.22);
 
-  --radius-card: 1.25rem;
-  --radius-bubble: 1.125rem;
+  /* Rounded corners, 10–16px */
+  --radius-card: 1rem;
+  --radius-bubble: 0.875rem;
+  --radius-control: 0.75rem;
 
   --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-pop: pop 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-bounce-dot: bounce-dot 1.2s ease-in-out infinite;
   --animate-wiggle: wiggle 3s ease-in-out infinite;
+  --animate-draw: draw 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s both;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(8px); }
@@ -48,8 +64,13 @@
     40% { transform: translateY(-4px); opacity: 1; }
   }
   @keyframes wiggle {
-    0%, 100% { transform: rotate(-3deg); }
-    50% { transform: rotate(3deg); }
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+  }
+  /* Hand-drawn strokes "draw themselves" in (used with stroke-dasharray). */
+  @keyframes draw {
+    from { stroke-dashoffset: var(--draw-length, 400); }
+    to { stroke-dashoffset: 0; }
   }
 }
 
@@ -66,27 +87,114 @@ body {
   color: var(--color-charcoal);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Subtle notebook-paper texture: ruled lines + a terracotta margin. */
+/* ---- Typography system ----
+   Headings: Space Grotesk, bold, tight. Body: Inter. Labels: Plex Mono.
+   Sizes are set here once so pages don't each invent their own. */
+@utility type-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  font-size: clamp(2.75rem, 2rem + 3.2vw, 4.5rem);
+}
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  font-size: clamp(2.125rem, 1.6rem + 2vw, 3rem);
+}
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+  font-size: clamp(1.75rem, 1.4rem + 1.3vw, 2.375rem);
+}
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  font-size: 1.375rem;
+}
+@utility type-h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.25;
+  font-size: 1.125rem;
+}
+@utility type-lead {
+  font-size: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  line-height: 1.6;
+}
+/* Small mono labels: chapter numbers, eyebrows, metadata. */
+@utility type-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ---- Hand-drawn accents ---- */
+
+/* A marker-style band behind a short label, like the tile's section titles. */
+@utility band {
+  position: relative;
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0.15em -0.15em 0.05em -0.25em;
+    z-index: -1;
+    background: var(--color-sage);
+    border-radius: 0.6em 0.4em 0.7em 0.5em / 0.5em 0.7em 0.4em 0.6em;
+    transform: rotate(-1.2deg);
+  }
+}
+@utility band-butter {
+  &::before { background: var(--color-butter); }
+}
+@utility band-mint {
+  &::before { background: var(--color-mint); }
+}
+
+/* A loose green underline stroke beneath a word or phrase. */
+@utility sketch-underline {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 14' preserveAspectRatio='none'><path d='M3 9 C 40 4, 80 12, 120 7 S 180 5, 197 8' fill='none' stroke='%234d8b6a' stroke-width='5' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.32em;
+  padding-bottom: 0.12em;
+}
+
+/* Subtle notebook-paper texture: ruled lines + a green margin. */
 @utility paper-lines {
   background-color: var(--color-paper);
   background-image:
-    linear-gradient(to right, transparent 0, transparent 2.75rem, rgba(199, 123, 99, 0.35) 2.75rem, rgba(199, 123, 99, 0.35) calc(2.75rem + 1px), transparent calc(2.75rem + 1px)),
-    repeating-linear-gradient(to bottom, transparent 0, transparent 1.9rem, rgba(37, 77, 60, 0.1) 1.9rem, rgba(37, 77, 60, 0.1) calc(1.9rem + 1px));
+    linear-gradient(to right, transparent 0, transparent 2.75rem, rgba(77, 139, 106, 0.45) 2.75rem, rgba(77, 139, 106, 0.45) calc(2.75rem + 1px), transparent calc(2.75rem + 1px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 1.9rem, rgba(32, 79, 62, 0.1) 1.9rem, rgba(32, 79, 62, 0.1) calc(1.9rem + 1px));
 }
 
-/* Soft dotted grid for section backgrounds. */
-@utility dot-grid {
-  background-image: radial-gradient(rgba(37, 77, 60, 0.12) 1px, transparent 1px);
-  background-size: 22px 22px;
+/* Faint graph-paper grid for illustration backdrops. */
+@utility grid-paper {
+  background-image:
+    linear-gradient(rgba(32, 79, 62, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 79, 62, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 /* Shared focus ring, visible for keyboard users only. */
 @utility focus-ring {
   outline: none;
   &:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--color-forest) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--color-leaf) 70%, transparent);
     outline-offset: 2px;
   }
 }
@@ -98,6 +206,14 @@ body {
   box-shadow: var(--shadow-soft);
 }
 
+/* A card drawn on sage, for selected or featured states. */
+@utility card-sage {
+  background: var(--color-sage);
+  border: 1px solid var(--color-sage-deep);
+  border-radius: var(--radius-card);
+}
+
+/* Per-subject accents are CSS variables set by subjects.ts; all greens. */
 @utility accent-bg {
   background-color: var(--accent-soft, var(--color-sage));
 }
