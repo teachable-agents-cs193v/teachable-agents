@@ -58,6 +58,27 @@ interface StudentBelief {
 - Starting misconceptions appear only once Pip has said them, or the student has changed Pip's mind about them, so the panel doesn't spoil what's coming.
 - `changedThisTurn` is the moment to animate: it's how a student sees their explanation land.
 
+## For the UI: learning progress and the review
+
+Each turn also records what the student's message changed (beliefs added, status changes, correction attempts, misconceptions voiced) in `learner_state.history` (`learner_state.version` 2; version 1 sessions upgrade in code, so no migration). Metrics are counted from those structured fields only (`src/lib/learner/teachable/progress.ts`). Code never reads the text.
+
+| Where | Shape (`src/lib/types.ts`) | When |
+| --- | --- | --- |
+| `progress` on every `POST /turn` response, and `GET /api/sessions/[id]/progress` → `{ progress }` | `LearningProgress`: `studentTurns`, `recordedFromTurn`, `beliefs` (count per status), `teaching` (`claims`, `explained`, `asserted`, `explainedLater`), `misconceptions` (`ProgressMisconception[]`: status, `voicedAtTurn`, `changedAtTurn`, `turnsToChange`, `attempts`), `timeline` (`TimelineEntry[]`) | During the session. Same hiding rules as `pip`: no correctness, nothing from the answer key, no unvoiced misconceptions. |
+| `GET /api/sessions/[id]/review` → `{ review }` | `LearningReview`: `metrics` (adds `correctness` counts, misconception `total/voiced/corrected/stillHeld`, `offTaskTurns`), every `misconceptions` entry with `label`, `outcome` and each attempt, `taught` with the assessor's `correctness`, and the full `timeline` | **409 until the session is completed.** Never includes key ideas, `whyWrong` or `correctionMustAddress`. |
+
+All three are `null` for the scripted learner. Turns are student message indexes (0 = first); show them as `turn + 1`. `useTeachingSession` exposes `progress` (from the turn response, loaded once after a reload, no polling).
+
+Components (`src/components/learning/`, self-contained; props are the shapes above):
+
+- `PipBeliefsPanel` (`beliefs: StudentBelief[]`): "What Pip believes", in the workspace sidebar. Items with `changedThisTurn` get `animate-pop` and a "New" tag.
+- `MisconceptionTracker` (`misconceptions`, `studentTurns`): Pip's starting ideas once voiced, in the sidebar. It's worded neutrally on purpose and never says an idea is wrong during the session.
+- `LearningStrip` (`progress`): counts, "your last message: …" (an `aria-live` region) and one dot per message, under the conversation (so it's visible on phones; the sidebar opens from "Pip's notes").
+- `LearningReviewPanel` (`review`): on the reflection page in place of the scripted learner's cards.
+- `labels.ts`: every label, hint, Badge tone and timeline dot colour in one place for restyling.
+
+`npm run test:e2e:learning` drives these screens with a local fake model (`e2e-auth/fakeLlm.mts`), with no quota used.
+
 ## Files
 
 | Path | What it is |
@@ -70,6 +91,9 @@ interface StudentBelief {
 | `src/lib/learner/teachable/turnService.ts` | One turn on the server: save the student's message, run the pipeline, save Pip's reply. |
 | `src/app/api/sessions/[id]/turn/route.ts` | The turn route. |
 | `src/app/api/sessions/[id]/pip/route.ts` | What Pip believes, for the panel. |
+| `src/lib/learner/teachable/history.ts` | Per-turn history, recorded from the notebook diff and the assessor's verdict. |
+| `src/lib/learner/teachable/progress.ts` | Live metrics (`buildProgress`) and the end-of-session review (`buildReview`). |
+| `src/app/api/sessions/[id]/progress/route.ts`, `.../review/route.ts` | The progress and review routes. |
 | `eval/` | Live evaluation against the real model (below). |
 
 ## Adding a topic
