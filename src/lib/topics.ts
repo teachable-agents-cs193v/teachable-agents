@@ -124,6 +124,7 @@ TOPICS.push({
     "In two or three sentences, explain what a derivative is and how you'd find the derivative of x squared times sin x.",
   postSessionPrompt:
     "Without notes, explain the product rule and the chain rule, and why (fg)' is not f'g'.",
+  onDevice: true,
 });
 
 export function getTopic(id: string): Topic | undefined {

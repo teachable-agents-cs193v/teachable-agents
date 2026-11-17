@@ -38,6 +38,8 @@ export interface Topic {
   postSessionPrompt: string;
   /** Marks the most complete demo scenario. */
   featured?: boolean;
+  /** Pip can be run on the student's device for this topic (its pack has an on-device prompt). */
+  onDevice?: boolean;
 }
 
 export type MessageRole = "student" | "learner";

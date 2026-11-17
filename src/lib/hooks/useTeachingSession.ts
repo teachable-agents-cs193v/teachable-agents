@@ -1,13 +1,47 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getLearningProgress, getPipBeliefs, postTurn, TurnError, type TurnBody } from "../learner";
+import { getLearningProgress, getPipBeliefs, postDeviceReply, postTurn, TurnError, type TurnBody, type TurnResponse } from "../learner";
+import { deviceSupported, loadDevicePip, writeOnDevice, type DeviceStats } from "../learner/device/onDevicePip";
 import { getSessionStore, SessionStoreError } from "../persistence";
 import { getTopic } from "../topics";
 import type { ChatMessage, LearningProgress, StudentBelief, TeachingSession, Topic } from "../types";
 import { createId, nowIso } from "../utils";
 
 export type LearnerStatus = "idle" | "thinking" | "error";
+
+/** Whether Pip's replies are written on this device (topics with `onDevice`). */
+export interface DevicePipState {
+  /** off: replies come from the server. unsupported: no WebGPU in this browser. */
+  status: "off" | "loading" | "ready" | "unsupported" | "error";
+  /** Load progress, 0 to 1, and WebLLM's description of it. */
+  progress: number;
+  progressText: string;
+  /** How fast the last reply was written on the device. */
+  lastStats: DeviceStats | null;
+  /** Replies the server wrote because the device couldn't, this session. */
+  fallbacks: number;
+  error: string | null;
+  enable: () => void;
+  disable: () => void;
+}
+
+const DEVICE_PREF = "pip-on-device";
+const readPref = () => {
+  try {
+    return window.localStorage.getItem(DEVICE_PREF) === "1";
+  } catch {
+    return false;
+  }
+};
+const writePref = (on: boolean) => {
+  try {
+    if (on) window.localStorage.setItem(DEVICE_PREF, "1");
+    else window.localStorage.removeItem(DEVICE_PREF);
+  } catch {
+    // Browser storage is only a convenience; the toggle still works for this page.
+  }
+};
 
 /** What failed: the learner's turn, or saving the session to the server. */
 export type SessionErrorKind = "learner" | "save";
@@ -34,6 +68,8 @@ export interface TeachingSessionState {
   pipBeliefs: StudentBelief[] | null;
   /** Learning metrics and timeline, updated with every turn. Null for the scripted learner or until known. */
   progress: LearningProgress | null;
+  /** On-device Pip: null when this topic doesn't support it. */
+  device: DevicePipState | null;
   sendMessage: (text: string) => Promise<void>;
   retry: () => Promise<void>;
   /** Saves the session as completed. Throws a SessionStoreError if the save fails. */
@@ -70,6 +106,13 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
   const [progress, setProgress] = useState<LearningProgress | null>(null);
   /** The turn request "Try again" re-sends. Re-sending is always safe: the server never saves or answers it twice. */
   const pendingRef = useRef<TurnBody | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<DevicePipState["status"]>("off");
+  const [deviceProgress, setDeviceProgress] = useState({ fraction: 0, text: "" });
+  const [deviceStats, setDeviceStats] = useState<DeviceStats | null>(null);
+  const [deviceFallbacks, setDeviceFallbacks] = useState(0);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  /** Read inside runTurn without re-creating it. */
+  const deviceReady = useRef(false);
 
   const topic = session ? (getTopic(session.topicId) ?? null) : null;
 
@@ -83,13 +126,36 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     setErrorKind(null);
     setErrorMessage(null);
     try {
-      const result = await postTurn(base.id, body);
+      let result: TurnResponse = await postTurn(base.id, deviceReady.current ? { ...body, replyOn: "device" } : body);
+      // The beliefs as of the assessment, which mark what this message changed.
+      const assessed = { pip: result.pip, progress: result.progress };
+      if (result.device) {
+        setSession(result.session);
+        const prompt = result.device;
+        let text = "";
+        try {
+          const written = await writeOnDevice(prompt.messages);
+          text = written.text;
+          setDeviceStats(written.stats);
+        } catch (cause) {
+          console.error("[on-device Pip]", cause);
+        }
+        if (text) {
+          result = await postDeviceReply(base.id, { forMessageId: prompt.forMessageId, text });
+        } else {
+          // The device couldn't write it: the server replies instead, without assessing again.
+          setDeviceFallbacks((n) => n + 1);
+          result = await postTurn(base.id, {});
+        }
+      }
       pendingRef.current = null;
       setSession(result.session);
       if (result.reply) setLearnerFinished(result.reply.isFinal);
       if (result.learner) setLearnerInfo(result.learner);
-      if (result.pip) setPipBeliefs(result.pip);
-      if (result.progress) setProgress(result.progress);
+      const pip = assessed.pip ?? result.pip;
+      const latestProgress = result.progress ?? assessed.progress;
+      if (pip) setPipBeliefs(pip);
+      if (latestProgress) setProgress(latestProgress);
       setLearnerStatus("idle");
     } catch (error) {
       // Asked Pip to answer what was waiting, but it already had (e.g. in another tab): nothing went wrong.
@@ -110,6 +176,33 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       setErrorMessage(error instanceof Error ? error.message : TURN_FAILED);
       setLearnerStatus("error");
     }
+  }, []);
+
+  const enableDevice = useCallback(() => {
+    if (!deviceSupported()) {
+      setDeviceStatus("unsupported");
+      return;
+    }
+    writePref(true);
+    setDeviceStatus("loading");
+    setDeviceError(null);
+    loadDevicePip((text, fraction) => setDeviceProgress({ text, fraction }))
+      .then(() => {
+        deviceReady.current = true;
+        setDeviceStatus("ready");
+      })
+      .catch((cause: unknown) => {
+        console.error("[on-device Pip] load failed", cause);
+        deviceReady.current = false;
+        setDeviceError(cause instanceof Error ? cause.message : "The model couldn't load.");
+        setDeviceStatus("error");
+      });
+  }, []);
+
+  const disableDevice = useCallback(() => {
+    writePref(false);
+    deviceReady.current = false;
+    setDeviceStatus("off");
   }, []);
 
   // Load the session once on mount; if Pip still owes a message, ask for it.
@@ -133,6 +226,8 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       }
       setSession(found);
       setLoading(false);
+      // Turn on-device Pip back on if this browser had it on before.
+      if (getTopic(found.topicId)?.onDevice && readPref()) enableDevice();
       if (awaitingPip(found)) void runTurn(found, {});
       else if (found.messages.length > 0) {
         const [beliefs, loadedProgress] = await Promise.all([getPipBeliefs(found.id), getLearningProgress(found.id)]);
@@ -144,7 +239,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, runTurn]);
+  }, [sessionId, runTurn, enableDevice]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -188,6 +283,18 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     learnerInfo,
     pipBeliefs,
     progress,
+    device: topic?.onDevice
+      ? {
+          status: deviceStatus,
+          progress: deviceProgress.fraction,
+          progressText: deviceProgress.text,
+          lastStats: deviceStats,
+          fallbacks: deviceFallbacks,
+          error: deviceError,
+          enable: enableDevice,
+          disable: disableDevice,
+        }
+      : null,
     sendMessage,
     retry,
     endSession,

@@ -1,4 +1,5 @@
 import type { LearnerReply, LearningProgress, LearningReview, StudentBelief, TeachingSession } from "../types";
+import type { ChatTurn } from "./teachable/llm";
 
 type Fetch = typeof fetch;
 
@@ -9,7 +10,10 @@ const BUSY = "Pip is having trouble thinking right now. Wait a moment and try ag
 const LOGGED_OUT = "You've been logged out. Log in again to keep going.";
 
 /** The student's new message, or `{}` to have Pip answer whatever is waiting (its opening, or an unanswered message). */
-export type TurnBody = { clientMessageId: string; text: string } | Record<string, never>;
+export type TurnBody =
+  | { clientMessageId: string; text: string; replyOn?: "device" }
+  /** `{}`, or `{ replyOn: "device" }` for the on-device prompt instead of a server reply. */
+  | { clientMessageId?: never; text?: never; replyOn?: "device" };
 
 export interface TurnResponse {
   /** The session as the server saved it: the source of truth for the transcript. */
@@ -21,6 +25,8 @@ export interface TurnResponse {
   pip: StudentBelief[] | null;
   /** Learning metrics and timeline, as the student may see them. Null for the scripted learner. */
   progress: LearningProgress | null;
+  /** Set when replyOn was "device": the prompt for the device model; post its reply with postDeviceReply(). */
+  device: { forMessageId: string | null; messages: ChatTurn[] } | null;
 }
 
 /** A failed turn. `message` is always safe to show a student; `session` is the server's copy when it sent one. */
@@ -63,7 +69,33 @@ export async function postTurn(sessionId: string, body: TurnBody, fetchImpl: Fet
     learner: data.learner ?? null,
     pip: data.pip ?? null,
     progress: data.progress ?? null,
+    device: data.device ?? null,
   };
+}
+
+/** Saves the reply the device wrote (POST /api/sessions/[id]/device-reply). */
+export async function postDeviceReply(
+  sessionId: string,
+  body: { forMessageId: string | null; text: string },
+  fetchImpl: Fetch = (...args) => fetch(...args),
+): Promise<TurnResponse> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`/api/sessions/${encodeURIComponent(sessionId)}/device-reply`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new TurnError(FALLBACK, 0);
+  }
+  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & { error?: string }) | null;
+  if (!res.ok || !data?.session) {
+    const message = res.status === 401 ? LOGGED_OUT : res.status >= 500 ? BUSY : (data?.error ?? FALLBACK);
+    throw new TurnError(message, res.status, data?.session);
+  }
+  return { session: data.session, reply: data.reply ?? null, learner: data.learner ?? null, pip: data.pip ?? null, progress: data.progress ?? null, device: null };
 }
 
 /**

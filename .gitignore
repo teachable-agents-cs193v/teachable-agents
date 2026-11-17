@@ -48,3 +48,6 @@ playwright-report/
 
 # Live eval reports (eval/pip.eval.ts)
 /eval/results/
+
+# On-device Pip weights (research/unlearning/outputs/webllm), served locally; never committed
+/public/webllm/

@@ -21,6 +21,7 @@ import { ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons"
 import { LearningStrip } from "@/components/learning/LearningStrip";
 import { MisconceptionTracker } from "@/components/learning/MisconceptionTracker";
 import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
+import { DevicePipPanel } from "@/components/learning/DevicePipPanel";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -80,6 +81,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted">Learning objective</p>
         <p className="mt-1 text-[15px] leading-relaxed text-charcoal/90">{topic.learningObjective}</p>
       </section>
+      {state.device && <DevicePipPanel device={state.device} learnerName={PIP.name} />}
       {state.pipBeliefs && <PipBeliefsPanel beliefs={state.pipBeliefs} learnerName={PIP.name} />}
       {state.progress && (
         <MisconceptionTracker misconceptions={state.progress.misconceptions} studentTurns={state.progress.studentTurns} learnerName={PIP.name} />
