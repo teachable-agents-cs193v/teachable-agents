@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { SUBJECT_DOODLES } from "./Doodles";
 
 type IconProps = SVGProps<SVGSVGElement> & { title?: string };
 
@@ -211,10 +212,5 @@ export function MindIcon(props: IconProps) {
   );
 }
 
-export const SUBJECT_ICONS = {
-  probability: DiceIcon,
-  economics: CurveIcon,
-  biology: LeafIcon,
-  "computer-science": BracesIcon,
-  psychology: MindIcon,
-} as const;
+/** Subject marks are the hand-drawn doodles; the line icons above are for UI controls. */
+export const SUBJECT_ICONS = SUBJECT_DOODLES;
