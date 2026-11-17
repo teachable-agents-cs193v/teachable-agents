@@ -4,7 +4,8 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { PASSWORDS, serverLogFor, sha1 } from "./fixtures";
 
-export function authTestServer({ appPort, mockPort }: { appPort: number; mockPort: number }) {
+/** With `fakeLlmPort`, Pip is the AI learner answered by a local fake model (e2e-auth/fakeLlm.mts). */
+export function authTestServer({ appPort, mockPort, fakeLlmPort }: { appPort: number; mockPort: number; fakeLlmPort?: number }) {
   return {
     command: "node e2e-auth/server.mts",
     url: `http://localhost:${appPort}/login`,
@@ -19,6 +20,7 @@ export function authTestServer({ appPort, mockPort }: { appPort: number; mockPor
       E2E_BREACHED_SUFFIX: sha1(PASSWORDS.breached).slice(5),
       E2E_UNAVAILABLE_PREFIX: sha1(PASSWORDS.breachCheckDown).slice(0, 5),
       E2E_SERVER_LOG: serverLogFor(appPort),
+      ...(fakeLlmPort ? { E2E_FAKE_LLM_PORT: String(fakeLlmPort) } : {}),
     },
   } satisfies PlaywrightTestConfig["webServer"];
 }

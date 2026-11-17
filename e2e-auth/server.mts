@@ -30,6 +30,9 @@ const { findPgBin, startThrowawayPostgres } = await import(repo("test/throwawayP
 let pg: { url: string; stop: () => Promise<void> } | undefined;
 let next: ChildProcess | undefined;
 let mock: http.Server | undefined;
+let fakeLlm: http.Server | undefined;
+const FAKE_LLM_PORT = process.env.E2E_FAKE_LLM_PORT;
+const { startFakeLlm, FAKE_ASSESSOR, FAKE_PIP } = await import(repo("e2e-auth/fakeLlm.mts"));
 
 /** Stops a child, waiting for it to exit (force-stopping it after 5s). */
 function stopChild(c: ChildProcess | undefined) {
@@ -49,6 +52,7 @@ let cleaning: Promise<void> | undefined;
 const cleanup = () =>
   (cleaning ??= (async () => {
     mock?.close();
+    fakeLlm?.close();
     await stopChild(next);
     await pg?.stop();
   })());
@@ -99,6 +103,9 @@ try {
   });
   mock.listen(MOCK_PORT, "127.0.0.1");
 
+  // 2b. Optional fake model (playwright.learning.config.ts).
+  if (FAKE_LLM_PORT) fakeLlm = startFakeLlm(Number(FAKE_LLM_PORT));
+
   // 3. The app. Next's own binary, not `npx`, whose wrapper doesn't pass signals on.
   const log = createWriteStream(SERVER_LOG);
   next = spawn(new URL(repo("node_modules/.bin/next")).pathname, ["dev", "-p", APP_PORT], {
@@ -114,6 +121,16 @@ try {
       // (env vars set here win over .env.local). E2E_AI_LEARNER=1 opts in to the
       // real model for e2e/ai-learner.spec.ts.
       ...(process.env.E2E_AI_LEARNER === "1" ? {} : { LLM_API_KEY: "" }),
+      // playwright.learning.config.ts: the AI learner, answered by a local fake model.
+      ...(fakeLlm
+        ? {
+            LLM_BASE_URL: `http://127.0.0.1:${FAKE_LLM_PORT}`,
+            LLM_API_KEY: "test-only-fake-key",
+            LLM_MODEL: FAKE_PIP,
+            LLM_MODEL_ASSESSOR: FAKE_ASSESSOR,
+            LLM_MODEL_PIP: FAKE_PIP,
+          }
+        : {}),
     },
   });
   next.stdout!.pipe(log);

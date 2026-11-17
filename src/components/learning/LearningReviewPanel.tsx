@@ -55,7 +55,7 @@ export function LearningReviewPanel({ review, learnerName = "Pip", className }: 
                   {!m.voiced && m.outcome === "still_held" && <span className="text-xs text-muted">Didn&rsquo;t come up</span>}
                 </div>
                 <p className="mt-2 font-medium text-charcoal">{m.label}</p>
-                <p className="mt-1 text-sm text-muted">{learnerName} said: &ldquo;{m.statement}&rdquo;</p>
+                <p className="mt-1 text-sm text-muted">{learnerName} {m.voiced ? "said" : "believed"}: &ldquo;{m.statement}&rdquo;</p>
                 <p className="mt-1 text-xs text-muted">{misconceptionDetail(m, learnerName)}</p>
               </li>
             ))}
