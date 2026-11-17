@@ -137,6 +137,14 @@ export function sanitizeMove(assessment: Assessment, notebook: Notebook): Assess
     }
   }
   if (move === "open") move = "admit_confusion";
+
+  // A third "why?" or "example?" in a row stalls the conversation (a student said it felt stuck):
+  // try what was taught instead, or say what's confusing if nothing has been. Only the stored
+  // move history is read here, never what was said.
+  const lastTwo = notebook.moves.slice(-2);
+  if ((move === "ask_why" || move === "ask_for_example") && lastTwo.length === 2 && lastTwo.every((m) => m === move)) {
+    move = notebook.beliefs.some((b) => b.source === "taught") ? "try_to_apply" : "admit_confusion";
+  }
   return { ...assessment, move, moveTarget };
 }
 

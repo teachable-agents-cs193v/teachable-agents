@@ -142,6 +142,16 @@ describe("sanitizeMove", () => {
     const a = sanitizeMove(assessment({ move: "voice_misconception", moveTarget: MISC }), nb);
     expect([a.move, a.moveTarget]).toEqual(["ask_for_example", null]);
   });
+
+  it("turns a third ask_why in a row into trying what was taught", () => {
+    const base = createNotebook(pack);
+    const taught = { ...base.beliefs[0], id: "b-taught", source: "taught" as const, misconceptionId: null, status: "heard" as const };
+    const nb = { ...base, beliefs: [...base.beliefs, taught], moves: ["ask_why", "ask_why"] as Assessment["move"][] };
+    expect(sanitizeMove(assessment({ move: "ask_why" }), nb).move).toBe("try_to_apply");
+    expect(sanitizeMove(assessment({ move: "ask_why" }), { ...nb, beliefs: base.beliefs }).move).toBe("admit_confusion");
+    expect(sanitizeMove(assessment({ move: "ask_why" }), { ...nb, moves: ["ask_for_example", "ask_why"] }).move).toBe("ask_why");
+    expect(sanitizeMove(assessment({ move: "redirect" }), { ...nb, moves: ["redirect", "redirect"] }).move).toBe("redirect");
+  });
 });
 
 describe("pipView", () => {
