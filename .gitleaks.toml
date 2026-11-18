@@ -1,0 +1,52 @@
+# gitleaks config used by the hooks in .githooks/. Keeps gitleaks' built-in
+# rules (API keys, tokens, private keys, high-entropy passwords, ...) and adds
+# the database-credential rules they lack: the built-ins don't flag
+# postgres://user:password@host URLs at all.
+title = "teachable-agents"
+
+[extend]
+useDefault = true
+
+# A connection URL with a password in it, such as Neon's
+#   postgresql://user:password@ep-....neon.tech/neondb?sslmode=require
+# Also mysql, mongodb(+srv), redis(s), amqp(s) and sqlserver URLs. Only the
+# password (group 1) counts as the secret, so URLs without one
+# (postgres://localhost/db, postgres://user@host) don't match.
+[[rules]]
+id = "database-url-credentials"
+description = "Database URL with an embedded password"
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?|mssql|sqlserver)://[^\s:/@'"`<>]*:([^\s/@'"`<>]+)@[^\s/'"`<>]+'''
+secretGroup = 1
+keywords = ["postgres", "mysql", "mariadb", "mongodb", "redis", "amqp", "mssql", "sqlserver"]
+
+[[rules.allowlists]]
+description = "Placeholder passwords in docs and examples"
+regexes = ['''(?i)^(?:pass(?:word)?|passwd|pwd|secret|changeme|example|placeholder|redacted|your[-_]?password|x+|\*+|\.+|\$\{[^}]*\}|\$[a-z_][a-z0-9_]*|\{\{[^}]*\}\})$''']
+
+# A database password assigned to a variable, such as PGPASSWORD=... in an env
+# file. The built-in generic-api-key rule catches random-looking ones; this
+# also catches short or word-like ones.
+[[rules]]
+id = "database-password-assignment"
+description = "Database password assigned to a variable"
+regex = '''(?i)\b(?:PG|DB|DATABASE|POSTGRES(?:QL)?|MYSQL|NEON)_?PASS(?:WORD)?\b\s*[:=]\s*["']?([^\s"'`<>]{4,})'''
+secretGroup = 1
+keywords = ["pass"]
+
+[[rules.allowlists]]
+description = "Placeholders and values read from the environment"
+regexes = ['''(?i)^(?:pass(?:word)?|passwd|pwd|secret|changeme|example|placeholder|redacted|your[-_]?password|x+|\*+|\.+|\$\{[^}]*\}|\$[a-z_][a-z0-9_]*|\{\{[^}]*\}\}|process\.env.*|os\.environ.*)$''']
+
+# A file whose name says it holds secrets, whatever it contains: .env and
+# .env.<anything> (where DATABASE_URL lives), private keys and keystores, and
+# files named like secrets or credentials. Templates (.env.example,
+# .env.sample, .env.template) are allowed; the rules above still catch a real
+# credential pasted into one.
+[[rules]]
+id = "key-file"
+description = "File whose name says it holds secrets"
+path = '''(?i)(^|/)(\.env(\..+)?|.+\.(pem|key|p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)|[^/]*(secret|credential)s?[^/]*\.(json|ya?ml|toml|txt|ini|conf))$'''
+
+[[rules.allowlists]]
+description = "Committed templates with placeholder values"
+paths = ['''(?i)(^|/)\.env\.(example|sample|template)$''']

@@ -54,6 +54,12 @@ describe("LocalStorageSessionStore", () => {
     expect(await store.findActiveSession("photosynthesis")).toBeNull();
   });
 
+  it("creates a session with its own id", async () => {
+    const session = await store.createSession("recursion", "  my guess  ");
+    expect(session).toMatchObject({ topicId: "recursion", status: "in_progress", preExplanation: "my guess" });
+    expect(await store.getSession(session.id)).toEqual(session);
+  });
+
   it("deletes a session", async () => {
     const session = buildSession("photosynthesis");
     await store.saveSession(session);

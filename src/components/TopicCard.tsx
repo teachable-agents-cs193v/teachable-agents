@@ -20,8 +20,8 @@ export function TopicCard({ topic }: TopicCardProps) {
       <div className="h-2 w-full" style={{ background: subject.accent }} aria-hidden="true" />
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex items-start justify-between gap-3">
-          <span className="grid size-12 place-items-center rounded-2xl accent-bg accent-text">
-            <Icon className="size-6" />
+          <span className="grid size-14 place-items-center rounded-2xl accent-bg text-charcoal">
+            <Icon className="size-9" />
           </span>
           {topic.featured && (
             <Badge tone="butter">

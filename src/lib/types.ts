@@ -120,3 +120,10 @@ export interface SessionSummary {
   concepts: string[];
   misconceptions: string[];
 }
+
+/** The logged-in user, as returned by the auth helpers in src/lib/auth/server.ts. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+}

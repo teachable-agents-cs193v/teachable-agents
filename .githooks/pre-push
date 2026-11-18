@@ -1,0 +1,56 @@
+#!/bin/sh
+# Blocks a push if any commit being pushed (not just the newest) contains
+# database credentials or other secrets. Git passes one line per ref on stdin:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# For each, this works out every commit the remote doesn't already have and
+# has gitleaks scan all of them. If that can't be worked out, the push is
+# blocked rather than going through unscanned.
+set -eu
+. "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+
+remote="$1"
+zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+status=0
+leaked=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Deleting a remote branch pushes no commits.
+  [ "$local_sha" = "$zero" ] && continue
+
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    # Updating a branch: everything since what the remote has.
+    range="$remote_sha..$local_sha"
+  else
+    # New branch, or the remote's commit isn't here (not fetched): everything
+    # not already on a remote-tracking branch of this remote. With no
+    # remote-tracking branches at all, that is the whole history.
+    range="$local_sha --not --remotes=$remote"
+  fi
+
+  if ! count=$(git rev-list --count $range); then
+    echo "Push of $local_ref blocked: couldn't list the commits being pushed." >&2
+    status=1
+    continue
+  fi
+  # Nothing new to scan (e.g. pushing a branch the remote already has).
+  [ "$count" -eq 0 ] && continue
+
+  rc=0
+  run_gitleaks git --log-opts="$range" "$top" || rc=$?
+  if [ "$rc" -eq 2 ]; then
+    echo "Push of $local_ref blocked: a secret is in one of its $count new commit(s)." >&2
+    status=1
+    leaked=1
+  elif [ "$rc" -ne 0 ]; then
+    echo "Push of $local_ref blocked: the scan of its $count new commit(s) didn't complete." >&2
+    status=1
+  fi
+done
+
+if [ "$leaked" -ne 0 ]; then
+  echo >&2
+  echo "Removing the file in a new commit isn't enough; the old commit still holds it." >&2
+  echo "Rewrite the commits that added it (e.g. git rebase -i), and rotate the" >&2
+  echo "credential (reset the password in Neon) if it was real." >&2
+fi
+exit "$status"

@@ -1,0 +1,113 @@
+# Progress
+
+Each team member adds their own section below.
+
+### Authentication (Anahi)
+
+**Progress so far**
+- Users can sign up with their name, email and a password, then log in and log out. It's built on Better Auth rather than hand-written security code.
+- Signup runs two server-side password checks, ported from A10: a strength check (zxcvbn) with specific tips, and a breach check that rejects passwords found in known data leaks. Only 5 characters of the password's hash are sent to the breach service. A meter shows users how strong their password is as they type.
+- The teaching pages (starting a session, teaching, reflecting, past sessions) require login. Logged-out users are sent to log in and brought back afterwards; the home page and topic library stay public. Betania's session routes use the same login check, so students only see their own sessions.
+- Team setup: CI runs lint, type checks, tests and a build on every PR, and gitleaks (in CI and as git hooks) catches secrets before they're committed.
+
+**What we learned**
+- To address Mara's concern about handoffs, I wrote the auth contract (docs/AUTH.md) first so Betania could build against it, which avoided the miniproject's handoff problem.
+- AI code reviews caught real bugs: a failed logout that silently left people logged in, a 128-character paste cutoff that would have broken login, and a build crash.
+
+**Changes from proposal**
+- My proposal task was "authentication and user management, including login functionality and helping integrate the AI teaching agent." Following Mara's feedback, I made it concrete for Week 8: users can sign up and log in/out, the teaching pages require login, and each student's teaching sessions are tied to their account so no one else can see them. We met this goal on the live site.
+- For the AI-agent part, every teaching session with the AI learner now belongs to the logged-in student. On the deployed app, logged-in students can teach the AI learner, which Chase connected to Groq.
+- I used a maintained auth library (Better Auth) instead of hand-written login code like in A10, but reused my A10 password checks: the strength tips and the breach check.
+- I left out Google login, 2FA, password reset and email verification. They aren't required for this project, and keeping the scope small let me focus on making the core login reliable and well tested.
+- Following Mara's process feedback, every task was a labeled issue (type and priority) with its own small PR, review concerns became assigned issues (#30, #33, #34), and the auth contract (docs/AUTH.md) made the handoff to Betania's session routes explicit.
+
+**Problems**
+- #30 / #38: Arielle's browser tests are flaky in development mode. A production build fixes it, and Arielle is updating her PR.
+
+**Contributions and next steps**
+- My PRs: #23 (auth contract), #24 (CI), #25 (gitleaks), #26 (password checks), #27 (core auth), #28 (auth database setup), #29 (login and signup pages) and #31 (protected pages).
+- I reviewed Betania's #32, which saves teaching sessions in our database so each student only sees their own, and turned my review notes into issues (#33, #34). I also coordinated the merge order and reviewer split for our stacked PRs.
+- Week 9: work with Arielle to finish #38, which fixes the flaky browser tests in #30. Her fix needs to move into the shared test server I set up (e2e-auth/server.mts), so we'll do it together.
+- Week 9 (smaller): the tooling issues assigned to me: #8 (PR template), #18 (pin Playwright), #20 (Node version) and #21 (ESLint upgrade).
+- A task is done when CI passes, a teammate approves with no outstanding feedback, and the issue is closed.
+
+### Database (Betania)
+
+**Progress so far**
+- This week, I worked on using PostgreSQL for the storage of teaching sessions. By allowing teaching sessions to use PostgreSQL, sessions can now be saved across browser sessions, and all session data is stored using JSONB and associated with a specific user (#17, PR #32).
+- I also implemented checks to ensure that users can only modify or access their own sessions, preventing unauthorized access.
+- I also worked on error handling, like restricting which fields can be changed in PR #32 and making sure invalid data returns a 400 error instead of a 500 error in PR #35 (#33). I also improved how screens handle failed loading and saving, along with adding tests (#34, PR #36).
+- I worked on making sure session IDs are generated securely (#19, PR #37).
+- I also reviewed Anahi's PRs #23 and #28, which focused on the authentication contract and database migration.
+
+**What we learned**
+- The biggest thing I learned was that I became a lot more comfortable with managing a database, particularly PostgreSQL through Neon, which will help me with future software applications as well.
+- I also learned more about how to connect a database to backend API routes and how to make sure users can only access their own data.
+
+**Changes from proposal**
+- There were no major changes, as I was mainly responsible for backend development and database design, such as managing data storage, and I was able to work on implementing PostgreSQL storage for the application.
+
+**Problems**
+- I initially had a challenge with connecting the database to our codebase, and we still need to verify that the production database is properly configured and can be used throughout different parts of the application.
+
+**Contributions and next steps**
+- I completed PRs #32, #35, #36, and #37, focusing on database storage, validation, error handling, and secure session IDs.
+- For Week 9, I plan to focus on verifying the production database and improving error handling for issue #22.
+- I will know these tasks are complete when a session saved on the live site can still be accessed after logging out and back in, and when users see a clear error message with a retry option while detailed errors are only shown in the server logs.
+
+### Frontend (Arielle)
+
+**Progress so far**
+- Week 8: the complete student-facing MVP (PR #2): landing, topic library, Meet Pip, teaching workspace, reflection, past sessions, the `LearnerAdapter` and `SessionStore` seams the backend work plugged into, unit and browser tests, and the product/evaluation docs.
+- Week 9, PR 1 of 3 (branch `feat/design-system-landing`): the visual redesign to our style tile and a public landing page that is separate from the student experience.
+  - A design system in `src/app/globals.css`: the tile's palette (deep green, leaf, sage, mint, warm paper, butter, charcoal), Space Grotesk / Inter / IBM Plex Mono via `next/font`, a typography scale, 12–16px corners, and hand-drawn utilities (marker band, sketch underline, graph paper).
+  - Pip redrawn as a hand-drawn student with a soft D-shaped bob and four moods, built from one `PipHead` drawing with a single 2-unit line weight so Pip looks the same at 28px in the chat and at 88px on the About page, plus a set of notebook doodles (`src/components/illustrations/Doodles.tsx`) that replace the old geometric icons. The character went through four review rounds with Arielle before this version was approved.
+  - Restyled primitives (Button, Badge, Card, Field, SectionHeading, new Eyebrow, ProgressBar, EmptyState), the Pip wordmark and footer.
+  - Pages grouped into `(site)/(public)`, `(site)/(app)` and `(focus)` route groups with one shared shell. The nav is rendered on the server from the real session, so a visitor sees How it works / About / Log in / Sign up and a student sees Home / Lessons / My sessions / Log out, with no flicker.
+  - A new landing page ("You teach. Pip learns.") whose hero is a lesson plan on ruled paper with a sticky note and doodles rather than a character drawing, with How it works, Why Pip is different, a clearly labelled example exchange, and a light-green closing call to action, and a new `/about` page that states the target user and what the app does not claim.
+- Testing for PR 1: lint, typecheck, 122 unit tests, 7 student-flow and 21 auth browser tests, and the production build all pass. Screenshots reviewed at 1360px and 390px.
+- Week 9, PR 2 of 3 (branch `feat/dashboard`, stacked on PR 1): the logged-in experience.
+  - `/dashboard` is the student's home: a greeting, the "New teaching session" action, Continue learning (unfinished sessions), every lesson with what the student has done with it, and recent completed sessions. All of it is read on the server from the student's own sessions; a first-time student sees the three steps of a session and one way to start instead.
+  - `/profile`: name, email, counts of what was taught, and log out. It says plainly that editing the account isn't built yet.
+  - Logged-in students are redirected from the marketing homepage to the dashboard; login and signup land there too. The student nav is Home, Lessons, My sessions, Profile.
+  - Tests: `e2e/dashboard.spec.ts` builds the dashboard states through the real API; the auth suite's default-destination assertions moved from `/topics` to `/dashboard` (coordinated with Anahi in the PR).
+
+**What we learned**
+- A palette swap alone still looked generated. What made the difference was composition from the tile (the mint hero panel, mono labels, marker bands), illustrations drawn as loose strokes rather than icons, and one character used consistently.
+- Rendering the nav on the server from the session removes a whole class of "flash of the wrong links" bugs that a client-side `useSession` check can't avoid.
+- `next dev` compiles each route on first visit, which is why the student-flow suite was flaky (#30). The suite now allows for it; the production-build fix in #38 is still the right long-term answer.
+
+**Changes from proposal**
+- Following Mara's feedback to narrow to one subject and name the target user, the About page and landing copy say who the product is for (college students in introductory conceptual courses) and that the lessons start with probability. The topic catalogue itself is unchanged until the team decides the scope; the catalogue code is flexible enough to filter by subject later.
+- The interface is branded "Pip", as on the style tile, after Arielle's review of the first build. "Protégé" now appears only in the project's academic title and the protégé-effect term. No package, table, route or identifier was renamed.
+
+**Problems**
+- No user-testing notes exist yet (see `docs/EVALUATION.md`), so the redesign is driven by the style tile and instructor feedback only. I am not claiming user feedback that wasn't collected.
+- The nav's "Sign up" button should read "Get started" to match the tile; that text is asserted in Anahi's auth tests, so it waits for a coordinated change.
+
+**Contributions and next steps**
+- Week 8: PR #2 and PR #4 (docs); Week 9: PR #38 (e2e against a production build, open) and PR 1 of the redesign.
+- PR 2 (open): the authenticated dashboard, profile page and post-login redirect. Restyling the lesson, Meet Pip and session screens moves to PR 3 with the workspace.
+- PR 3: the teaching workspace redesign, a belief-state panel once Chase's PR #42 exposes a student-safe view of Pip's notebook (private grader verdicts stay on the server), and reflection polish. Sequenced after #42 merges, since both touch `TeachingWorkspace.tsx`.
+- Done means: CI passes, a teammate approves, screenshots at desktop and phone widths are in the PR, and these two docs are updated.
+
+### Deployment and AI features (Chase)
+
+**Progress so far**
+- Built the AI learner (PR #42). Pip now runs on a real model (Groq, free tier) instead of the script.
+- Pip keeps a notebook of what it believes. It starts with 3 misconceptions per topic and only drops one when the student explains why it's wrong.
+- Added answer keys for all 5 topics, and an eval with 12 fake students that try to break Pip. Last run: Pip never leaked an answer or taught the student.
+- Merged the team's PRs.
+
+**What we learned**
+- One prompt can't make a model act like it doesn't know something. Splitting the model call that knows the answers from the one that talks fixed that.
+
+**Changes from proposal**
+- Switched from Gemini to Groq since Gemini isn't available on our Stanford accounts.
+
+**Problems**
+- The free quota is too small for class-size user tests. Need more accounts or API credits.
+
+**Contributions and next steps**
+- PR #42 (AI learner), plus merging teammates' PRs.
+- Week 9: get #42 merged (Betania applies migration 0003 first), deploy to Vercel, and rerun the eval.

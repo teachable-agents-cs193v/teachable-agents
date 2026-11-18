@@ -1,0 +1,15 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { SignupScreen } from "@/components/screens/SignupScreen";
+import { safeNextPath } from "@/lib/auth/nextPath";
+import { getCurrentUser } from "@/lib/auth/server";
+
+export const metadata: Metadata = { title: "Sign up" };
+
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const { next } = await searchParams;
+  const nextPath = safeNextPath(typeof next === "string" ? next : undefined);
+  // Already logged in: carry on to where they were going.
+  if (await getCurrentUser()) redirect(nextPath ?? "/dashboard");
+  return <SignupScreen next={nextPath} />;
+}

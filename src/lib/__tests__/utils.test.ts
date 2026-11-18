@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { formatDuration, summarizeSession } from "../utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createId, formatDuration, summarizeSession } from "../utils";
 import { buildSession } from "../sessions";
 import type { ChatMessage } from "../types";
 
@@ -47,5 +47,30 @@ describe("formatDuration", () => {
     expect(formatDuration(0)).toBe("Under a minute");
     expect(formatDuration(1)).toBe("1 minute");
     expect(formatDuration(7)).toBe("7 minutes");
+  });
+});
+
+describe("createId (#19)", () => {
+  const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("uses crypto.randomUUID when it exists", () => {
+    expect(createId("msg")).toMatch(new RegExp(`^msg_${UUID_V4.source.slice(1)}`));
+  });
+
+  it("without randomUUID (plain HTTP), builds a v4 UUID from getRandomValues, not Math.random", () => {
+    const random = vi.spyOn(Math, "random");
+    const real = globalThis.crypto;
+    vi.stubGlobal("crypto", { getRandomValues: real.getRandomValues.bind(real) });
+    const ids = new Set(Array.from({ length: 100 }, () => createId()));
+    expect(ids.size).toBe(100);
+    for (const id of ids) expect(id).toMatch(UUID_V4);
+    expect(random).not.toHaveBeenCalled();
+    random.mockRestore();
+  });
+
+  it("refuses to make an ID without a secure generator", () => {
+    vi.stubGlobal("crypto", undefined);
+    expect(() => createId()).toThrow(/secure random/);
   });
 });

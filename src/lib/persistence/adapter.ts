@@ -11,6 +11,9 @@ export interface SessionStore {
   readonly id: string;
   listSessions(): Promise<TeachingSession[]>;
   getSession(id: string): Promise<TeachingSession | null>;
+  /** Creates and stores a new in-progress session. The store chooses its ID. */
+  createSession(topicId: string, preExplanation?: string): Promise<TeachingSession>;
+  /** Updates an existing session. Database-backed stores never create one here. */
   saveSession(session: TeachingSession): Promise<void>;
   deleteSession(id: string): Promise<void>;
   /** Most recent in-progress session for a topic, if any. */

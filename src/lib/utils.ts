@@ -1,10 +1,23 @@
 import type { ChatMessage, SessionSummary, TeachingSession } from "./types";
 
+/**
+ * A random v4 UUID from the platform's secure generator, never Math.random (#19).
+ * `crypto.randomUUID` only exists in secure contexts (HTTPS and localhost), so on
+ * plain HTTP it's built from `crypto.getRandomValues`, which exists everywhere.
+ */
+function secureUuid(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c && "randomUUID" in c && typeof c.randomUUID === "function") return c.randomUUID();
+  if (!c?.getRandomValues) throw new Error("No secure random number generator is available.");
+  const b = c.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; // version 4
+  b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export function createId(prefix = ""): string {
-  const raw =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const raw = secureUuid();
   return prefix ? `${prefix}_${raw}` : raw;
 }
 

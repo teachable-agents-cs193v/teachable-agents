@@ -16,9 +16,7 @@ export function buildSession(topicId: string, preExplanation?: string): Teaching
   };
 }
 
-/** Creates and persists a fresh session, returning it. */
+/** Creates and persists a fresh session, returning it. The store chooses the ID. */
 export async function startSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
-  const session = buildSession(topicId, preExplanation);
-  await getSessionStore().saveSession(session);
-  return session;
+  return getSessionStore().createSession(topicId, preExplanation);
 }

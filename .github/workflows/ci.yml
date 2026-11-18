@@ -1,0 +1,49 @@
+# Runs on every pull request and on pushes to main. Needs no repository secrets.
+# The steps mirror `npm run check` in package.json; keep the two in sync.
+# (They're separate steps so the Actions UI shows which check failed.)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same PR or branch cancels the run it makes outdated.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24 # TODO(#20): read from .nvmrc once the Node version is declared
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # The enforced secret scan: covers the full history, including commits from
+  # anyone who skipped the local hooks (those only give early feedback).
+  # Uses the hooks' own config and run_gitleaks, so both report the same way.
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Downloads gitleaks and verifies its checksum (see .githooks/install.sh).
+      - run: sh .githooks/install.sh
+      - run: . .githooks/lib.sh && run_gitleaks git .
