@@ -1,3 +1,4 @@
+import { StudentFacingError } from "../errors";
 import type { TeachingSession } from "../types";
 import type { SessionStore } from "./adapter";
 
@@ -9,7 +10,7 @@ const MESSAGES = {
   default: "Your session couldn't be saved or loaded. Check your connection and try again.",
 } as const;
 
-export class SessionStoreError extends Error {
+export class SessionStoreError extends StudentFacingError {
   constructor(readonly status: number) {
     super(status === 401 ? MESSAGES[401] : MESSAGES.default);
     this.name = "SessionStoreError";

@@ -14,6 +14,7 @@ import { Field, inputClasses } from "@/components/ui/Field";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { TeachingTips } from "@/components/TeachingTips";
 import { ArrowLeftIcon, ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { studentMessage } from "@/lib/errors";
 
 export function MeetLearner({ topic }: { topic: Topic }) {
   const router = useRouter();
@@ -45,7 +46,7 @@ export function MeetLearner({ topic }: { topic: Topic }) {
       const session = await startSession(topic.id, preExplanation);
       router.push(`/teach/${session.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start the session.");
+      setError(studentMessage(e, "Could not start the session."));
       setStarting(false);
     }
   };
