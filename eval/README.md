@@ -64,8 +64,9 @@ Calls to Groq are paced under `--tpm` tokens per minute per model, retried on ra
 waits), and a daily-quota error (429 with a long Retry-After) stops the run cleanly with a resume
 command. Every call's prompt, cached and completion tokens are recorded.
 
-Rough cost of one run of everything (Derivatives, 1 run, 1 judgment), assuming ~3k tokens per
-note-taker/assessor call and ~2k per reply:
+Rough cost of one run of everything (Derivatives, 1 run, 1 judgment). Per-call sizes measured in
+the first smoke run: note-taker ~850 tokens (gpt-oss-20b), assessor ~3,200 (gpt-oss-120b), reply
+~1,500 (gpt-oss-20b); judge ~4–5k input tokens and ~$0.05 per call.
 
 | | note-taker | assessor | reply | judge (Claude) |
 | --- | --- | --- | --- | --- |
@@ -75,10 +76,11 @@ note-taker/assessor call and ~2k per reply:
 | D (21 attacks, 29 turns) | 29 | 29 | 50 | 21 |
 | total | 170 calls | 137 calls | 118 calls | 134 calls |
 
-That is about 420 Groq calls and 1.1–1.3M tokens per run: the `pip` model (note-taker and reply)
-gets ~290 calls, the assessor model ~136. On the free tier (about 200k tokens a day on
-`gpt-oss-120b`) a full run takes several days of quota per account, so run sets separately,
-use `--runs` sparingly, and resume.
+That is about 425 Groq calls and ~0.75M tokens per run: ~0.3M on the `pip` model (288 calls) and
+~0.45M on the assessor model (137 calls), plus ~134 Claude calls (~$6–7). On the free tier
+(about 200k tokens a day on `gpt-oss-120b`) the assessor share alone is two to three days of one
+account's quota, so run sets separately, use `--runs` sparingly, and resume. The probability
+scenarios (`--topic=probability`) add 26 turns.
 
 ## How judging works (and why it is Claude only)
 

@@ -18,7 +18,7 @@ import { sympyPython } from "./sympy";
 
 const options = optionsFromEnv();
 const { dir, id } = runDir(options);
-const log = (line: string) => console.log(line);
+const log = (line: string) => process.stderr.write(`${line}\n`);
 const results: SetResult[] = [];
 let judge: Judge | null = null;
 let claudeVersion = "";
