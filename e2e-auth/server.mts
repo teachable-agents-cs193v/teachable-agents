@@ -1,9 +1,12 @@
 /**
- * Started by playwright.auth.config.ts (`npm run test:e2e:auth`). Runs:
+ * Started through e2e-auth/webServer.ts by playwright.auth.config.ts
+ * (`npm run test:e2e:auth`) and playwright.config.ts (`npm run test:e2e`). Runs:
  *   1. a throwaway Postgres (test/throwawayPostgres.ts) with the auth and
  *      teaching_sessions tables, created the same way the unit tests do;
  *   2. a mock Pwned Passwords API that records every request it gets;
- *   3. `next dev` pointed at both, with test-only env values.
+ *   3. Next pointed at both, with test-only env values: `next dev`, or with
+ *      E2E_PRODUCTION_BUILD=1 `next build` then `next start` (no on-demand
+ *      compiling or live reload, which made the student flow flaky; #30).
  * Everything is deleted when Playwright stops this process. Never touches Neon.
  * Node runs this file directly (TypeScript types are stripped). Repo modules are
  * loaded by URL so tsc doesn't need `.ts` import extensions.
@@ -23,6 +26,7 @@ const BREACHED_PREFIX = env("E2E_BREACHED_PREFIX");
 const UNAVAILABLE_PREFIX = env("E2E_UNAVAILABLE_PREFIX");
 const SERVER_LOG = env("E2E_SERVER_LOG");
 const BREACHED_SUFFIX = env("E2E_BREACHED_SUFFIX");
+const PRODUCTION = process.env.E2E_PRODUCTION_BUILD === "1";
 
 const repo = (p: string) => new URL(`../${p}`, import.meta.url).href;
 const { findPgBin, startThrowawayPostgres } = await import(repo("test/throwawayPostgres.ts"));
@@ -101,19 +105,29 @@ try {
 
   // 3. The app. Next's own binary, not `npx`, whose wrapper doesn't pass signals on.
   const log = createWriteStream(SERVER_LOG);
-  next = spawn(new URL(repo("node_modules/.bin/next")).pathname, ["dev", "-p", APP_PORT], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      NEXT_TELEMETRY_DISABLED: "1",
-      DATABASE_URL: pg!.url,
-      BETTER_AUTH_SECRET: "test-only-e2e-secret-not-used-anywhere-else-0123",
-      BETTER_AUTH_URL: `http://localhost:${APP_PORT}`,
-      PWNED_PASSWORDS_API_URL: `http://127.0.0.1:${MOCK_PORT}/range/`,
-    },
-  });
-  next.stdout!.pipe(log);
-  next.stderr!.pipe(log);
+  const nextBin = new URL(repo("node_modules/.bin/next")).pathname;
+  const nextEnv = {
+    ...process.env,
+    NEXT_TELEMETRY_DISABLED: "1",
+    DATABASE_URL: pg!.url,
+    BETTER_AUTH_SECRET: "test-only-e2e-secret-not-used-anywhere-else-0123",
+    BETTER_AUTH_URL: `http://localhost:${APP_PORT}`,
+    PWNED_PASSWORDS_API_URL: `http://127.0.0.1:${MOCK_PORT}/range/`,
+  };
+  const runNext = (args: string[]) => {
+    const child = spawn(nextBin, args, { stdio: ["ignore", "pipe", "pipe"], env: nextEnv });
+    child.stdout!.pipe(log, { end: false });
+    child.stderr!.pipe(log, { end: false });
+    return child;
+  };
+  if (PRODUCTION) {
+    // Same env as the server, so the build sees exactly what `next start` will.
+    // Writes .next; `next dev` uses .next/dev, so a running dev server is unaffected.
+    next = runNext(["build"]);
+    const code = await new Promise<number | null>((resolve) => next!.once("exit", resolve));
+    if (code !== 0) throw new Error(`next build exited with ${code ?? "a signal"}; see ${SERVER_LOG}`);
+  }
+  next = runNext([PRODUCTION ? "start" : "dev", "-p", APP_PORT]);
   // If next dies on its own, clean up and fail. During a normal shutdown cleanup has
   // already started; the signal handler then exits 0.
   next.on("exit", async (code) => {
