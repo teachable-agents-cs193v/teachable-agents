@@ -138,12 +138,24 @@ export function sanitizeMove(assessment: Assessment, notebook: Notebook): Assess
   }
   if (move === "open") move = "admit_confusion";
 
-  // A third "why?" or "example?" in a row stalls the conversation (a student said it felt stuck):
-  // try what was taught instead, or say what's confusing if nothing has been. Only the stored
-  // move history is read here, never what was said.
-  const lastTwo = notebook.moves.slice(-2);
-  if ((move === "ask_why" || move === "ask_for_example") && lastTwo.length === 2 && lastTwo.every((m) => m === move)) {
-    move = notebook.beliefs.some((b) => b.source === "taught") ? "try_to_apply" : "admit_confusion";
+  // These read only structured state (the stored moves and beliefs), never what was said.
+  const taught = notebook.beliefs.some((b) => b.source === "taught");
+  const unvoiced = activeMisconceptions(notebook).find((b) => !notebook.voicedMisconceptionIds.includes(b.misconceptionId!));
+  const last = notebook.moves.at(-1);
+  // "Why?" twice in a row stalls the conversation (students said it felt stuck): try what was taught.
+  if ((move === "ask_why" || move === "ask_for_example") && last === move) {
+    move = taught ? "try_to_apply" : "admit_confusion";
+    moveTarget = null;
+  }
+  // Nothing taught means nothing to apply: trying anyway is how Pip leaked untaught rules.
+  if (move === "try_to_apply" && !taught) {
+    move = unvoiced ? "voice_misconception" : "admit_confusion";
+    moveTarget = unvoiced?.misconceptionId ?? null;
+  }
+  // When Pip is lost, offering one of its own (wrong) ideas gives the student something to correct.
+  if (move === "admit_confusion" && unvoiced && last === "admit_confusion") {
+    move = "voice_misconception";
+    moveTarget = unvoiced.misconceptionId;
   }
   return { ...assessment, move, moveTarget };
 }

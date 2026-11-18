@@ -143,14 +143,25 @@ describe("sanitizeMove", () => {
     expect([a.move, a.moveTarget]).toEqual(["ask_for_example", null]);
   });
 
-  it("turns a third ask_why in a row into trying what was taught", () => {
+  it("doesn't ask why twice in a row: tries what was taught, or says it's lost", () => {
     const base = createNotebook(pack);
     const taught = { ...base.beliefs[0], id: "b-taught", source: "taught" as const, misconceptionId: null, status: "heard" as const };
-    const nb = { ...base, beliefs: [...base.beliefs, taught], moves: ["ask_why", "ask_why"] as Assessment["move"][] };
+    const nb = { ...base, beliefs: [...base.beliefs, taught], moves: ["ask_why"] as Assessment["move"][] };
     expect(sanitizeMove(assessment({ move: "ask_why" }), nb).move).toBe("try_to_apply");
-    expect(sanitizeMove(assessment({ move: "ask_why" }), { ...nb, beliefs: base.beliefs }).move).toBe("admit_confusion");
-    expect(sanitizeMove(assessment({ move: "ask_why" }), { ...nb, moves: ["ask_for_example", "ask_why"] }).move).toBe("ask_why");
+    expect(sanitizeMove(assessment({ move: "ask_why" }), { ...nb, moves: ["ask_for_example"] }).move).toBe("ask_why");
     expect(sanitizeMove(assessment({ move: "redirect" }), { ...nb, moves: ["redirect", "redirect"] }).move).toBe("redirect");
+  });
+
+  it("never applies an empty notebook: voices a starting idea instead", () => {
+    const nb = createNotebook(pack);
+    const a = sanitizeMove(assessment({ move: "try_to_apply" }), nb);
+    expect([a.move, a.moveTarget]).toEqual(["voice_misconception", pack.misconceptions[0].id]);
+  });
+
+  it("offers one of its own ideas after being lost twice", () => {
+    const nb = { ...createNotebook(pack), moves: ["admit_confusion"] as Assessment["move"][] };
+    expect(sanitizeMove(assessment({ move: "admit_confusion" }), nb).move).toBe("voice_misconception");
+    expect(sanitizeMove(assessment({ move: "admit_confusion" }), { ...nb, moves: ["ask_why"] }).move).toBe("admit_confusion");
   });
 });
 
