@@ -8,6 +8,7 @@
  */
 
 import type {
+  LearningFlag,
   LearningProgress,
   LearningReview,
   ProgressMisconception,
@@ -121,7 +122,37 @@ export function buildProgress(state: TeachableState): LearningProgress {
     teaching: teachingCounts(history),
     misconceptions,
     timeline: buildTimeline(history, notebook, (b) => visibleToStudent(b, notebook), false),
+    flags: latestFlags(state),
+    wrongTaught: notebook.beliefs
+      .filter((b) => b.source === "taught" && (b.taughtCorrectly === "incorrect" || b.taughtCorrectly === "partly"))
+      .map((b) => ({
+        id: b.id,
+        statement: b.statement,
+        turn: history.find((r) => r.added.some((a) => a.beliefId === b.id))?.turn ?? null,
+        verdict: b.taughtCorrectly === "incorrect" ? ("wrong" as const) : ("partly" as const),
+      })),
   };
+}
+
+/**
+ * Side notes about the latest student message, from structured fields only: misconceptions Pip
+ * voiced in its reply (and still holds), and taught ideas the assessor judged wrong or partly wrong.
+ */
+function latestFlags(state: TeachableState): LearningFlag[] {
+  const { notebook, history } = state;
+  const latest = history.at(-1);
+  if (!latest || latest.turn !== notebook.studentTurns - 1) return [];
+  const flags: LearningFlag[] = [];
+  for (const id of latest.voiced) {
+    const belief = notebook.beliefs.find((b) => b.misconceptionId === id && b.status === "misconception");
+    if (belief) flags.push({ kind: "pip_wrong_idea", beliefId: belief.id, statement: belief.statement });
+  }
+  for (const added of latest.added) {
+    if (added.correctness === "incorrect" || added.correctness === "partly") {
+      flags.push({ kind: "taught_wrong", beliefId: added.beliefId, statement: added.statement, verdict: added.correctness === "incorrect" ? "wrong" : "partly" });
+    }
+  }
+  return flags;
 }
 
 /**

@@ -27,7 +27,7 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   const tracker = visible(page, "misconception-tracker");
   const strip = page.getByTestId("learning-strip");
   await expect(beliefs).toContainText("Nothing yet");
-  await expect(tracker).toContainText("hasn’t shared");
+  await expect(tracker).toContainText("came in with a few wrong ideas");
 
   const composer = page.getByLabel("Your message to Pip");
   await composer.fill("Independent means one doesn't change the other's chance.");
@@ -39,6 +39,9 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   await expect(first).toHaveAttribute("data-changed", "true");
   await expect(tracker.locator("li")).toHaveAttribute("data-status", "believes");
   await expect(tracker).toContainText("can't happen at the same time");
+  await expect(tracker.locator("li")).toContainText("Not right");
+  // A side note says Pip's idea isn't right (Pip itself never does), without giving the answer.
+  await expect(page.getByTestId("learning-flags")).toContainText("Catch it");
   await expect(strip).toContainText("Your last message: Pip heard, Pip said what it believes");
 
   await composer.fill("Heads and a six can both happen, and heads doesn't change the 1/6 chance of a six.");

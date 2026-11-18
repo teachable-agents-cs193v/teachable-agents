@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import type { ProgressMisconception } from "@/lib/types";
+import type { LearningProgress, ProgressMisconception } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { BELIEF_STATUS, messageLabel, plural } from "./labels";
@@ -9,6 +9,8 @@ import { BELIEF_STATUS, messageLabel, plural } from "./labels";
 interface MisconceptionTrackerProps {
   /** `progress.misconceptions`: only ones Pip has said out loud or been talked out of. */
   misconceptions: ProgressMisconception[];
+  /** `progress.wrongTaught`: wrong ideas the student taught that Pip now holds. */
+  wrongTaught?: LearningProgress["wrongTaught"];
   /** `progress.studentTurns`, to highlight what the latest message changed. */
   studentTurns: number;
   learnerName?: string;
@@ -16,11 +18,12 @@ interface MisconceptionTrackerProps {
 }
 
 /**
- * The misconception tracker: ideas Pip started out with, once it has said them,
- * and whether the student has changed its mind. Worded neutrally on purpose:
- * during the session it never says an idea is wrong, so the student has to judge.
+ * The misconception tracker: wrong ideas Pip holds, so the student knows what to catch.
+ * Pip's own starting ideas appear once it has said them; ideas the student taught appear
+ * when the assessor judged them wrong. It says an idea isn't right, never what the right one is.
+ * Pip itself never says any of this.
  */
-export function MisconceptionTracker({ misconceptions, studentTurns, learnerName = "Pip", className }: MisconceptionTrackerProps) {
+export function MisconceptionTracker({ misconceptions, wrongTaught = [], studentTurns, learnerName = "Pip", className }: MisconceptionTrackerProps) {
   const titleId = useId();
   const latest = studentTurns - 1;
   const changedMind = misconceptions.filter((m) => m.status === "changed_mind").length;
@@ -29,7 +32,7 @@ export function MisconceptionTracker({ misconceptions, studentTurns, learnerName
     <section className={cn("card p-5", className)} aria-labelledby={titleId} data-testid="misconception-tracker">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={titleId} className="font-display text-xl text-charcoal">
-          Ideas {learnerName} came in with
+          Wrong ideas to catch
         </h2>
         {misconceptions.length > 0 && (
           <span className="text-xs text-muted">
@@ -38,9 +41,9 @@ export function MisconceptionTracker({ misconceptions, studentTurns, learnerName
         )}
       </div>
 
-      {misconceptions.length === 0 ? (
+      {misconceptions.length === 0 && wrongTaught.length === 0 ? (
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          {learnerName} hasn&rsquo;t shared any of its own ideas about this yet. Listen for them as you teach.
+          {learnerName} came in with a few wrong ideas about this. When it says one, it shows up here so you can catch it.
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-2.5">
@@ -56,24 +59,41 @@ export function MisconceptionTracker({ misconceptions, studentTurns, learnerName
                   justChanged ? "animate-pop border-forest/50 bg-sage/40" : "border-line bg-paper",
                 )}
               >
-                <Badge tone={status.tone}>{status.label}</Badge>
+                <Badge tone={m.status === "changed_mind" ? "forest" : "terracotta"}>{m.status === "changed_mind" ? "Fixed" : "Not right"}</Badge>
+                <span className="sr-only"> ({status.label})</span>
                 <p className="mt-1.5 text-charcoal/90">&ldquo;{m.statement}&rdquo;</p>
-                <p className="mt-1 text-xs text-muted">{detail(m)}</p>
+                <p className="mt-1 text-xs text-muted">{detail(m, learnerName)}</p>
               </li>
             );
           })}
+          {wrongTaught.map((w) => (
+            <li
+              key={w.id}
+              data-status="taught_wrong"
+              className={cn(
+                "rounded-2xl border px-3.5 py-2.5 text-[14px] leading-relaxed",
+                w.turn === latest ? "animate-pop border-terracotta/50 bg-terracotta/10" : "border-line bg-paper",
+              )}
+            >
+              <Badge tone="butter">{w.verdict === "wrong" ? "You taught this" : "Partly right"}</Badge>
+              <p className="mt-1.5 text-charcoal/90">&ldquo;{w.statement}&rdquo;</p>
+              <p className="mt-1 text-xs text-muted">
+                {w.verdict === "wrong" ? "This isn't right" : "This is only partly right"}, and {learnerName} believes it now. Can you work out what&rsquo;s off and fix it?
+              </p>
+            </li>
+          ))}
         </ul>
       )}
     </section>
   );
 }
 
-function detail(m: ProgressMisconception): string {
+function detail(m: ProgressMisconception, learnerName: string): string {
   if (m.status === "changed_mind") {
     if (m.turnsToChange !== null) return `Changed its mind ${plural(m.turnsToChange, "message")} after saying it.`;
     if (m.changedAtTurn !== null) return `Changed its mind at your ${messageLabel(m.changedAtTurn)}.`;
     return "Changed its mind.";
   }
-  if (m.attempts === 0) return "Pip started out thinking this. Do you agree with it?";
-  return `You've responded to it ${plural(m.attempts, "time")}, and Pip hasn't changed its mind yet.`;
+  if (m.attempts === 0) return `${learnerName} believes this, but it isn't right. Help ${learnerName} see why.`;
+  return `You've responded to it ${plural(m.attempts, "time")}, and ${learnerName} hasn't changed its mind yet. Try explaining why, with an example.`;
 }

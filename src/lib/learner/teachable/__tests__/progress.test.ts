@@ -95,7 +95,7 @@ describe("buildProgress (during the session)", () => {
     expect(timeline[2].events).toEqual([{ type: "learned", beliefId: "t3-3", statement: "Exclusive events are independent.", status: "heard" }]);
   });
 
-  it("never reveals correctness, the answer key, or a misconception Pip hasn't voiced", async () => {
+  it("never reveals the answer key, correctness verdicts, or a misconception Pip hasn't voiced", async () => {
     const text = JSON.stringify(buildProgress(await session()));
     expect(text).not.toMatch(/correctness|incorrect|conceptId|misconceptionId|offTask|analysis|targeted/);
     expect(text).not.toContain(SILENT);
@@ -126,7 +126,28 @@ describe("buildProgress (during the session)", () => {
       teaching: { claims: 0, explained: 0, asserted: 0, explainedLater: 0 },
       misconceptions: [],
       timeline: [],
+      flags: [],
+      wrongTaught: [],
     });
+  });
+
+  it("flags the latest message: Pip voicing a wrong idea, or the student teaching one (never the right answer)", async () => {
+    const state = await teach([
+      verdict({ claims: [claim("Independent means they can't both happen.", false, "incorrect", null)], move: "voice_misconception", moveTarget: VOICED }),
+    ]);
+    const progress = buildProgress(state);
+    expect(progress.flags).toEqual([
+      { kind: "pip_wrong_idea", beliefId: `m:${VOICED}`, statement: expect.any(String) },
+      { kind: "taught_wrong", beliefId: expect.any(String), statement: "Independent means they can't both happen.", verdict: "wrong" },
+    ]);
+    expect(progress.wrongTaught).toEqual([{ id: expect.any(String), statement: "Independent means they can't both happen.", turn: 0, verdict: "wrong" }]);
+    const text = JSON.stringify(progress);
+    for (const c of pack.concepts) expect(text).not.toContain(c.keyIdea);
+    for (const m of pack.misconceptions) expect(text).not.toContain(m.whyWrong);
+    // The next message with nothing wrong in it clears the flags, but the wrong idea stays listed.
+    const next = buildProgress(await teach([verdict({ claims: [claim("Another idea.", false)] })], state, 1));
+    expect(next.flags).toEqual([]);
+    expect(next.wrongTaught).toHaveLength(1);
   });
 
   it("works for a session from before history was recorded", async () => {

@@ -22,6 +22,7 @@ import { LearningStrip } from "@/components/learning/LearningStrip";
 import { MisconceptionTracker } from "@/components/learning/MisconceptionTracker";
 import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
 import { DevicePipPanel } from "@/components/learning/DevicePipPanel";
+import { LearningFlags } from "@/components/learning/LearningFlags";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -84,7 +85,12 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
       {state.device && <DevicePipPanel device={state.device} learnerName={PIP.name} />}
       {state.pipBeliefs && <PipBeliefsPanel beliefs={state.pipBeliefs} learnerName={PIP.name} />}
       {state.progress && (
-        <MisconceptionTracker misconceptions={state.progress.misconceptions} studentTurns={state.progress.studentTurns} learnerName={PIP.name} />
+        <MisconceptionTracker
+          misconceptions={state.progress.misconceptions}
+          wrongTaught={state.progress.wrongTaught}
+          studentTurns={state.progress.studentTurns}
+          learnerName={PIP.name}
+        />
       )}
       <TeachingTips tips={topic.teachingTips} compact />
       {state.learnerInfo?.id === "teachable" ? (
@@ -222,6 +228,9 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                 />
               </div>
             </div>
+            {state.progress && state.progress.flags.length > 0 && learnerStatus === "idle" && (
+              <LearningFlags flags={state.progress.flags} learnerName={PIP.name} className="mt-3" />
+            )}
             {state.progress && <LearningStrip progress={state.progress} learnerName={PIP.name} className="mt-3" />}
             <SessionProgress
               startedAt={session.startedAt}

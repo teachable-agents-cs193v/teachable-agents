@@ -226,7 +226,19 @@ export interface LearningProgress {
   misconceptions: ProgressMisconception[];
   /** Oldest first; only turns where something visible changed. */
   timeline: TimelineEntry[];
+  /**
+   * Side notes for the student about the latest message, never said by Pip: Pip just voiced one of
+   * its wrong starting ideas, or the student just taught something the assessor judged wrong.
+   * They say that something isn't right, never what the right answer is.
+   */
+  flags: LearningFlag[];
+  /** Ideas the student taught that the assessor judged wrong, which Pip still holds. */
+  wrongTaught: { id: string; statement: string; turn: number | null; verdict: "wrong" | "partly" }[];
 }
+
+export type LearningFlag =
+  | { kind: "pip_wrong_idea"; beliefId: string; statement: string }
+  | { kind: "taught_wrong"; beliefId: string; statement: string; verdict: "wrong" | "partly" };
 
 /** A starting misconception, after the session. */
 export interface ReviewMisconception {
