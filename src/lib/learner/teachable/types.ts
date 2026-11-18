@@ -120,9 +120,44 @@ export interface Notebook {
 
 /* --------------------------- Model call outputs -------------------------- */
 
-/** One thing the student claimed in their latest message, as judged by the assessor. */
+/**
+ * The NOTE-TAKER's output (model role "pip", no answer key): what the student's message said,
+ * in Pip's words. This is the only model-written text that enters Pip's notebook from a turn.
+ */
+export interface TakenNotes {
+  /** New ideas the student asserted in this message, as Pip's faithful first-person paraphrase. At most 3. */
+  notes: { text: string }[];
+  /** Ids of beliefs the student taught earlier and now takes back or replaces (they become corrected). */
+  revisedBeliefIds: string[];
+}
+
+/** The assessor's grade for one note, by its index in TakenNotes.notes. */
+export interface NoteGrade {
+  index: number;
+  conceptId: string | null;
+  correctness: TaughtCorrectly;
+  explained: boolean;
+  /** False when the note says something the student didn't (added, fixed or invented content): it's dropped. */
+  faithful: boolean;
+}
+
+/**
+ * The ASSESSOR's output (sees the answer key). Structured values only: every string in it is an
+ * id or enum value checked against an allowlist by parseAssessorVerdict (./assessorBoundary.ts).
+ */
+export interface AssessorVerdict {
+  noteGrades: NoteGrade[];
+  corrections: { misconceptionId: string; targeted: boolean; explained: boolean }[];
+  nowExplainedBeliefIds: string[];
+  offTask: boolean;
+  move: Move;
+  moveTarget: string | null;
+  readyToWrapUp: boolean;
+}
+
+/** One thing the student claimed in their latest message: a note, with the assessor's grade. */
 export interface AssessedClaim {
-  /** What Pip would now believe, written in Pip's words. */
+  /** What Pip would now believe, written in Pip's words. Written by the note-taker, never the assessor. */
   pipStatement: string;
   conceptId: string | null;
   correctness: TaughtCorrectly;
@@ -130,10 +165,11 @@ export interface AssessedClaim {
   explained: boolean;
 }
 
-/** The assessor's structured verdict on a student turn. */
+/**
+ * One student turn's verdict, combined by code from the note-taker's notes and the assessor's
+ * grades (buildAssessment in ./pipeline.ts). Holds no text written by the assessor.
+ */
 export interface Assessment {
-  /** Short private reasoning, written before the verdicts. Not shown to anyone. */
-  analysis: string;
   claims: AssessedClaim[];
   /** Misconceptions the student addressed, and whether the correction was a real fix. */
   corrections: { misconceptionId: string; targeted: boolean; explained: boolean }[];
@@ -147,8 +183,6 @@ export interface Assessment {
   move: Move;
   /** Belief id or misconception id the move is about, if any. */
   moveTarget: string | null;
-  /** One-sentence note for the reply call: what Pip should do, never what the right answer is. */
-  moveNote: string;
   /** The assessor thinks the student has covered the goal well enough to wrap up. */
   readyToWrapUp: boolean;
 }

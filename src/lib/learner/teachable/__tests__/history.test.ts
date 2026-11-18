@@ -6,6 +6,7 @@ import { probabilityPack as pack } from "../packs/probability";
 import { initialState, runOpening, runTurn, sameModel, type TeachableState } from "../pipeline";
 import { upgradeState } from "../server";
 import type { TurnRecord } from "../types";
+import { turnAnswers, type FakeTurn } from "./fakeTurns";
 
 /** Fake model: answers from a queue keyed by call label (`options.label`). */
 class FakeModel implements JsonModel {
@@ -22,22 +23,11 @@ const MISC = "independent-means-cannot-co-occur";
 const OTHER = "exclusive-means-independent";
 const msg = (id: string, role: ChatMessage["role"], text = "..."): ChatMessage => ({ id, role, text, createdAt: "" });
 const reply = { mood: "curious", text: "Hmm?" };
-const assessment = (over: Record<string, unknown> = {}) => ({
-  analysis: "private",
-  claims: [],
-  corrections: [],
-  nowExplainedBeliefIds: [], revisedBeliefIds: [],
-  offTask: false,
-  move: "ask_why",
-  moveTarget: null,
-  moveNote: "",
-  readyToWrapUp: false,
-  ...over,
-});
+const assessment = (over: FakeTurn = {}): FakeTurn => over;
 
-/** Runs student messages through the pipeline, one assessor verdict each. */
-async function teach(verdicts: Record<string, unknown>[], start: TeachableState = initialState(pack)) {
-  const model = new FakeModel({ assessor: [...verdicts], reply: verdicts.map(() => reply) });
+/** Runs student messages through the pipeline, one note-taker and assessor answer each. */
+async function teach(verdicts: FakeTurn[], start: TeachableState = initialState(pack)) {
+  const model = new FakeModel({ ...turnAnswers(verdicts), reply: verdicts.map(() => reply) });
   let state = start;
   const messages: ChatMessage[] = [msg("l0", "learner")];
   for (let i = 0; i < verdicts.length; i++) {
@@ -132,7 +122,8 @@ describe("learning history", () => {
   it("recordTurn only compares ids and statuses", () => {
     const before = initialState(pack).notebook;
     const after = { ...before, beliefs: before.beliefs.map((b) => (b.misconceptionId === OTHER ? { ...b, statement: "reworded" } : b)) };
-    const r = recordTurn({ before, after, assessment: assessment() as never, student: { index: 0, messageId: "s0" } });
+    const none = { claims: [], corrections: [], nowExplainedBeliefIds: [], revisedBeliefIds: [], offTask: false, move: "ask_why" as const, moveTarget: null, readyToWrapUp: false };
+    const r = recordTurn({ before, after, assessment: none, student: { index: 0, messageId: "s0" } });
     expect(r.changed).toEqual([]);
     expect(r.added).toEqual([]);
   });

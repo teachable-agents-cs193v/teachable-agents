@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
+import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import type { AuthUser, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
@@ -21,15 +22,14 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(requestCookie ? { cookie: requestCookie } : {}),
 }));
 
-/** Fake model: answers assessor and reply calls from fixed objects, counting calls. */
+/** Fake model: answers note-taker, assessor and reply calls from fixed objects, counting calls. */
 class FakeModel implements JsonModel {
   readonly name = "fake";
   calls: string[] = [];
   async completeJson(_messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
     this.calls.push(options.label);
-    if (options.label === "assessor") {
-      return { analysis: "", claims: [], corrections: [], nowExplainedBeliefIds: [], offTask: false, move: "ask_why", moveTarget: null, moveNote: "Ask why.", readyToWrapUp: false };
-    }
+    if (options.label === "noteTaker") return noteTakerAnswer();
+    if (options.label === "assessor") return assessorAnswer();
     return { mood: "curious", text: `Pip reply ${this.calls.length}` };
   }
 }
@@ -113,7 +113,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     expect(res.status).toBe(200);
     expect(res.body.learner.id).toBe("teachable");
     expect(res.body.reply.text).toMatch(/^Pip reply/);
-    expect(model.calls).toEqual(["reply", "assessor", "reply"]);
+    expect(model.calls).toEqual(["reply", "noteTaker", "assessor", "reply"]);
 
     const stored = res.body.session as TeachingSession;
     expect(stored.messages[1]).toMatchObject({ id: "msg_1", role: "student", text: "Independent means they don't affect each other." });
@@ -134,7 +134,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     expect(again.status).toBe(200);
     expect(again.body.reply).toBeNull(); // already answered: the session holds the reply
     expect(again.body.session.messages).toEqual(first.body.session.messages);
-    expect(model.calls).toEqual(["reply", "assessor", "reply"]);
+    expect(model.calls).toEqual(["reply", "noteTaker", "assessor", "reply"]);
   });
 
   it("answers 409 when a message id is reused for different text", async () => {
@@ -221,21 +221,11 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
 
   it("returns what Pip believes, as the student may see it, with each turn and from GET /pip", async () => {
     model = new FakeModel();
+    const taught = { claims: [{ pipStatement: "So independent means they can't both happen?", conceptId: "independence-definition", correctness: "incorrect", explained: false }] };
     model.completeJson = async (_messages, options) => {
       model!.calls.push(options.label);
-      if (options.label === "assessor") {
-        return {
-          analysis: "",
-          claims: [{ pipStatement: "So independent means they can't both happen?", conceptId: "independence-definition", correctness: "incorrect", explained: false }],
-          corrections: [],
-          nowExplainedBeliefIds: [],
-          offTask: false,
-          move: "ask_why",
-          moveTarget: null,
-          moveNote: "",
-          readyToWrapUp: false,
-        };
-      }
+      if (options.label === "noteTaker") return noteTakerAnswer(taught);
+      if (options.label === "assessor") return assessorAnswer(taught);
       return { mood: "curious", text: "Why?" };
     };
     const { cookie, session } = await openedSession();

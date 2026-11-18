@@ -1,8 +1,16 @@
 /**
- * One Pip turn: assessor call → notebook update → reply call.
+ * One Pip turn: note-taker call → assessor call → notebook update → reply call.
  *
  * Code here checks JSON shape and ids only. It never inspects what the
  * student or Pip said; the prompts in ./prompts.ts make those judgments.
+ *
+ * Who sees what (the "lethal trifecta" split, docs/AI_LEARNER.md):
+ * - note-taker (models.pip): the student's message and what the student can already see of Pip's
+ *   notebook. No answer key. Writes the text that becomes Pip's new beliefs.
+ * - assessor (models.assessor): the answer key, the message and the notes. Its output goes through
+ *   parseAssessorVerdict (./assessorBoundary.ts), which lets only allowlisted ids, enums and booleans
+ *   through, so nothing it writes can reach the student or the reply model as text.
+ * - reply (models.pip): Pip's notebook, the move and the conversation. No answer key.
  */
 
 import type { ChatMessage, LearnerMood, LearnerReply, LearnerTurnKind } from "../../types";
@@ -17,12 +25,12 @@ export interface Models {
 /** One model for every role (tests, and setups with a single model). */
 export const sameModel = (model: JsonModel): Models => ({ assessor: model, pip: model });
 import { LlmError } from "./llm";
+import { parseAssessorVerdict } from "./assessorBoundary";
 import { applyAssessment, createNotebook, pipView, recordMove, recordVoiced } from "./notebook";
 import type { ChatTurn } from "./llm";
-import { assessorMessages, deviceReplyMessages, replyMessages } from "./prompts";
+import { assessorMessages, deviceReplyMessages, noteTakerMessages, replyMessages } from "./prompts";
 import { appendHistory, recordTurn } from "./history";
-import type { AssessedClaim, Assessment, Move, Notebook, PipReply, TaughtCorrectly, TopicPack, TurnRecord } from "./types";
-import { MOVES } from "./types";
+import type { AssessedClaim, Assessment, AssessorVerdict, Move, Notebook, PipReply, TakenNotes, TopicPack, TurnRecord } from "./types";
 
 /**
  * Everything the server keeps between turns for one session (`teaching_sessions.learner_state`).
@@ -33,7 +41,11 @@ export interface TeachableState {
   notebook: Notebook;
   /** The last reply, so a retried request for the same student message returns it instead of re-running. */
   last: { studentMessageId: string | null; reply: LearnerReply } | null;
-  /** The assessor's last verdict. Kept for debugging and evaluation; never shown to Pip or the student. */
+  /**
+   * The last turn's verdict (buildAssessment: the note-taker's notes with the assessor's allowlisted
+   * grades; no text the assessor wrote). Kept for retries, debugging and evaluation; never shown to
+   * Pip or the student. States saved before the split may carry `analysis`/`moveNote`; upgradeState drops them.
+   */
   lastAssessment: Assessment | null;
   /** What each student message changed, oldest first (./history.ts). Never shown to Pip. */
   history: TurnRecord[];
@@ -57,42 +69,57 @@ export function initialState(pack: TopicPack): TeachableState {
 /* -------------------------- Shape validation ---------------------------- */
 
 const MOODS: LearnerMood[] = ["curious", "confused", "happy", "thinking"];
-const CORRECTNESS: TaughtCorrectly[] = ["correct", "incorrect", "partly", "unclear"];
 const MAX_TEXT = 600;
+/** Notes per student message, and each note's length (the limits the assessor's claims had). */
+export const MAX_NOTES = 3;
+const MAX_NOTE_TEXT = 300;
 
 const str = (v: unknown, max = 400) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-const bool = (v: unknown) => v === true;
-const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
-const idOrNull = (v: unknown) => (typeof v === "string" && v.trim() && v.trim() !== "null" ? v.trim() : null);
 
-/** Coerces the assessor's JSON into an Assessment. Throws only if it isn't an object at all. */
-export function parseAssessment(raw: unknown): Assessment {
-  if (!raw || typeof raw !== "object") throw new LlmError("assessor: not a JSON object", true);
+/**
+ * Coerces the note-taker's JSON. Its text is let through: it's the one call that writes Pip's new
+ * notes, and it never sees the answer key. Belief ids must be taught beliefs still in the notebook.
+ * Throws only if it isn't an object at all.
+ */
+export function parseNotes(raw: unknown, notebook: Notebook): TakenNotes {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new LlmError("noteTaker: not a JSON object", true);
   const r = raw as Record<string, unknown>;
-  const claims: AssessedClaim[] = arr(r.claims)
-    .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
-    .map((c) => ({
-      pipStatement: str(c.pipStatement, 300),
-      conceptId: idOrNull(c.conceptId),
-      correctness: CORRECTNESS.includes(c.correctness as TaughtCorrectly) ? (c.correctness as TaughtCorrectly) : "unclear",
-      explained: bool(c.explained),
-    }))
-    .filter((c) => c.pipStatement)
-    .slice(0, 3);
+  const notes = (Array.isArray(r.notes) ? r.notes : [])
+    .filter((n): n is Record<string, unknown> => !!n && typeof n === "object")
+    .map((n) => ({ text: str(n.text, MAX_NOTE_TEXT) }))
+    .filter((n) => n.text)
+    .slice(0, MAX_NOTES);
+  const taught = new Set(notebook.beliefs.filter((b) => b.source === "taught" && b.status !== "corrected").map((b) => b.id));
+  const revised = Array.isArray(r.revisedBeliefIds) ? r.revisedBeliefIds : [];
+  return { notes, revisedBeliefIds: [...new Set(revised.filter((v): v is string => typeof v === "string" && taught.has(v)))] };
+}
+
+/**
+ * The turn's verdict from the two calls: each note becomes a claim with its grade. A note graded
+ * unfaithful is dropped; one with no grade stays, as "unclear" and not explained. The statement is
+ * always the note-taker's text; the assessor contributes only the allowlisted values in `verdict`.
+ */
+export function buildAssessment(taken: TakenNotes, verdict: AssessorVerdict): Assessment {
+  const claims: AssessedClaim[] = [];
+  taken.notes.forEach((note, index) => {
+    const grade = verdict.noteGrades.find((g) => g.index === index);
+    if (grade && !grade.faithful) return;
+    claims.push({
+      pipStatement: note.text,
+      conceptId: grade?.conceptId ?? null,
+      correctness: grade?.correctness ?? "unclear",
+      explained: grade?.explained ?? false,
+    });
+  });
   return {
-    analysis: str(r.analysis, 600),
     claims,
-    corrections: arr(r.corrections)
-      .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
-      .map((c) => ({ misconceptionId: str(c.misconceptionId, 100), targeted: bool(c.targeted), explained: bool(c.explained) }))
-      .filter((c) => c.misconceptionId),
-    nowExplainedBeliefIds: arr(r.nowExplainedBeliefIds).map((v) => str(v, 100)).filter(Boolean),
-    revisedBeliefIds: arr(r.revisedBeliefIds).map((v) => str(v, 100)).filter(Boolean),
-    offTask: bool(r.offTask),
-    move: (MOVES as readonly string[]).includes(r.move as string) ? (r.move as Move) : "admit_confusion",
-    moveTarget: idOrNull(r.moveTarget),
-    moveNote: str(r.moveNote, 300),
-    readyToWrapUp: bool(r.readyToWrapUp),
+    corrections: verdict.corrections,
+    nowExplainedBeliefIds: verdict.nowExplainedBeliefIds,
+    revisedBeliefIds: taken.revisedBeliefIds,
+    offTask: verdict.offTask,
+    move: verdict.move,
+    moveTarget: verdict.moveTarget,
+    readyToWrapUp: verdict.readyToWrapUp,
   };
 }
 
@@ -164,7 +191,6 @@ export async function runOpening(args: { pack: TopicPack; state: TeachableState;
     messages: [],
     studentText: null,
     move: "open",
-    moveNote: "Say hi, say briefly what you're trying to understand and that the words keep tripping you up, then ask the student where to start.",
     targetStatement: null,
   });
   const reply = await callJson(model, () => model.completeJson(messages, { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 }), parseReply);
@@ -180,15 +206,14 @@ interface Assessed {
   replyNotebook: Notebook;
   move: Move;
   moveTarget: string | null;
-  moveNote: string;
   changed: ReturnType<typeof pipView>;
   studentId: string;
 }
 
 /**
- * Step 1 of a turn: the assessor call and the notebook update, saved as a pending reply.
- * The reply (step 2) comes from the server (`replyFromServer`) or the student's device
- * (`replyFromDevice`); either way the assessment isn't run twice for one message.
+ * Step 1 of a turn: the note-taker and assessor calls and the notebook update, saved as a pending
+ * reply. The reply (step 2) comes from the server (`replyFromServer`) or the student's device
+ * (`replyFromDevice`); either way neither call is run twice for one message.
  */
 export async function assessTurn(args: {
   pack: TopicPack;
@@ -210,27 +235,35 @@ export async function assessTurn(args: {
       replyNotebook: state.notebook,
       move: assessment.move,
       moveTarget: assessment.moveTarget,
-      moveNote: assessment.moveNote,
       changed: pending.changed,
       studentId: student.id,
     };
   }
 
   const history = messages.slice(0, index);
-  const raw = await callJson(
+  // 1. Note-taker: what the student said, in Pip's words. Never sees the answer key.
+  const taken = await callJson(
+    models.pip,
+    () =>
+      models.pip.completeJson(
+        noteTakerMessages({ learningGoal: pack.learningGoal, notebook: state.notebook, messages: history, studentText: student.text }),
+        { label: "noteTaker", temperature: 0.2, reasoningEffort: "low", maxTokens: 800 },
+      ),
+    (raw) => parseNotes(raw, state.notebook),
+  );
+  // 2. Assessor: grades those notes against the answer key. Structured values only (./assessorBoundary.ts).
+  const verdict = await callJson(
     models.assessor,
     () =>
-      models.assessor.completeJson(assessorMessages({ pack, notebook: state.notebook, messages: history, studentText: student.text }), {
-        label: "assessor",
-        temperature: 0.2,
-        reasoningEffort: "medium",
-        maxTokens: 1500,
-      }),
-    parseAssessment,
+      models.assessor.completeJson(
+        assessorMessages({ pack, notebook: state.notebook, messages: history, studentText: student.text, notes: taken.notes, revisedBeliefIds: taken.revisedBeliefIds }),
+        { label: "assessor", temperature: 0.2, reasoningEffort: "medium", maxTokens: 1500 },
+      ),
+    (raw) => parseAssessorVerdict(raw, { pack, notebook: state.notebook, noteCount: taken.notes.length }),
   );
 
   const studentIndex = messages.slice(0, index + 1).filter((m) => m.role === "student").length - 1;
-  const applied = applyAssessment(state.notebook, raw, pack, { index: studentIndex, messageId: student.id });
+  const applied = applyAssessment(state.notebook, buildAssessment(taken, verdict), pack, { index: studentIndex, messageId: student.id });
   const replyNotebook = applied.notebook;
   const assessment = applied.assessment;
   const beforeStatus = new Map(state.notebook.beliefs.map((b) => [b.id, b.status]));
@@ -252,7 +285,6 @@ export async function assessTurn(args: {
     replyNotebook,
     move: assessment.move,
     moveTarget: assessment.moveTarget,
-    moveNote: assessment.moveNote,
     changed,
     studentId: student.id,
   };
@@ -263,7 +295,10 @@ function finish(pack: TopicPack, a: { state: TeachableState; move: Move; moveTar
   return { reply: learnerReply, state: { ...a.state, pending: null, last: { studentMessageId: a.studentId, reply: learnerReply } } };
 }
 
-/** Step 2 on the server: the reply model, from the notebook only. */
+/**
+ * Step 2 on the server: the reply model, from the notebook only. It gets the move, the fixed
+ * guide for that move and the target belief's statement from the notebook: nothing the assessor wrote.
+ */
 export async function replyFromServer(args: { pack: TopicPack; assessed: Assessed; messages: ChatMessage[]; models: Models }) {
   const { pack, assessed, messages, models } = args;
   const student = messages.at(-1)!;
@@ -279,7 +314,6 @@ export async function replyFromServer(args: { pack: TopicPack; assessed: Assesse
           messages: messages.slice(0, -1),
           studentText: student.text,
           move: assessed.move,
-          moveNote: assessed.moveNote,
           targetStatement: target?.statement ?? null,
           changed: assessed.changed,
         }),
@@ -291,7 +325,7 @@ export async function replyFromServer(args: { pack: TopicPack; assessed: Assesse
   return finish(pack, assessed, reply);
 }
 
-/** Pip's reply to one student message. Two model calls. */
+/** Pip's reply to one student message. Three model calls: note-taker, assessor, reply. */
 export async function runTurn(args: {
   pack: TopicPack;
   state: TeachableState;

@@ -7,14 +7,12 @@ const MISC = "independent-means-cannot-co-occur";
 
 function assessment(overrides: Partial<Assessment> = {}): Assessment {
   return {
-    analysis: "",
     claims: [],
     corrections: [],
     nowExplainedBeliefIds: [], revisedBeliefIds: [],
     offTask: false,
     move: "ask_why",
     moveTarget: null,
-    moveNote: "",
     readyToWrapUp: false,
     ...overrides,
   };

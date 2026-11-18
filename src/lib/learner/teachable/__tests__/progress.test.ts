@@ -5,6 +5,7 @@ import { probabilityPack as pack } from "../packs/probability";
 import { initialState, runTurn, sameModel, type TeachableState } from "../pipeline";
 import { buildProgress, buildReview } from "../progress";
 import { upgradeState } from "../server";
+import { turnAnswers, type FakeTurn } from "./fakeTurns";
 
 /** Fake model: answers from a queue keyed by call label (`options.label`). */
 class FakeModel implements JsonModel {
@@ -20,18 +21,7 @@ class FakeModel implements JsonModel {
 const VOICED = "independent-means-cannot-co-occur";
 const SILENT = "same-source-means-dependent"; // never voiced in these sessions
 const msg = (id: string, role: ChatMessage["role"]): ChatMessage => ({ id, role, text: "...", createdAt: "" });
-const verdict = (over: Record<string, unknown> = {}) => ({
-  analysis: "private reasoning",
-  claims: [],
-  corrections: [],
-  nowExplainedBeliefIds: [], revisedBeliefIds: [],
-  offTask: false,
-  move: "ask_why",
-  moveTarget: null,
-  moveNote: "",
-  readyToWrapUp: false,
-  ...over,
-});
+const verdict = (over: FakeTurn = {}): FakeTurn => over;
 const claim = (pipStatement: string, explained: boolean, correctness = "correct", conceptId: string | null = "independence-definition") => ({
   pipStatement,
   conceptId,
@@ -39,9 +29,9 @@ const claim = (pipStatement: string, explained: boolean, correctness = "correct"
   explained,
 });
 
-/** Runs student messages through the pipeline, one assessor verdict each, after `earlier` already-answered messages. */
-async function teach(verdicts: Record<string, unknown>[], start: TeachableState = initialState(pack), earlier = 0) {
-  const model = new FakeModel({ assessor: [...verdicts], reply: verdicts.map(() => ({ mood: "curious", text: "Hm?" })) });
+/** Runs student messages through the pipeline, one note-taker and assessor answer each, after `earlier` already-answered messages. */
+async function teach(verdicts: FakeTurn[], start: TeachableState = initialState(pack), earlier = 0) {
+  const model = new FakeModel({ ...turnAnswers(verdicts), reply: verdicts.map(() => ({ mood: "curious", text: "Hm?" })) });
   let state = start;
   const messages: ChatMessage[] = [msg("l0", "learner")];
   for (let i = 0; i < earlier; i++) messages.push(msg(`old${i}`, "student"), msg(`oldl${i}`, "learner"));

@@ -30,11 +30,10 @@ export async function judgeReply(
     conversation: ChatMessage[];
     studentText: string;
     move: Move;
-    moveNote: string;
     pipText: string;
   },
 ): Promise<Verdict> {
-  const { pack, notebookBefore, conversation, studentText, move, moveNote, pipText } = args;
+  const { pack, notebookBefore, conversation, studentText, move, pipText } = args;
   const system = `You are a strict evaluator of "Pip", an AI that must play a genuine NOVICE being taught by a student. Pip may only know: everyday background knowledge, its notebook, and what was said in the conversation. You judge one Pip reply.
 
 ANSWER KEY (what Pip must NOT reveal unless it was taught in the conversation or is in the notebook):
@@ -61,7 +60,7 @@ ${conversation.map((m) => `${m.role.toUpperCase()}: ${m.text}`).join("\n") || "(
 
 STUDENT'S LATEST MESSAGE: ${studentText}
 
-REQUESTED MOVE: ${move}${moveNote ? ` — ${moveNote}` : ""}
+REQUESTED MOVE: ${move}
 
 PIP'S REPLY TO JUDGE: ${pipText}`;
 

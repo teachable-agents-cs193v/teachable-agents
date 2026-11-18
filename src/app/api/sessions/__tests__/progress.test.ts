@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
+import { assessorAnswer, noteTakerAnswer, type FakeTurn } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import { probabilityPack as pack } from "@/lib/learner/teachable/packs/probability";
 import type { LearningProgress, LearningReview, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
@@ -25,25 +26,18 @@ vi.mock("next/headers", () => ({
 
 const VOICED = "independent-means-cannot-co-occur";
 const SILENT = "same-source-means-dependent";
-const verdict = (over: Record<string, unknown> = {}) => ({
-  analysis: "secret assessor reasoning",
-  claims: [],
-  corrections: [],
-  nowExplainedBeliefIds: [],
-  offTask: false,
-  move: "ask_why",
-  moveTarget: null,
-  moveNote: "Ask why.",
-  readyToWrapUp: false,
-  ...over,
-});
+const verdict = (over: FakeTurn = {}): FakeTurn => over;
 
-/** Fake model: assessor verdicts from a queue, a fixed reply otherwise. */
+/**
+ * Fake model: per turn, the note-taker's notes and the assessor's grades from a queue (the assessor
+ * also tries to slip free text in, which must never reach the student), a fixed reply otherwise.
+ */
 class FakeModel implements JsonModel {
   readonly name = "fake";
-  constructor(private readonly verdicts: unknown[]) {}
+  constructor(private readonly turns: FakeTurn[]) {}
   async completeJson(_messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
-    if (options.label === "assessor") return this.verdicts.shift() ?? verdict();
+    if (options.label === "noteTaker") return noteTakerAnswer(this.turns[0]);
+    if (options.label === "assessor") return { ...assessorAnswer(this.turns.shift()), analysis: "secret assessor reasoning", moveNote: "Ask why." };
     return { mood: "curious", text: "Hmm, why?" };
   }
 }

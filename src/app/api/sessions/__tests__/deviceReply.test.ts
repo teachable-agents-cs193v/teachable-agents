@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
+import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import type { TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { POST as turn } from "../[id]/turn/route";
@@ -18,15 +19,14 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(requestCookie ? { cookie: requestCookie } : {}),
 }));
 
-/** Fake model: fixed assessor verdicts and replies, recording every call's label and prompt. */
+/** Fake model: fixed note-taker and assessor answers and replies, recording every call's label and prompt. */
 class FakeModel implements JsonModel {
   readonly name = "fake";
   calls: { label: string; messages: ChatTurn[] }[] = [];
   async completeJson(messages: ChatTurn[], options: JsonCallOptions): Promise<unknown> {
     this.calls.push({ label: options.label, messages });
-    if (options.label === "assessor") {
-      return { analysis: "", claims: [], corrections: [], nowExplainedBeliefIds: [], offTask: false, move: "ask_why", moveTarget: null, moveNote: "Ask why.", readyToWrapUp: false, ...this.assessorReply };
-    }
+    if (options.label === "noteTaker") return noteTakerAnswer();
+    if (options.label === "assessor") return { ...assessorAnswer(), ...this.assessorReply };
     return { mood: "curious", text: "Server Pip reply" };
   }
   assessorReply: Record<string, unknown> = {};
@@ -108,7 +108,7 @@ describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
     const answered = await replyAs(cookie, session.id, { forMessageId: "m1", text: "So x to the 4th is 4x cubed?" });
     expect(answered.status).toBe(200);
     expect(answered.body.session.messages.at(-1)).toMatchObject({ role: "learner", text: "So x to the 4th is 4x cubed?", generatedOn: "device" });
-    expect(model!.labels()).toEqual(["assessor"]); // one assessment, no server reply
+    expect(model!.labels()).toEqual(["noteTaker", "assessor"]); // one assessment, no server reply
   });
 
   it("puts only Pip's notebook in the device prompt: no answer key, no misconception it hasn't voiced", async () => {
@@ -157,7 +157,7 @@ describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
     expect(fallback.status).toBe(200);
     expect(fallback.body.session.messages.at(-1)).toMatchObject({ role: "learner", text: "Server Pip reply" });
     expect(fallback.body.session.messages.at(-1).generatedOn).toBeUndefined();
-    expect(model!.labels()).toEqual(["assessor", "reply"]);
+    expect(model!.labels()).toEqual(["noteTaker", "assessor", "reply"]);
     expect((await replyAs(cookie, session.id, { forMessageId: "m1", text: "late device reply" })).status).toBe(409);
   });
 
