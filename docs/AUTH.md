@@ -87,9 +87,10 @@ Pass the page's own path to `requireUser()` so the student comes back to it afte
 
 | Pages (redirect to `/login`) | API routes (respond 401) |
 |---|---|
-| `/learner/[topicId]` (Start Teaching creates a session) | `/api/sessions` and everything under it |
-| `/teach/[sessionId]` | `/api/learner` and everything under it |
-| `/reflect/[sessionId]` | any new route that reads or writes student data |
+| `/dashboard`, `/profile` | `/api/sessions` and everything under it |
+| `/learner/[topicId]` (Start Teaching creates a session) | `/api/learner` and everything under it |
+| `/teach/[sessionId]` | any new route that reads or writes student data |
+| `/reflect/[sessionId]` | |
 | `/sessions`, `/sessions/[sessionId]` | |
 
 These stay public: `/`, `/topics`, `/login`, `/signup`, and Better Auth's own `/api/auth/*` endpoints.

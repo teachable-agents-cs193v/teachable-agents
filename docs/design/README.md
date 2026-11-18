@@ -19,3 +19,4 @@ The tokens that implement this live in `src/app/globals.css`; the README's "Desi
 Each redesign PR adds its screenshots here so the review has them next to the tile.
 
 - **PR 1, design system and public landing page:** [`pr1-landing-desktop.png`](pr1-landing-desktop.png) (1360px) and [`pr1-landing-phone.png`](pr1-landing-phone.png) (390px).
+- **PR 2, the logged-in dashboard and profile:** [`pr2-dashboard-desktop.png`](pr2-dashboard-desktop.png) and [`pr2-dashboard-phone.png`](pr2-dashboard-phone.png) for a returning student with saved sessions, and [`pr2-dashboard-first-time-desktop.png`](pr2-dashboard-first-time-desktop.png) for a first-time student. The data in them was created through the real API on a throwaway database.

@@ -10,6 +10,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next } = await searchParams;
   const nextPath = safeNextPath(typeof next === "string" ? next : undefined);
   // Already logged in: carry on to where they were going.
-  if (await getCurrentUser()) redirect(nextPath ?? "/topics");
+  if (await getCurrentUser()) redirect(nextPath ?? "/dashboard");
   return <LoginScreen next={nextPath} />;
 }

@@ -2,14 +2,14 @@ import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { DoodleBookStack, DoodleTicks } from "@/components/illustrations/Doodles";
 import { ArrowRightIcon } from "@/components/illustrations/Icons";
-import { startTeachingHref } from "./startTeachingHref";
+import { START_TEACHING_HREF } from "./startTeachingHref";
 
 /**
  * The closing call to action: the same mint panel as the hero, so the page
  * opens and closes on the same note, with dark text and the standard primary
  * button so the action is unmistakable.
  */
-export function FinalCta({ loggedIn }: { loggedIn: boolean }) {
+export function FinalCta() {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6" aria-labelledby="cta-title">
       <div className="relative overflow-hidden rounded-[1.5rem] border border-sage-deep bg-mint">
@@ -28,7 +28,7 @@ export function FinalCta({ loggedIn }: { loggedIn: boolean }) {
               up.
             </p>
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button href={startTeachingHref(loggedIn)} size="lg">
+              <Button href={START_TEACHING_HREF} size="lg">
                 Start teaching
                 <ArrowRightIcon className="size-5" />
               </Button>
