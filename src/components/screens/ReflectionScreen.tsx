@@ -13,6 +13,7 @@ import { ReflectionForm } from "@/components/ReflectionForm";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowRightIcon, CheckIcon, QuestionIcon, SparkleIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { studentMessage } from "@/lib/errors";
 
 export function ReflectionScreen({ sessionId }: { sessionId: string }) {
   const [session, setSession] = useState<TeachingSession | null>(null);
@@ -32,7 +33,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setLoadError(error instanceof Error ? error.message : "Please try again.");
+        setLoadError(studentMessage(error, "Please try again."));
         setLoading(false);
       });
     return () => {
@@ -84,7 +85,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
       await getSessionStore().saveSession(next);
     } catch (error) {
       // The form keeps the student's answers, so they can submit again.
-      setSaveError(error instanceof Error ? error.message : "Your reflection couldn't be saved. Try again.");
+      setSaveError(studentMessage(error, "Your reflection couldn't be saved. Try again."));
       return;
     }
     setSession(next);

@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { studentMessage } from "../errors";
 import { getLearnerAdapter } from "../learner";
-import { getSessionStore, SessionStoreError } from "../persistence";
+import { getSessionStore } from "../persistence";
 import { getTopic } from "../topics";
 import type { ChatMessage, LearnerReply, TeachingSession, Topic } from "../types";
 import { createId, nowIso } from "../utils";
@@ -34,9 +35,10 @@ export interface TeachingSessionState {
 type Pending = "open" | "respond" | "saveStudent" | "saveLearner";
 
 const SAVE_FAILED = "Your session couldn't be saved. Check your connection and try again.";
+const LEARNER_FAILED = "Pip couldn't respond. Please try again.";
 
-/** Store errors carry a student-safe message; anything else gets the fallback. */
-const saveErrorMessage = (error: unknown) => (error instanceof SessionStoreError ? error.message : SAVE_FAILED);
+/** Store errors carry a student-safe message; anything else gets the fallback (#22). */
+const saveErrorMessage = (error: unknown) => studentMessage(error, SAVE_FAILED);
 
 function learnerMessageFrom(reply: LearnerReply): ChatMessage {
   return {
@@ -119,7 +121,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
         };
         reply = mode === "open" ? await adapter.open(context) : await adapter.respond(context);
       } catch (error) {
-        fail("learner", error instanceof Error ? error.message : "Pip could not respond. Please try again.", mode);
+        fail("learner", studentMessage(error, LEARNER_FAILED), mode);
         return;
       }
       const next: TeachingSession = {

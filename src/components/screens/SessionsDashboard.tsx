@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadErrorState } from "@/components/LoadErrorState";
 import { DoodleBookOpen } from "@/components/illustrations/Doodles";
+import { studentMessage } from "@/lib/errors";
 
 export function SessionsDashboard() {
   const [sessions, setSessions] = useState<TeachingSession[] | null>(null);
@@ -21,7 +22,7 @@ export function SessionsDashboard() {
         if (!cancelled) setSessions(all);
       })
       .catch((error: unknown) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : "Please try again.");
+        if (!cancelled) setLoadError(studentMessage(error, "Please try again."));
       });
     return () => {
       cancelled = true;
