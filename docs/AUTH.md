@@ -123,7 +123,7 @@ These are enforced inside the user-scoped store, so routes get them for free. Th
 | Table | Better Auth model | Key columns |
 |---|---|---|
 | `users` | `user` | `id text pk`, `name text not null`, `email text unique not null` (stored lowercase), `emailVerified bool`, `image text`, `createdAt`, `updatedAt` |
-| `auth_session` | `session` | `id`, `token unique`, `userId → users.id on delete cascade`, `expiresAt`, `ipAddress`, `userAgent`, timestamps |
+| `auth_session` | `session` | `id`, `token unique`, `userId → users.id on delete cascade`, `expiresAt`, timestamps. `ipAddress` and `userAgent` exist but are always null: a hook in `src/lib/auth/auth.ts` clears them before the row is written. |
 | `auth_account` | `account` | `id`, `accountId`, `providerId` (always `credential`), `userId → users.id`, `password` (the hash), timestamps, plus unused OAuth columns |
 | `auth_verification` | `verification` | `id`, `identifier`, `value`, `expiresAt`, timestamps. Unused for now, but Better Auth expects it. |
 
