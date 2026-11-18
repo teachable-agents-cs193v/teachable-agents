@@ -17,6 +17,8 @@ export default defineConfig({
       // Test-only values; real ones live in .env.local or Vercel, never here.
       BETTER_AUTH_SECRET: "test-only-secret-not-used-anywhere-else-0123456789",
       BETTER_AUTH_URL: "http://localhost:3000",
+      // 32 bytes, base64-encoded here so no key-shaped literal is committed.
+      ENCRYPTION_MASTER_KEY: Buffer.from("test-only-key-not-a-real-secret!").toString("base64"),
     },
   },
 });
