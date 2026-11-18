@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
+import { decryptField, encryptField } from "../crypto/fieldEncryption";
 import { getPool } from "../db/pool";
 import { PIP } from "../learner";
 import type { AuthUser, TeachingSession } from "../types";
@@ -14,6 +15,10 @@ import type { SessionUpdate } from "./validate";
  * 2. Every query filters by `user_id`.
  * 3. Another user's session looks exactly like a missing one (`null` / `false`).
  * 4. The server generates IDs; updates only touch rows this user already owns.
+ *
+ * The transcript, pre-explanation and reflection are encrypted per user and field
+ * (src/lib/crypto/fieldEncryption.ts, db/migrations/0003_encrypt_teaching_sessions.sql):
+ * encrypted on every write, decrypted on every read, always with this store's user ID.
  *
  * Server-only. API routes get one with `getUserSessionStore(await requireApiUser())`.
  */
@@ -30,13 +35,17 @@ interface Row {
   status: TeachingSession["status"];
   started_at: Date;
   ended_at: Date | null;
-  messages: TeachingSession["messages"];
+  /** Encrypted JSON array. */
+  messages: string;
   learner_cursor: number;
+  /** Encrypted text. */
   pre_explanation: string | null;
-  reflection: TeachingSession["reflection"] | null;
+  /** Encrypted JSON object. */
+  reflection: string | null;
 }
 
-function toSession(row: Row): TeachingSession {
+/** Decrypts a row for its owner. Throws FieldDecryptionError if any value can't be decrypted. */
+function toSession(userId: string, row: Row): TeachingSession {
   return {
     id: row.id,
     topicId: row.topic_id,
@@ -44,10 +53,10 @@ function toSession(row: Row): TeachingSession {
     status: row.status,
     startedAt: row.started_at.toISOString(),
     endedAt: row.ended_at?.toISOString(),
-    messages: row.messages,
+    messages: JSON.parse(decryptField(userId, "messages", row.messages)),
     learnerCursor: row.learner_cursor,
-    preExplanation: row.pre_explanation ?? undefined,
-    reflection: row.reflection ?? undefined,
+    preExplanation: row.pre_explanation === null ? undefined : decryptField(userId, "pre_explanation", row.pre_explanation),
+    reflection: row.reflection === null ? undefined : JSON.parse(decryptField(userId, "reflection", row.reflection)),
   };
 }
 
@@ -59,12 +68,14 @@ export class PostgresSessionStore implements SessionStore {
     private readonly pool: Pool,
   ) {}
 
+  private toSession = (row: Row): TeachingSession => toSession(this.userId, row);
+
   async listSessions(): Promise<TeachingSession[]> {
     const { rows } = await this.pool.query<Row>(
       `select ${COLUMNS} from teaching_sessions where user_id = $1 order by started_at desc`,
       [this.userId],
     );
-    return rows.map(toSession);
+    return rows.map(this.toSession);
   }
 
   async getSession(id: string): Promise<TeachingSession | null> {
@@ -72,7 +83,7 @@ export class PostgresSessionStore implements SessionStore {
       id,
       this.userId,
     ]);
-    return rows[0] ? toSession(rows[0]) : null;
+    return rows[0] ? this.toSession(rows[0]) : null;
   }
 
   async findActiveSession(topicId: string): Promise<TeachingSession | null> {
@@ -82,17 +93,26 @@ export class PostgresSessionStore implements SessionStore {
        order by started_at desc limit 1`,
       [this.userId, topicId],
     );
-    return rows[0] ? toSession(rows[0]) : null;
+    return rows[0] ? this.toSession(rows[0]) : null;
   }
 
   /** Creates a session with a server-generated ID. The caller checks `topicId` is a real topic. */
   async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+    const explanation = preExplanation?.trim();
     const { rows } = await this.pool.query<Row>(
-      `insert into teaching_sessions (id, user_id, topic_id, learner_id, pre_explanation)
-       values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
-      [`session_${randomUUID()}`, this.userId, topicId, PIP.id, preExplanation?.trim() || null],
+      `insert into teaching_sessions (id, user_id, topic_id, learner_id, messages, pre_explanation)
+       values ($1, $2, $3, $4, $5, $6) returning ${COLUMNS}`,
+      [
+        `session_${randomUUID()}`,
+        this.userId,
+        topicId,
+        PIP.id,
+        // The column has no default: even the empty transcript is stored encrypted.
+        encryptField(this.userId, "messages", "[]"),
+        explanation ? encryptField(this.userId, "pre_explanation", explanation) : null,
+      ],
     );
-    return toSession(rows[0]);
+    return this.toSession(rows[0]);
   }
 
   /** Updates the changeable fields of one of this user's sessions; null if there is no such session. */
@@ -107,12 +127,12 @@ export class PostgresSessionStore implements SessionStore {
         this.userId,
         update.status,
         update.endedAt ?? null,
-        JSON.stringify(update.messages),
+        encryptField(this.userId, "messages", JSON.stringify(update.messages)),
         update.learnerCursor,
-        update.reflection ? JSON.stringify(update.reflection) : null,
+        update.reflection ? encryptField(this.userId, "reflection", JSON.stringify(update.reflection)) : null,
       ],
     );
-    return rows[0] ? toSession(rows[0]) : null;
+    return rows[0] ? this.toSession(rows[0]) : null;
   }
 
   /** SessionStore's save: an update only. It never creates a row from a browser-made ID. */

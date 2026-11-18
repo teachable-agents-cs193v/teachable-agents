@@ -109,6 +109,8 @@ try {
       DATABASE_URL: pg!.url,
       BETTER_AUTH_SECRET: "test-only-e2e-secret-not-used-anywhere-else-0123",
       BETTER_AUTH_URL: `http://localhost:${APP_PORT}`,
+      // 32 bytes, base64-encoded here so no key-shaped literal is committed.
+      ENCRYPTION_MASTER_KEY: Buffer.from("test-only-e2e-key-not-a-secret!!").toString("base64"),
       PWNED_PASSWORDS_API_URL: `http://127.0.0.1:${MOCK_PORT}/range/`,
     },
   });
