@@ -36,6 +36,8 @@ export function eventLabel(event: TimelineEvent): string {
       return "Pip said what it believes";
     case "changed_mind":
       return "Pip changed its mind";
+    case "taken_back":
+      return "You took something back";
   }
 }
 
@@ -44,6 +46,7 @@ export const EVENT_DOT: Record<TimelineEvent["type"], string> = {
   explained: "bg-sage-deep",
   voiced: "bg-terracotta",
   changed_mind: "bg-forest",
+  taken_back: "bg-line",
 };
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

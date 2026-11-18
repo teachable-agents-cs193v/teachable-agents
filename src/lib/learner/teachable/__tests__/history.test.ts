@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChatMessage } from "../../../types";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "../llm";
-import { appendHistory, MAX_HISTORY, recordTurn } from "../history";
+import { appendHistory, MAX_HISTORY, notebookBeforeLatest, recordTurn } from "../history";
 import { probabilityPack as pack } from "../packs/probability";
 import { initialState, runOpening, runTurn, sameModel, type TeachableState } from "../pipeline";
 import { upgradeState } from "../server";
@@ -135,6 +135,20 @@ describe("learning history", () => {
     const r = recordTurn({ before, after, assessment: assessment() as never, student: { index: 0, messageId: "s0" } });
     expect(r.changed).toEqual([]);
     expect(r.added).toEqual([]);
+  });
+});
+
+describe("notebookBeforeLatest", () => {
+  it("rebuilds the notebook before the latest message: its additions removed, its changes undone", async () => {
+    const second = await teach([
+      assessment({ claims: [{ pipStatement: "Idea one.", conceptId: null, correctness: "correct", explained: false }] }),
+      assessment({ claims: [{ pipStatement: "Idea two.", conceptId: null, correctness: "correct", explained: false }], nowExplainedBeliefIds: ["t0-1"] }),
+    ]);
+    expect(second.notebook.beliefs.find((b) => b.id === "t0-1")!.status).toBe("understood");
+    const before = notebookBeforeLatest(second.notebook, second.history);
+    expect(before.beliefs.map((b) => [b.statement, b.status]).filter(([, s]) => s !== "misconception")).toEqual([["Idea one.", "heard"]]);
+    // No record for the latest message: unchanged.
+    expect(notebookBeforeLatest({ ...second.notebook, lastProcessedMessageId: "other" }, second.history)).toEqual({ ...second.notebook, lastProcessedMessageId: "other" });
   });
 });
 

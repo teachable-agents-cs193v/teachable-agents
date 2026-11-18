@@ -135,6 +135,19 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     expect(rows[0]).toEqual({ messages: [], learner_cursor: 0 });
   });
 
+  it("never reopens a completed session (its review is open), but still saves it again", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    const endedAt = new Date().toISOString();
+    expect((await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt })), ctx(s.id)))).status).toBe(200);
+    const reopen = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "in_progress", endedAt: undefined })), ctx(s.id)));
+    expect(reopen.status).toBe(409);
+    const again = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt })), ctx(s.id)));
+    expect(again.status).toBe(200);
+    const { rows } = await getPool().query("select status from teaching_sessions where id = $1", [s.id]);
+    expect(rows[0].status).toBe("completed");
+  });
+
   it("saves the reflection, and finds the active session for a topic", async () => {
     const cookie = await newStudent();
     const older = await startSession(cookie);

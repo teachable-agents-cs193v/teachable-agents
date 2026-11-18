@@ -96,21 +96,29 @@ export class PostgresSessionStore implements SessionStore {
   }
 
   /** Updates the fields the browser may change (status, end time, reflection); null if there is no such session. */
-  async updateSession(id: string, update: SessionUpdate): Promise<TeachingSession | null> {
+  /**
+   * Updates status, endedAt and reflection. "completed" is final: once ended, a session can't go
+   * back to in_progress (its review, with the assessor's verdicts, is open by then), so that
+   * update answers "ended" and changes nothing. Saving a completed session again (e.g. its
+   * reflection) is fine.
+   */
+  async updateSession(id: string, update: SessionUpdate): Promise<TeachingSession | null | "ended"> {
     const { rows } = await this.pool.query<Row>(
       `update teaching_sessions
        set status = $3, ended_at = $4, reflection = $5, updated_at = now()
-       where id = $1 and user_id = $2
+       where id = $1 and user_id = $2 and (status = 'in_progress' or $3 = 'completed')
        returning ${COLUMNS}`,
       [id, this.userId, update.status, update.endedAt ?? null, update.reflection ? JSON.stringify(update.reflection) : null],
     );
-    return rows[0] ? toSession(rows[0]) : null;
+    if (rows[0]) return toSession(rows[0]);
+    return (await this.getSession(id)) ? "ended" : null;
   }
 
   /** SessionStore's save: an update only. It never creates a row from a browser-made ID. */
   async saveSession(session: TeachingSession): Promise<void> {
     const updated = await this.updateSession(session.id, session);
     if (!updated) throw new Error("Session not found.");
+    if (updated === "ended") throw new Error("This session has ended and can't be reopened.");
   }
 
   async deleteSession(id: string): Promise<void> {

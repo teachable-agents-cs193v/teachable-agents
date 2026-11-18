@@ -77,7 +77,7 @@ export function LearningReviewPanel({ review, learnerName = "Pip", className }: 
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={verdict.tone}>{verdict.label}</Badge>
                       <span className="text-xs text-muted">
-                        {t.status === "understood" ? "With a reason" : "No reason given"} · your {messageLabel(t.turn)}
+                        {t.status === "taken_back" ? "You took this back later" : t.status === "understood" ? "With a reason" : "No reason given"} · your {messageLabel(t.turn)}
                       </span>
                     </div>
                     <p className="mt-2 text-[15px] leading-relaxed text-charcoal/90">&ldquo;{t.statement}&rdquo;</p>

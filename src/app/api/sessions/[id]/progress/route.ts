@@ -8,7 +8,7 @@ import { json, notFound } from "../../shared";
  * GET /api/sessions/[id]/progress → { progress: LearningProgress | null }
  *
  * Learning metrics and the turn-by-turn timeline, as the student may see them
- * during a session: no correctness verdicts, no answer key, and no misconception
+ * during a session: no answer key, no correctness verdicts beyond the wrong-idea flags, and no misconception
  * Pip hasn't voiced yet (the same rules as GET /pip). Each turn response carries
  * the same object; this is for after a reload. Null for the scripted learner.
  * Another user's session answers 404, like a missing one (docs/AUTH.md).

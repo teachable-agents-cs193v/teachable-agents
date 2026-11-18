@@ -78,6 +78,9 @@ function buildTimeline(
     for (const c of record.changed) {
       if (c.from === "heard" && c.to === "understood") {
         events.push({ type: "explained", beliefId: c.beliefId, statement: c.statement });
+      } else if (c.to === "corrected" && c.from !== "misconception") {
+        // The student took back something they taught earlier (revisedBeliefIds).
+        events.push({ type: "taken_back", beliefId: c.beliefId, statement: c.statement });
       } else if (c.from === "misconception" && c.to === "corrected") {
         const belief = byId.get(c.beliefId);
         if (belief && show(belief)) events.push({ type: "changed_mind", beliefId: c.beliefId, statement: c.statement });
@@ -142,7 +145,8 @@ export function buildProgress(state: TeachableState): LearningProgress {
 function latestFlags(state: TeachableState): LearningFlag[] {
   const { notebook, history } = state;
   const latest = history.at(-1);
-  if (!latest || latest.turn !== notebook.studentTurns - 1) return [];
+  // Keyed to the message (not a count): a turn the scripted learner answered isn't in either.
+  if (!latest || latest.messageId !== notebook.lastProcessedMessageId) return [];
   const flags: LearningFlag[] = [];
   for (const id of latest.voiced) {
     const belief = notebook.beliefs.find((b) => b.misconceptionId === id && b.status === "misconception");
@@ -202,7 +206,7 @@ export function buildReview(state: TeachableState, pack: TopicPack): LearningRev
         id: a.beliefId,
         statement: a.statement,
         turn: record.turn,
-        status: status === "understood" ? "understood" : "heard",
+        status: status === "corrected" ? "taken_back" : status === "understood" ? "understood" : "heard",
         explainedWhenTaught: a.status === "understood",
         correctness: a.correctness ?? "unclear",
         concept: conceptLabel(a.conceptId),

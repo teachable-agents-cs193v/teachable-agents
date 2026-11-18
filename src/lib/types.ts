@@ -161,7 +161,7 @@ export interface StudentBelief {
 
 /* ------------------------- Learning progress (Pip) ------------------------ */
 
-/** The assessor's verdict on something the student taught. Only revealed after the session. */
+/** The assessor's verdict on something the student taught. In full after the session; during it, only as wrong-idea flags (LearningProgress.flags). */
 export type TaughtCorrectness = "correct" | "incorrect" | "partly" | "unclear";
 
 /**
@@ -175,7 +175,9 @@ export type TimelineEvent =
   | { type: "learned"; beliefId: string; statement: string; status: "heard" | "understood"; correctness?: TaughtCorrectness }
   | { type: "explained"; beliefId: string; statement: string }
   | { type: "voiced"; beliefId: string; statement: string }
-  | { type: "changed_mind"; beliefId: string; statement: string };
+  | { type: "changed_mind"; beliefId: string; statement: string }
+  /** The student took back or replaced something they taught earlier. */
+  | { type: "taken_back"; beliefId: string; statement: string };
 
 /** Everything one student message changed. `turn` is the student message index (0 = first). */
 export interface TimelineEntry {
@@ -213,7 +215,7 @@ export interface ProgressMisconception {
 
 /**
  * GET /api/sessions/[id]/progress, and `progress` on each turn response.
- * Student-safe: no correctness verdicts, no answer key, and no misconception
+ * Student-safe: no answer key, no correctness verdicts beyond the wrong-idea flags, and no misconception
  * Pip hasn't voiced yet (same rules as StudentBelief).
  */
 export interface LearningProgress {
@@ -262,7 +264,8 @@ export interface ReviewTaught {
   statement: string;
   /** The student message it came from. */
   turn: number;
-  status: "heard" | "understood";
+  /** taken_back: the student later took it back or replaced it, so Pip dropped it. */
+  status: "heard" | "understood" | "taken_back";
   /** Whether it came with a reason when first taught; null if taught before the timeline began. */
   explainedWhenTaught: boolean | null;
   correctness: TaughtCorrectness;

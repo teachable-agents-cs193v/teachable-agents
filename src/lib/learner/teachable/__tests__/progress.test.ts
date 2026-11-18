@@ -170,6 +170,26 @@ describe("buildProgress (during the session)", () => {
   });
 });
 
+describe("taking back what was taught", () => {
+  it("marks it fixed live, as taken back in the timeline and review, and flags only the latest assessed message", async () => {
+    const state = await teach([
+      verdict({ claims: [claim("x^5 becomes 5x.", false, "incorrect", null)] }),
+      verdict({ claims: [claim("x^5 becomes 5x^4.", true)], revisedBeliefIds: ["t0-1"] }),
+    ]);
+    const progress = buildProgress(state);
+    expect(progress.wrongTaught).toEqual([expect.objectContaining({ id: "t0-1", fixed: true })]);
+    expect(progress.timeline.at(-1)!.events).toContainEqual({ type: "taken_back", beliefId: "t0-1", statement: "x^5 becomes 5x." });
+    const review = buildReview(state, pack);
+    expect(review.taught.find((t) => t.id === "t0-1")!.status).toBe("taken_back");
+
+    const wrong = await teach([verdict({ claims: [claim("Wrong idea.", false, "incorrect", null)] })]);
+    expect(buildProgress(wrong).flags).toHaveLength(1);
+    // A later turn the assessor never saw (e.g. the scripted learner answered it): no stale flags.
+    const skipped = { ...wrong, notebook: { ...wrong.notebook, lastProcessedMessageId: "a-later-message" } };
+    expect(buildProgress(skipped).flags).toEqual([]);
+  });
+});
+
 describe("buildReview (after the session)", () => {
   it("lists every misconception with its outcome and attempts", async () => {
     const review = buildReview(await session(), pack);

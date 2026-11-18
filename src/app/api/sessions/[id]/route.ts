@@ -5,7 +5,9 @@ import { error, json, notFound, NO_STORE, readJson } from "../shared";
 
 /**
  * GET    /api/sessions/[id] → the session
- * PUT    /api/sessions/[id] { status, endedAt?, messages, learnerCursor, reflection? } → the updated session
+ * PUT    /api/sessions/[id] { status, endedAt?, reflection? } → the updated session. The transcript
+ *        is the server's (POST /turn); other fields are ignored. A completed session can't go
+ *        back to in_progress (409).
  * DELETE /api/sessions/[id] → 204
  *
  * Another user's session answers 404, exactly like a missing one (docs/AUTH.md).
@@ -30,6 +32,7 @@ export async function PUT(request: Request, { params }: Context) {
   if (!update.ok) return error(update.error, 400);
 
   const session = await getUserSessionStore(user).updateSession((await params).id, update.value);
+  if (session === "ended") return error("This session has ended and can't be reopened.", 409);
   return session ? json(session) : notFound();
 }
 

@@ -7,6 +7,7 @@ import type { Models } from "./pipeline";
 import { studentView } from "./notebook";
 import { buildProgress } from "./progress";
 import type { ChatTurn } from "./llm";
+import { notebookBeforeLatest } from "./history";
 import { getTopicPack } from "./packs";
 import { replyFromDevice } from "./pipeline";
 import { deviceTurn, learnerTurn, notebookOf, TEACHABLE, upgradeState, type LearnerInfo } from "./server";
@@ -111,7 +112,7 @@ export async function runServerTurn(args: {
         session: saved.session,
         reply: null,
         learner: TEACHABLE,
-        pip: studentView(device.state.notebook, notebookOf(context.learnerState, session.topicId)),
+        pip: studentView(device.state.notebook, notebookBeforeLatest(device.state.notebook, device.state.history)),
         progress: buildProgress(device.state),
         device: { forMessageId: device.forMessageId, messages: device.prompt },
       };
@@ -127,7 +128,10 @@ export async function runServerTurn(args: {
   });
   if (saved === null) return { ok: false, status: 404, error: "Not found." };
   if (saved === "conflict") return conflict(store, id);
-  const before = notebookOf(context.learnerState, session.topicId);
+  // If the stored state was already assessed (a retry, or a reply the device didn't write),
+  // "before" is the notebook before that assessment, so the panel still marks what changed.
+  const stored = upgradeState(context.learnerState, session.topicId);
+  const before = stored?.pending ? notebookBeforeLatest(stored.notebook, stored.history) : notebookOf(context.learnerState, session.topicId);
   return {
     ok: true,
     session: saved.session,

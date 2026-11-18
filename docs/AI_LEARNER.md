@@ -54,7 +54,7 @@ interface StudentBelief {
 }
 ```
 
-- It never says whether a belief is **correct**. That would let students probe the answer key turn by turn. Correctness is for the reflection page, after the session ends.
+- The beliefs panel itself never says whether a belief is **correct**. Wrong ideas are flagged separately (`progress.flags` and `progress.wrongTaught`, below), which say an idea isn't right, never what the right one is.
 - Starting misconceptions appear only once Pip has said them, or the student has changed Pip's mind about them, so the panel doesn't spoil what's coming.
 - `changedThisTurn` is the moment to animate: it's how a student sees their explanation land.
 
@@ -64,8 +64,13 @@ Each turn also records what the student's message changed (beliefs added, status
 
 | Where | Shape (`src/lib/types.ts`) | When |
 | --- | --- | --- |
-| `progress` on every `POST /turn` response, and `GET /api/sessions/[id]/progress` → `{ progress }` | `LearningProgress`: `studentTurns`, `recordedFromTurn`, `beliefs` (count per status), `teaching` (`claims`, `explained`, `asserted`, `explainedLater`), `misconceptions` (`ProgressMisconception[]`: status, `voicedAtTurn`, `changedAtTurn`, `turnsToChange`, `attempts`), `timeline` (`TimelineEntry[]`) | During the session. Same hiding rules as `pip`: no correctness, nothing from the answer key, no unvoiced misconceptions. |
+| `progress` on every `POST /turn` response, and `GET /api/sessions/[id]/progress` → `{ progress }` | `LearningProgress`: `studentTurns`, `recordedFromTurn`, `beliefs` (count per status), `teaching` (`claims`, `explained`, `asserted`, `explainedLater`), `misconceptions` (`ProgressMisconception[]`: status, `voicedAtTurn`, `changedAtTurn`, `turnsToChange`, `attempts`), `timeline` (`TimelineEntry[]`) | During the session. Nothing from the answer key and no unvoiced misconceptions. Wrong ideas are flagged (`flags`, `wrongTaught`; see below), but correctness verdicts on anything else are not shown. |
 | `GET /api/sessions/[id]/review` → `{ review }` | `LearningReview`: `metrics` (adds `correctness` counts, misconception `total/voiced/corrected/stillHeld`, `offTaskTurns`), every `misconceptions` entry with `label`, `outcome` and each attempt, `taught` with the assessor's `correctness`, and the full `timeline` | **409 until the session is completed.** Never includes key ideas, `whyWrong` or `correctionMustAddress`. |
+
+**Flagging wrong ideas (product decision, 2026-11-18).** Catching Pip's wrong ideas is the student's main work, so the student is told when an idea is wrong, but never what the right one is, and Pip itself never says it:
+- `progress.flags`, about the latest message only: `pip_wrong_idea` (Pip just voiced one of its starting misconceptions) and `taught_wrong` (the student just taught something the assessor judged wrong or partly wrong). Shown under the chat by `LearningFlags`.
+- `progress.wrongTaught`: wrong ideas the student taught, with `fixed` once they took them back (`revisedBeliefIds`). Shown in `MisconceptionTracker` ("Wrong ideas to catch").
+- The trade-off, accepted: a claim with no flag tells the student it was judged correct or unclear, so they can probe the assessor one claim at a time. The answer key's text is still never sent.
 
 All three are `null` for the scripted learner. Turns are student message indexes (0 = first); show them as `turn + 1`. `useTeachingSession` exposes `progress` (from the turn response, loaded once after a reload, no polling).
 

@@ -76,6 +76,23 @@ export function recordTurn(args: {
 }
 
 /** Appends a record, replacing one for the same message (a retried turn) and keeping the cap. */
+/**
+ * Pip's notebook as it was before the latest recorded message, rebuilt from that message's record
+ * (beliefs it added are removed; beliefs it changed get their old status back). Used to mark what
+ * that message changed when the stored state has already been assessed: a retry, or a reply the
+ * device didn't write. Returns the notebook as is when its latest message has no record.
+ */
+export function notebookBeforeLatest(notebook: Notebook, history: TurnRecord[]): Notebook {
+  const latest = history.at(-1);
+  if (!latest || latest.messageId !== notebook.lastProcessedMessageId) return notebook;
+  const added = new Set(latest.added.map((a) => a.beliefId));
+  const from = new Map(latest.changed.map((c) => [c.beliefId, c.from]));
+  return {
+    ...notebook,
+    beliefs: notebook.beliefs.filter((b) => !added.has(b.id)).map((b) => (from.has(b.id) ? { ...b, status: from.get(b.id)! } : b)),
+  };
+}
+
 export function appendHistory(history: TurnRecord[], record: TurnRecord): TurnRecord[] {
   const next = [...history.filter((r) => r.messageId !== record.messageId), record];
   return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
