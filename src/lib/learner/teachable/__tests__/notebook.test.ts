@@ -10,7 +10,7 @@ function assessment(overrides: Partial<Assessment> = {}): Assessment {
     analysis: "",
     claims: [],
     corrections: [],
-    nowExplainedBeliefIds: [],
+    nowExplainedBeliefIds: [], revisedBeliefIds: [],
     offTask: false,
     move: "ask_why",
     moveTarget: null,
@@ -121,6 +121,28 @@ describe("applyAssessment", () => {
     expect(nb.beliefs.filter((b) => b.source === "prior_misconception")).toHaveLength(pack.misconceptions.length);
     expect(nb.beliefs.at(-1)!.statement).toBe("29.1");
     expect(new Set(nb.beliefs.map((b) => b.id)).size).toBe(MAX_BELIEFS);
+  });
+});
+
+describe("revising what the student taught", () => {
+  it("drops a taught belief the student takes back, and never applies it", () => {
+    const first = applyAssessment(createNotebook(pack), assessment({ claims: [{ pipStatement: "x^5 becomes 5x.", conceptId: null, correctness: "incorrect", explained: false }] }), pack, { index: 0, messageId: "m0" });
+    const old = first.notebook.beliefs.find((b) => b.source === "taught")!;
+    const second = applyAssessment(
+      first.notebook,
+      assessment({
+        claims: [{ pipStatement: "x^5 becomes 5x^4.", conceptId: null, correctness: "correct", explained: true }],
+        revisedBeliefIds: [old.id, MISC],
+        move: "try_to_apply",
+        moveTarget: old.id,
+      }),
+      pack,
+      { index: 1, messageId: "m1" },
+    );
+    expect(second.notebook.beliefs.find((b) => b.id === old.id)!.status).toBe("corrected");
+    // A starting misconception can't be "revised" away; it needs a real correction.
+    expect(second.notebook.beliefs.find((b) => b.misconceptionId === MISC)!.status).toBe("misconception");
+    expect(second.assessment.moveTarget).toBeNull();
   });
 });
 

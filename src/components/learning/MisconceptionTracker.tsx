@@ -75,10 +75,12 @@ export function MisconceptionTracker({ misconceptions, wrongTaught = [], student
                 w.turn === latest ? "animate-pop border-terracotta/50 bg-terracotta/10" : "border-line bg-paper",
               )}
             >
-              <Badge tone="butter">{w.verdict === "wrong" ? "You taught this" : "Partly right"}</Badge>
+              <Badge tone={w.fixed ? "forest" : "butter"}>{w.fixed ? "Fixed" : w.verdict === "wrong" ? "You taught this" : "Partly right"}</Badge>
               <p className="mt-1.5 text-charcoal/90">&ldquo;{w.statement}&rdquo;</p>
               <p className="mt-1 text-xs text-muted">
-                {w.verdict === "wrong" ? "This isn't right" : "This is only partly right"}, and {learnerName} believes it now. Can you work out what&rsquo;s off and fix it?
+                {w.fixed
+                  ? `You took this back, so ${learnerName} dropped it.`
+                  : `${w.verdict === "wrong" ? "This isn't right" : "This is only partly right"}, and ${learnerName} believes it now. Can you work out what's off and fix it?`}
               </p>
             </li>
           ))}

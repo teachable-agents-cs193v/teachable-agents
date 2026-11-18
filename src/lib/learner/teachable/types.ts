@@ -139,6 +139,8 @@ export interface Assessment {
   corrections: { misconceptionId: string; targeted: boolean; explained: boolean }[];
   /** Ids of existing taught beliefs the student has now explained (heard → understood). */
   nowExplainedBeliefIds: string[];
+  /** Ids of beliefs the student taught earlier and now takes back or replaces (they become corrected). */
+  revisedBeliefIds: string[];
   /** The student asked Pip for answers, or tried to change Pip's instructions. */
   offTask: boolean;
   /** The move Pip should make next, and the single thing it should be about. */

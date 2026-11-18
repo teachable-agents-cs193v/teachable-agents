@@ -24,7 +24,7 @@ const verdict = (over: Record<string, unknown> = {}) => ({
   analysis: "private reasoning",
   claims: [],
   corrections: [],
-  nowExplainedBeliefIds: [],
+  nowExplainedBeliefIds: [], revisedBeliefIds: [],
   offTask: false,
   move: "ask_why",
   moveTarget: null,
@@ -140,7 +140,7 @@ describe("buildProgress (during the session)", () => {
       { kind: "pip_wrong_idea", beliefId: `m:${VOICED}`, statement: expect.any(String) },
       { kind: "taught_wrong", beliefId: expect.any(String), statement: "Independent means they can't both happen.", verdict: "wrong" },
     ]);
-    expect(progress.wrongTaught).toEqual([{ id: expect.any(String), statement: "Independent means they can't both happen.", turn: 0, verdict: "wrong" }]);
+    expect(progress.wrongTaught).toEqual([{ id: expect.any(String), statement: "Independent means they can't both happen.", turn: 0, verdict: "wrong", fixed: false }]);
     const text = JSON.stringify(progress);
     for (const c of pack.concepts) expect(text).not.toContain(c.keyIdea);
     for (const m of pack.misconceptions) expect(text).not.toContain(m.whyWrong);

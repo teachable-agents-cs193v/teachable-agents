@@ -78,6 +78,16 @@ export function applyAssessment(
     }
   }
 
+  // The student took back or replaced something they taught earlier: Pip drops the old version,
+  // instead of holding both and picking the wrong one.
+  for (const id of assessment.revisedBeliefIds) {
+    const belief = beliefs.find((b) => b.id === id);
+    if (belief && belief.source === "taught" && belief.status !== "corrected") {
+      belief.status = "corrected";
+      belief.evidence.push(student.index);
+    }
+  }
+
   let next = beliefs.filter((b) => b.source === "taught").length;
   for (const claim of assessment.claims) {
     next += 1;
@@ -138,6 +148,9 @@ export function sanitizeMove(assessment: Assessment, notebook: Notebook): Assess
   }
   if (move === "open") move = "admit_confusion";
 
+  // Never apply (or ask about) a belief the student has replaced.
+  if (target && target.source === "taught" && target.status === "corrected" && move !== "connect_ideas") moveTarget = null;
+
   // These read only structured state (the stored moves and beliefs), never what was said.
   const taught = notebook.beliefs.some((b) => b.source === "taught");
   const unvoiced = activeMisconceptions(notebook).find((b) => !notebook.voicedMisconceptionIds.includes(b.misconceptionId!));
@@ -191,7 +204,10 @@ export interface PipBelief {
  * Correctness verdicts, concept ids and the answer key are stripped out.
  */
 export function pipView(notebook: Notebook): PipBelief[] {
-  return notebook.beliefs.map((b) => ({ id: b.id, statement: b.statement, howSure: PIP_STATUS[b.status] }));
+  // A taught idea the student took back is gone from Pip's mind, not kept as "used to think".
+  return notebook.beliefs
+    .filter((b) => !(b.source === "taught" && b.status === "corrected"))
+    .map((b) => ({ id: b.id, statement: b.statement, howSure: PIP_STATUS[b.status] }));
 }
 
 /* -------------------------- What the student sees ------------------------ */

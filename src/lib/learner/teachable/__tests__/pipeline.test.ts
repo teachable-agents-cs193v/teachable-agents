@@ -24,7 +24,7 @@ const goodAssessment = {
   analysis: "Targeted, explained correction.",
   claims: [{ pipStatement: "So independent events can happen together, like a coin and a die.", conceptId: "independent-can-co-occur", correctness: "correct", explained: true }],
   corrections: [{ misconceptionId: MISC, targeted: true, explained: true }],
-  nowExplainedBeliefIds: [],
+  nowExplainedBeliefIds: [], revisedBeliefIds: [],
   offTask: false,
   move: "try_to_apply",
   moveTarget: null,

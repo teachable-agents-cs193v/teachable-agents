@@ -26,7 +26,7 @@ const assessment = (over: Record<string, unknown> = {}) => ({
   analysis: "private",
   claims: [],
   corrections: [],
-  nowExplainedBeliefIds: [],
+  nowExplainedBeliefIds: [], revisedBeliefIds: [],
   offTask: false,
   move: "ask_why",
   moveTarget: null,

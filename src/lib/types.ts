@@ -233,7 +233,7 @@ export interface LearningProgress {
    */
   flags: LearningFlag[];
   /** Ideas the student taught that the assessor judged wrong, which Pip still holds. */
-  wrongTaught: { id: string; statement: string; turn: number | null; verdict: "wrong" | "partly" }[];
+  wrongTaught: { id: string; statement: string; turn: number | null; verdict: "wrong" | "partly"; fixed: boolean }[];
 }
 
 export type LearningFlag =

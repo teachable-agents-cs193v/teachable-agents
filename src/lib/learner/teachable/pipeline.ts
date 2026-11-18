@@ -87,6 +87,7 @@ export function parseAssessment(raw: unknown): Assessment {
       .map((c) => ({ misconceptionId: str(c.misconceptionId, 100), targeted: bool(c.targeted), explained: bool(c.explained) }))
       .filter((c) => c.misconceptionId),
     nowExplainedBeliefIds: arr(r.nowExplainedBeliefIds).map((v) => str(v, 100)).filter(Boolean),
+    revisedBeliefIds: arr(r.revisedBeliefIds).map((v) => str(v, 100)).filter(Boolean),
     offTask: bool(r.offTask),
     move: (MOVES as readonly string[]).includes(r.move as string) ? (r.move as Move) : "admit_confusion",
     moveTarget: idOrNull(r.moveTarget),
@@ -282,7 +283,8 @@ export async function replyFromServer(args: { pack: TopicPack; assessed: Assesse
           targetStatement: target?.statement ?? null,
           changed: assessed.changed,
         }),
-        { label: "reply", temperature: 0.8, reasoningEffort: "low", maxTokens: 500 },
+        // Applying a rule is arithmetic: a bit more thought keeps it to the rule as taught.
+        { label: "reply", temperature: 0.8, reasoningEffort: assessed.move === "try_to_apply" ? "medium" : "low", maxTokens: 700 },
       ),
     parseReply,
   );

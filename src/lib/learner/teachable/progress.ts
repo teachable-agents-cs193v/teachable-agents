@@ -130,6 +130,7 @@ export function buildProgress(state: TeachableState): LearningProgress {
         statement: b.statement,
         turn: history.find((r) => r.added.some((a) => a.beliefId === b.id))?.turn ?? null,
         verdict: b.taughtCorrectly === "incorrect" ? ("wrong" as const) : ("partly" as const),
+        fixed: b.status === "corrected",
       })),
   };
 }
