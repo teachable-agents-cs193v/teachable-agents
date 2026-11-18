@@ -162,6 +162,28 @@ describe("upgradeState", () => {
     expect(upgradeState("x", pack.topicId)).toBeNull();
   });
 
+  it("loads states saved before the note-taker split, dropping the assessor's old free text", async () => {
+    // A version 2 state as saved by the old assessor: lastAssessment had analysis and moveNote, and a reply was pending.
+    const assessed = await teach([assessment({ claims: [{ pipStatement: "Old idea.", conceptId: null, correctness: "correct" }], move: "voice_misconception", moveTarget: MISC })]);
+    const oldAssessment = { ...assessed.lastAssessment!, analysis: "secret reasoning about the key", moveNote: "Say the key idea." };
+    const saved = JSON.parse(JSON.stringify({ ...assessed, lastAssessment: oldAssessment, pending: { forMessageId: "s0", changed: [] }, last: null }));
+    const upgraded = upgradeState(saved, pack.topicId)!;
+    expect(upgraded.lastAssessment).not.toHaveProperty("analysis");
+    expect(upgraded.lastAssessment).not.toHaveProperty("moveNote");
+    expect(upgraded.lastAssessment).toMatchObject({ move: "voice_misconception", moveTarget: MISC });
+    expect(JSON.stringify(upgraded)).not.toMatch(/secret reasoning|Say the key idea/);
+
+    // The pending reply is still answered from it without assessing again (no note-taker or assessor answers queued).
+    const model = new FakeModel({ reply: [reply] });
+    const { state } = await runTurn({ pack, state: upgraded, messages: [msg("l0", "learner"), msg("s0", "student")], models: sameModel(model) });
+    expect(state.history).toHaveLength(1);
+    expect(state.notebook.studentTurns).toBe(1);
+
+    // A version 1 state (no version field) with the old fields loads the same way.
+    const v1 = upgradeState({ notebook: assessed.notebook, last: null, lastAssessment: oldAssessment }, pack.topicId)!;
+    expect(JSON.stringify(v1)).not.toMatch(/secret reasoning|Say the key idea/);
+  });
+
   it("history continues after an upgrade, from the next message", async () => {
     const { notebook } = initialState(pack);
     const old = upgradeState({ notebook, last: null, lastAssessment: null }, pack.topicId)!;

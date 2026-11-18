@@ -5,6 +5,7 @@ import { getTopic } from "../../topics";
 import { llmConfigFromEnv, OpenAiCompatibleModel } from "./llm";
 import { getTopicPack } from "./packs";
 import { initialState, prepareDeviceTurn, runOpening, runTurn, type Models, type TeachableState } from "./pipeline";
+import type { Assessment } from "./types";
 
 /** Which learner answered, so the UI can say so (the "Demo mode" note). */
 export interface LearnerInfo {
@@ -50,16 +51,34 @@ export function upgradeState(value: unknown, topicId: string): TeachableState | 
   const state = value as Partial<TeachableState> & { version?: number };
   const notebook = state.notebook;
   if (!notebook || notebook.version !== 1 || notebook.topicId !== topicId || !Array.isArray(notebook.beliefs)) return null;
-  if (state.version === 2 && Array.isArray(state.history) && typeof state.historyFrom === "number") return state as TeachableState;
+  if (state.version === 2 && Array.isArray(state.history) && typeof state.historyFrom === "number") {
+    const current = state as TeachableState;
+    const lastAssessment = withoutAssessorText(current.lastAssessment);
+    return lastAssessment === current.lastAssessment ? current : { ...current, lastAssessment };
+  }
   if (state.version !== undefined) return null;
   return {
     version: 2,
     notebook,
     last: state.last ?? null,
-    lastAssessment: state.lastAssessment ?? null,
+    lastAssessment: withoutAssessorText(state.lastAssessment ?? null),
     history: [],
     historyFrom: notebook.studentTurns,
   };
+}
+
+/**
+ * States saved before the note-taker split kept the assessor's free text (`analysis`, `moveNote`)
+ * in `lastAssessment`. Nothing reads them any more; drop them so stored state carries no assessor text.
+ * Returns the same object when there's nothing to drop.
+ */
+function withoutAssessorText(assessment: Assessment | null): Assessment | null {
+  if (!assessment || typeof assessment !== "object") return null;
+  if (!("analysis" in assessment) && !("moveNote" in assessment)) return assessment;
+  const rest: Record<string, unknown> = { ...assessment };
+  delete rest.analysis;
+  delete rest.moveNote;
+  return { revisedBeliefIds: [], ...rest } as unknown as Assessment;
 }
 
 /**
