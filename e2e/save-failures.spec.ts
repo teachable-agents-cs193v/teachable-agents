@@ -84,15 +84,18 @@ test("ending a session that fails to save keeps the student in the session", asy
   await expect(page).toHaveURL(/\/reflect\/session_/);
 });
 
-test("logged out, the landing page loads without session errors", async ({ page }) => {
+test("logged out, the landing page loads without session requests or errors", async ({ page }) => {
   await page.context().clearCookies();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  const listed = page.waitForResponse((r) => r.url().endsWith("/api/sessions"));
+  // Visitors have no sessions, so the landing page must not ask for any (it used to, and got a 401).
+  const sessionRequests: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/sessions")) sessionRequests.push(r.url());
+  });
   await page.goto("/");
-  expect((await listed).status()).toBe(401);
-  await expect(page.getByRole("heading", { name: "The best way to learn is to teach." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Your recent sessions" })).toHaveCount(0);
-  await page.waitForTimeout(500); // let the rejected request settle
+  await expect(page.getByRole("heading", { name: /You teach\.\s*Pip learns\./ })).toBeVisible();
+  await page.waitForTimeout(500); // let any late request show up
+  expect(sessionRequests).toEqual([]);
   expect(errors).toEqual([]);
 });

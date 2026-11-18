@@ -45,7 +45,25 @@ Each team member adds their own section below.
 
 ### Frontend (Arielle)
 
-TODO (Arielle)
+**Main pieces and tools**
+- Next.js 16 App Router with React 19 and Tailwind v4. Pages are thin server components; the interactive screens are client components under `src/components/screens/`.
+- Page architecture (PR 1): route groups organise the app by access without changing URLs. `(site)/(public)` holds `/`, `/about`, `/topics`, `/login` and `/signup`; `(site)/(app)` holds `/learner`, `/reflect` and `/sessions`; `(focus)` holds `/teach`, which draws its own header. `(site)/layout.tsx` renders the shared nav and footer once. Access is still decided per page (`requireUser`) and per API route; layouts are never a guard, because they don't re-render on client navigation.
+- Navigation: `SiteNav` is an async server component that reads `getCurrentUser()` and picks the public or student link set, then renders the client `NavBar` (active underline, mobile menu). The login/logout control is auth's `AuthNavControl`, unchanged.
+- Design system: tokens live in `globals.css` under `@theme` (colors, the three font families, shadows, radii) with utilities for the type scale (`type-display` … `type-label`), marker bands, sketch underlines and paper textures. Primitives in `src/components/ui/`; doodles and the Pip drawing in `src/components/illustrations/`. Subject accents are CSS variables set per card from `subjects.ts`, all within the green family.
+- Illustrations are inline SVG React components, so they take the current text colour, scale without assets, and ship no image files. Fonts are self-hosted by `next/font` at build time; the browser never calls Google.
+- Data the frontend depends on: the static topic catalogue (`src/lib/topics.ts`), `/api/sessions` for the student's own sessions, and (once PR #42 lands) `POST /api/sessions/[id]/turn` for Pip's replies. The example conversation on the landing page is written copy, labelled as an example, not data.
+
+**Stored information**
+- The frontend stores nothing new. Sessions, pre-explanations and reflections go through Betania's `/api/sessions` routes; the browser keeps only the login cookie. No analytics or third-party scripts.
+
+**Secrets and user information**
+- No secrets in the frontend. The nav shows the student's first name from the server session; screenshots and test fixtures use a fake "Test Student" account on a throwaway database, never real students.
+- Pip's belief state (PR #42) holds the assessor's private verdicts and is never sent to the browser. The planned belief panel will only render a student-safe projection (statement, status, source) once a backend route provides it. Nothing in the UI invents belief or learning data.
+
+**Open questions**
+- Which single subject the team narrows to; the catalogue will filter by a scope list once decided.
+- The data contract for a student-safe view of Pip's notebook (proposed: `GET /api/sessions/[id]/beliefs` returning statement, status, source and evidence indexes only), and whether the post-session reflection may ever show that Pip learned something incorrect, given that the product never grades the student.
+- Whether to change the nav's "Sign up" to "Get started" (touches auth's browser tests). The interface is already branded Pip; internal identifiers were left alone.
 
 ### Deployment and AI features (Chase)
 

@@ -13,11 +13,15 @@ const ORIGIN = "http://localhost:3000";
 export const uniqueEmail = () => `student-${randomUUID()}@example.com`;
 
 /** Calls a Better Auth endpoint through its real request handler. */
-export async function callAuth(path: string, { body, cookie }: { body?: unknown; cookie?: string } = {}) {
-  const headers: Record<string, string> = { origin: ORIGIN };
+export async function callAuth(
+  path: string,
+  { body, cookie, extraHeaders }: { body?: unknown; cookie?: string; extraHeaders?: Record<string, string> } = {},
+  auth: { handler: (request: Request) => Promise<Response> } = getAuth(),
+) {
+  const headers: Record<string, string> = { ...extraHeaders, origin: ORIGIN };
   if (body !== undefined) headers["content-type"] = "application/json";
   if (cookie) headers.cookie = cookie;
-  return getAuth().handler(
+  return auth.handler(
     new Request(`${ORIGIN}/api/auth${path}`, {
       method: body === undefined ? "GET" : "POST",
       headers,

@@ -87,9 +87,10 @@ Pass the page's own path to `requireUser()` so the student comes back to it afte
 
 | Pages (redirect to `/login`) | API routes (respond 401) |
 |---|---|
-| `/learner/[topicId]` (Start Teaching creates a session) | `/api/sessions` and everything under it |
-| `/teach/[sessionId]` | `/api/learner` and everything under it |
-| `/reflect/[sessionId]` | any new route that reads or writes student data |
+| `/dashboard`, `/profile` | `/api/sessions` and everything under it |
+| `/learner/[topicId]` (Start Teaching creates a session) | `/api/learner` and everything under it |
+| `/teach/[sessionId]` | any new route that reads or writes student data |
+| `/reflect/[sessionId]` | |
 | `/sessions`, `/sessions/[sessionId]` | |
 
 These stay public: `/`, `/topics`, `/login`, `/signup`, and Better Auth's own `/api/auth/*` endpoints.
@@ -123,7 +124,7 @@ These are enforced inside the user-scoped store, so routes get them for free. Th
 | Table | Better Auth model | Key columns |
 |---|---|---|
 | `users` | `user` | `id text pk`, `name text not null`, `email text unique not null` (stored lowercase), `emailVerified bool`, `image text`, `createdAt`, `updatedAt` |
-| `auth_session` | `session` | `id`, `token unique`, `userId → users.id on delete cascade`, `expiresAt`, `ipAddress`, `userAgent`, timestamps |
+| `auth_session` | `session` | `id`, `token unique`, `userId → users.id on delete cascade`, `expiresAt`, timestamps. `ipAddress` and `userAgent` exist but are always null: a hook in `src/lib/auth/auth.ts` clears them before the row is written. |
 | `auth_account` | `account` | `id`, `accountId`, `providerId` (always `credential`), `userId → users.id`, `password` (the hash), timestamps, plus unused OAuth columns |
 | `auth_verification` | `verification` | `id`, `identifier`, `value`, `expiresAt`, timestamps. Unused for now, but Better Auth expects it. |
 

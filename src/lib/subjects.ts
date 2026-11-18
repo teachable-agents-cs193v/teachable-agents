@@ -1,11 +1,16 @@
 import type { Subject, SubjectId } from "./types";
 
+/**
+ * Subject accents stay inside the green family so every page reads as one
+ * product (style tile: no unrelated accent colors). Depth comes from the
+ * shade, and the subject doodle does the rest of the telling-apart.
+ */
 export const SUBJECTS: Subject[] = [
-  { id: "probability", label: "Probability", accent: "#254d3c", accentSoft: "#dde9dc" },
-  { id: "economics", label: "Economics", accent: "#b2654d", accentSoft: "#f6e2d8" },
-  { id: "biology", label: "Biology", accent: "#4e7a3f", accentSoft: "#e2eed6" },
-  { id: "computer-science", label: "Computer Science", accent: "#3e5d86", accentSoft: "#dfe7f2" },
-  { id: "psychology", label: "Psychology", accent: "#7d4b6a", accentSoft: "#efe0ea" },
+  { id: "probability", label: "Probability", accent: "#204f3e", accentSoft: "#dde9df" },
+  { id: "economics", label: "Economics", accent: "#4d8b6a", accentSoft: "#e3efe6" },
+  { id: "biology", label: "Biology", accent: "#3f7558", accentSoft: "#e0ecd9" },
+  { id: "computer-science", label: "Computer Science", accent: "#2d5f4b", accentSoft: "#dbe9e1" },
+  { id: "psychology", label: "Psychology", accent: "#5f8f6c", accentSoft: "#e7f0e4" },
 ];
 
 export function getSubject(id: SubjectId): Subject {

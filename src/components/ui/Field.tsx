@@ -16,10 +16,10 @@ export function Field({ id, label, hint, optional, children, className }: FieldP
     <div className={cn("flex flex-col gap-2", className)}>
       <label htmlFor={id} className="font-medium text-charcoal">
         {label}
-        {optional && <span className="ml-2 text-sm font-normal text-muted">(optional)</span>}
+        {optional && <span className="ml-2 font-mono text-xs font-normal uppercase tracking-[0.08em] text-muted">optional</span>}
       </label>
       {hint && (
-        <p id={`${id}-hint`} className="text-sm text-muted">
+        <p id={`${id}-hint`} className="text-sm leading-relaxed text-muted">
           {hint}
         </p>
       )}
@@ -28,5 +28,7 @@ export function Field({ id, label, hint, optional, children, className }: FieldP
   );
 }
 
+/** Inputs and textareas: paper surface, 12px corners, leaf-green focus border. */
 export const inputClasses =
-  "focus-ring w-full rounded-xl border border-line bg-paper px-4 py-3 text-charcoal placeholder:text-muted/70 transition-colors hover:border-forest/40 focus:border-forest";
+  "focus-ring w-full rounded-xl border-[1.5px] border-line bg-paper px-4 py-3 text-charcoal placeholder:text-muted/60 " +
+  "transition-colors hover:border-sage-deep focus:border-leaf disabled:cursor-not-allowed disabled:bg-ivory-deep disabled:text-muted";

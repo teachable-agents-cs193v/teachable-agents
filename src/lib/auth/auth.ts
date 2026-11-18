@@ -1,5 +1,5 @@
 import "server-only";
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { getPool } from "@/lib/db/pool";
 import { authSchemaOptions } from "./options";
@@ -61,12 +61,36 @@ const passwordPolicyHook = createAuthMiddleware(async (ctx) => {
   throw new APIError(status, responseBody);
 });
 
-function createAuth() {
+/**
+ * Don't keep the IP address or user agent on session rows (auth_session.ipAddress and
+ * .userAgent stay null). Better Auth always fills them in and has no setting for the user
+ * agent. Don't use `advanced.ipAddress.disableIpTracking` instead: it also turns off rate
+ * limiting, which reads the IP from the request, not from this row.
+ */
+const sessionPrivacyHooks = {
+  session: {
+    create: {
+      before: async (session: Record<string, unknown>) => ({ data: { ...session, ipAddress: null, userAgent: null } }),
+    },
+  },
+};
+
+/** The full Better Auth options. Exported for tests; app code uses getAuth(). */
+export function authOptions() {
   const secret = process.env.BETTER_AUTH_SECRET;
   // Development and tests may use any secret; production must have a real one.
   if (process.env.NODE_ENV === "production") assertUsableSecret(secret);
   // Better Auth reads BETTER_AUTH_URL from the environment itself.
-  return betterAuth({ ...authSchemaOptions(getPool()), secret, hooks: { before: passwordPolicyHook } });
+  return {
+    ...authSchemaOptions(getPool()),
+    secret,
+    hooks: { before: passwordPolicyHook },
+    databaseHooks: sessionPrivacyHooks,
+  } satisfies BetterAuthOptions;
+}
+
+function createAuth() {
+  return betterAuth(authOptions());
 }
 
 let auth: ReturnType<typeof createAuth> | undefined;

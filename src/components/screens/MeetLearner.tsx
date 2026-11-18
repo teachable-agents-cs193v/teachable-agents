@@ -66,7 +66,7 @@ export function MeetLearner({ topic }: { topic: Topic }) {
                 <LearnerAvatar size={80} animated />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-terracotta">Meet your learner</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-leaf">Meet your learner</p>
                 <h1 id="meet-title" className="font-display text-4xl text-forest">
                   {PIP.name}
                 </h1>
