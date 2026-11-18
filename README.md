@@ -40,7 +40,7 @@ Other scripts:
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest unit tests (learner script, persistence, summaries) |
-| `npm run test:e2e` | Playwright end-to-end test of the full student flow (starts its own dev server on port 3210) |
+| `npm run test:e2e` | Playwright end-to-end tests of the student flow (builds the app and serves it on port 3210 with a throwaway database) |
 | `npm run check` | lint + typecheck + unit tests + build |
 
 Playwright is pinned to the browser already installed in the course container. If you run the e2e tests elsewhere, run `npx playwright install chromium` once.

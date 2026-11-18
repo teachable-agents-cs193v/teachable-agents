@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { PASSWORDS } from "../e2e-auth/fixtures";
+import { submitSignUpForm } from "../e2e-auth/signIn";
 
 // The landing page is public, but teaching isn't: a visitor who clicks "Start
 // teaching" is asked to make an account first and then lands in the library.
@@ -16,8 +17,8 @@ test("logged out, Start teaching asks you to sign up and then opens the library"
   await page.getByLabel("Name").fill("Test Student");
   await page.getByLabel("Email").fill(`student-${randomUUID()}@example.com`);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORDS.strong);
-  await page.getByRole("button", { name: "Sign up" }).click();
-  await expect(page).toHaveURL(/\/topics$/, { timeout: 30_000 });
+  await submitSignUpForm(page);
+  await expect(page).toHaveURL(/\/topics$/);
   await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "My sessions" })).toBeVisible();
 });
 

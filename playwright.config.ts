@@ -6,7 +6,6 @@ const PORT = 3210;
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
-  // next dev compiles each route on first visit (several seconds); #38 moves the suite to a production build.
   expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,
@@ -16,5 +15,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   // Pages need a logged-in student now, so the server includes a throwaway database.
-  webServer: authTestServer({ appPort: PORT, mockPort: 3213 }),
+  // It serves a production build: `next dev` compiles each route on first visit and
+  // can live-reload the page mid-test, which made the student flow flaky (#30).
+  webServer: authTestServer({ appPort: PORT, mockPort: 3213, production: true }),
 });
