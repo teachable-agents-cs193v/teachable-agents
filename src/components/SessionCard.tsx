@@ -29,8 +29,8 @@ export function SessionCard({ session }: SessionCardProps) {
 
   return (
     <article style={accentStyle(subject)} className="card flex flex-col gap-4 p-5 transition-all hover:shadow-lift sm:flex-row sm:items-center">
-      <span className="grid size-12 shrink-0 place-items-center rounded-2xl accent-bg accent-text">
-        <Icon className="size-6" />
+      <span className="grid size-12 shrink-0 place-items-center rounded-2xl accent-bg text-charcoal">
+        <Icon className="size-8" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">

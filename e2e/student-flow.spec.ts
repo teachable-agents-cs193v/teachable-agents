@@ -10,7 +10,7 @@ test.beforeEach(async ({ page, baseURL }) => signUpTestStudent(page, baseURL));
  */
 test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "The best way to learn is to teach." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /You teach\.\s*Pip learns\./ })).toBeVisible();
 
   await page.getByRole("link", { name: "Start Teaching" }).first().click();
   await expect(page).toHaveURL(/\/topics$/);

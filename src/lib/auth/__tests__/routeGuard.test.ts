@@ -7,7 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /** Pages anyone may see. Add a page here ONLY if it shows no student data. */
-const PUBLIC_PAGES = new Set(["/", "/topics", "/login", "/signup"]);
+const PUBLIC_PAGES = new Set(["/", "/about", "/topics", "/login", "/signup"]);
 
 const APP_DIR = path.resolve(__dirname, "../../../app");
 

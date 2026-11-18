@@ -57,7 +57,35 @@ Each team member adds their own section below.
 
 ### Frontend (Arielle)
 
-TODO (Arielle)
+**Progress so far**
+- Week 8: the complete student-facing MVP (PR #2): landing, topic library, Meet Pip, teaching workspace, reflection, past sessions, the `LearnerAdapter` and `SessionStore` seams the backend work plugged into, unit and browser tests, and the product/evaluation docs.
+- Week 9, PR 1 of 3 (branch `feat/design-system-landing`): the visual redesign to our style tile and a public landing page that is separate from the student experience.
+  - A design system in `src/app/globals.css`: the tile's palette (deep green, leaf, sage, mint, warm paper, butter, charcoal), Space Grotesk / Inter / IBM Plex Mono via `next/font`, a typography scale, 12–16px corners, and hand-drawn utilities (marker band, sketch underline, graph paper).
+  - Pip redrawn as a hand-drawn student with a soft D-shaped bob and four moods, built from one `PipHead` drawing with a single 2-unit line weight so Pip looks the same at 28px in the chat and at 88px on the About page, plus a set of notebook doodles (`src/components/illustrations/Doodles.tsx`) that replace the old geometric icons. The character went through four review rounds with Arielle before this version was approved.
+  - Restyled primitives (Button, Badge, Card, Field, SectionHeading, new Eyebrow, ProgressBar, EmptyState), the Pip wordmark and footer.
+  - Pages grouped into `(site)/(public)`, `(site)/(app)` and `(focus)` route groups with one shared shell. The nav is rendered on the server from the real session, so a visitor sees How it works / About / Log in / Sign up and a student sees Home / Lessons / My sessions / Log out, with no flicker.
+  - A new landing page ("You teach. Pip learns.") whose hero is a lesson plan on ruled paper with a sticky note and doodles rather than a character drawing, with How it works, Why Pip is different, a clearly labelled example exchange, and a light-green closing call to action, and a new `/about` page that states the target user and what the app does not claim.
+- Testing for PR 1: lint, typecheck, 122 unit tests, 7 student-flow and 21 auth browser tests, and the production build all pass. Screenshots reviewed at 1360px and 390px.
+
+**What we learned**
+- A palette swap alone still looked generated. What made the difference was composition from the tile (the mint hero panel, mono labels, marker bands), illustrations drawn as loose strokes rather than icons, and one character used consistently.
+- Rendering the nav on the server from the session removes a whole class of "flash of the wrong links" bugs that a client-side `useSession` check can't avoid.
+- `next dev` compiles each route on first visit, which is why the student-flow suite was flaky (#30). The suite now allows for it; the production-build fix in #38 is still the right long-term answer.
+
+**Changes from proposal**
+- Following Mara's feedback to narrow to one subject and name the target user, the About page and landing copy say who the product is for (college students in introductory conceptual courses) and that the lessons start with probability. The topic catalogue itself is unchanged until the team decides the scope; the catalogue code is flexible enough to filter by subject later.
+- The interface is branded "Pip", as on the style tile, after Arielle's review of the first build. "Protégé" now appears only in the project's academic title and the protégé-effect term. No package, table, route or identifier was renamed.
+
+**Problems**
+- No user-testing notes exist yet (see `docs/EVALUATION.md`), so the redesign is driven by the style tile and instructor feedback only. I am not claiming user feedback that wasn't collected.
+- The nav's "Sign up" button should read "Get started" to match the tile; that text is asserted in Anahi's auth tests, so it waits for a coordinated change.
+- The landing page still shows for logged-in students (with their recent sessions below the fold) until the dashboard lands in PR 2.
+
+**Contributions and next steps**
+- Week 8: PR #2 and PR #4 (docs); Week 9: PR #38 (e2e against a production build, open) and PR 1 of the redesign.
+- PR 2: the authenticated dashboard (`/dashboard`), profile page, post-login redirect to the dashboard (coordinated with Anahi's tests), and restyled lesson, Meet Pip and session screens.
+- PR 3: the teaching workspace redesign, a belief-state panel once Chase's PR #42 exposes a student-safe view of Pip's notebook (private grader verdicts stay on the server), and reflection polish. Sequenced after #42 merges, since both touch `TeachingWorkspace.tsx`.
+- Done means: CI passes, a teammate approves, screenshots at desktop and phone widths are in the PR, and these two docs are updated.
 
 ### Deployment and AI features (Chase)
 
