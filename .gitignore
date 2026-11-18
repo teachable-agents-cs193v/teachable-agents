@@ -46,8 +46,12 @@ next-env.d.ts
 test-results/
 playwright-report/
 
-# Live eval reports (eval/pip.eval.ts)
-/eval/results/
+# Live eval runs (eval/suite.eval.ts): reports and cached outputs stay local.
+# Copy a report you want to keep into eval/results/saved/ to commit it.
+/eval/results/*
+!/eval/results/saved/
+# sympy for the optional derivative cross-check (eval/README.md)
+/eval/.venv/
 
 # On-device Pip weights (research/unlearning/outputs/webllm), served locally; never committed
 /public/webllm/

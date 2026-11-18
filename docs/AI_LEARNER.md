@@ -61,7 +61,7 @@ Each call now lacks at least one leg, and the missing leg is enforced by code, n
 | Assessor (`assessor`, `models.assessor`) | Yes: student message, conversation, and the notes (a paraphrase of it) | Yes: the whole answer key | **No.** Only allowlisted ids, enum values, note indexes and booleans leave the call | `parseAssessorVerdict()` in `assessorBoundary.ts` builds a fresh object: `conceptId` must be a pack concept id, `misconceptionId` a pack misconception id (`m:` prefix mapped), `nowExplainedBeliefIds` and `moveTarget` ids in the current notebook, `move` one of `MOVES`, `correctness` one of its four values, `index` an integer index of a note from this turn; booleans must be `true`/`false`, not strings. Anything else is dropped or set to a fixed default; unknown keys are ignored; nested values are never copied. `upgradeState()` strips the old `analysis`/`moveNote` from states saved before the split. Tested with adversarial and fuzzed inputs and an end-to-end injected assessor. |
 | Reply (`reply`, `models.pip`) | Yes: student message, conversation | **No.** `pipView()` of the notebook only: statements and how sure Pip is | Yes: Pip's message | The prompt is built by `replyMessages()` from the notebook, the move, the fixed `MOVE_GUIDE` text and the target belief's statement from the notebook. Nothing the assessor wrote is passed. Tested: the prompt never contains key text, even when the assessor is injected. |
 | On-device reply (experiment, off) | Yes | **No.** `deviceReplyMessages()` uses the notebook only | Yes | Same as the reply. The device can only change Pip's wording; the server keeps the notebook. |
-| Eval judge (`npm run eval`, developers only) | Scripted test students, not real users | Yes: the answer key, to spot leaks | **No.** It writes a local report; nothing reaches the app | Not part of the app. |
+| Eval judge (`npm run eval`, developers only) | Scripted test students and saved real sessions, not live users | Yes: the answer key, to spot leaks | **No.** It writes a local report; nothing reaches the app | Not part of the app. Claude via `claude -p` with no tools and no MCP servers, returning only its JSON schema (`eval/claudeJudge.ts`). |
 
 What's left, and accepted:
 
@@ -139,33 +139,18 @@ Components (`src/components/learning/`, self-contained; props are the shapes abo
 
 ## Adding a topic
 
-Write a pack in `src/lib/learner/teachable/packs/` with the same shape as `probability.ts`, register it in `packs/index.ts`, and add scenarios for it in `eval/scenarios.ts` (the current scenarios cover the probability topic only). A model can draft the pack, but a person must check every concept and misconception.
+Write a pack in `src/lib/learner/teachable/packs/` with the same shape as `probability.ts`, register it in `packs/index.ts`, and add cases for it in `eval/sets/` (Derivatives has the full set; probability has conversation scenarios). A model can draft the pack, but a person must check every concept and misconception.
 
 ## Evaluating Pip
 
-`npm run eval` replays scripted students against the real model. They:
+`npm run eval -- --set=A,B,C,D` runs the eval suite in `eval/` against the real pipeline and models: A (assessor verdicts per message), B (note-taker faithfulness), C (multi-turn conversations) and D (prompt injection and leaks). Cases are data in `eval/sets/` (catalog: `eval/sets/CATALOG.md`). The only judge is Claude, run through Claude Code headless (`claude -p`, no tools, no MCP servers; enforced by `eval/__tests__/judgeEnforcement.test.ts`). Code checks structured state and scans everything student-visible for answer-key text. Reports go to `eval/results/<run>/` (gitignored). How to run it, flags, resuming and costs: `eval/README.md`.
 
-- quiz an empty Pip;
-- ask for answers;
-- attempt prompt injection;
-- give bare "you're wrong" corrections;
-- teach wrong ideas;
-- teach well;
-- send vague or off-topic messages.
-
-A judge model scores every reply for leaks, judging the student, teaching, breaking character and following the move. Code checks only the notebook's structured state. Reports go to `eval/results/latest.md` (gitignored).
-
-```bash
-EVAL_JUDGE_MODEL=qwen/qwen3.8-27b npm run eval     # a different model family as judge
-EVAL_ONLY=injection,bare-corrections npm run eval  # just some scenarios
-```
-
-It spends real quota (roughly 4 calls per student message: note-taker, assessor, reply, judge), so it isn't part of `npm test` or CI. Unit and route tests use a fake model.
+It spends real Groq quota, so it isn't part of `npm test` or CI. Unit and route tests use a fake model.
 
 ## Free-tier caveats
 
 - Respect the provider's terms. Don't put real student names or personal details in messages during user tests.
-- There is also a daily cap of about 200,000 tokens on `openai/gpt-oss-120b`. One Pip turn uses roughly 5,000–5,500 tokens (note-taker about 1,300, assessor about 2,700, reply about 1,200; estimated from prompt sizes, not yet measured with `npm run eval`), so one key handles about 35–40 student messages a day if every role is on one model. A full `npm run eval` uses more than half of that. When the daily cap runs out, every call returns 429 until it resets.
+- There is also a daily cap of about 200,000 tokens on `openai/gpt-oss-120b`. One Pip turn uses roughly 5,000–5,500 tokens (note-taker about 1,300, assessor about 2,700, reply about 1,200; estimated from prompt sizes; `npm run eval` reports measured tokens per call), so one key handles about 35–40 student messages a day if every role is on one model. A full `npm run eval` of all four sets needs several days of it (see `eval/README.md`). When the daily cap runs out, every call returns 429 until it resets.
 - 8,000 tokens a minute is about 1–1.5 Pip turns a minute per account. Past that, Pip waits for the limit to clear (up to 30 seconds) before answering. A class-size user test on one account will hit it. Use several accounts or a paid tier for that.
 - Quotas are per Groq **account** and per model, not per key. A second key on the same account shares the same quota. Each model has its own, so `LLM_MODEL=openai/gpt-oss-20b` (smaller and weaker, but with separate quota) works as a fallback when `gpt-oss-120b` runs out.
 - **Split the roles across models** to stretch the free quota. `LLM_MODEL_ASSESSOR` is the call that sees the answer key and makes the hard judgments, so keep it on `openai/gpt-oss-120b`. `LLM_MODEL_PIP` covers the calls that never see the answer key (the note-taker and the reply), and can run on `openai/gpt-oss-20b`. Both default to `LLM_MODEL`. The eval report shows calls and tokens per role, including prompt-cache hits.

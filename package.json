@@ -15,8 +15,9 @@
     "db:generate": "npx --yes auth@1.7.14 generate --config db/auth-schema.config.ts --output db/migrations/0001_auth.sql --yes",
     "test:e2e:auth": "playwright test --config playwright.auth.config.ts",
     "test:e2e:learning": "playwright test --config playwright.learning.config.ts",
-    "eval": "vitest run --config vitest.eval.config.mts",
-    "dev:local": "node scripts/dev-local.mts"
+    "eval": "node eval/run.mjs",
+    "dev:local": "node scripts/dev-local.mts",
+    "eval:catalog": "node eval/sets/catalog.mjs"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "0.2.86",

@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
-// Live model evaluation of Pip (eval/). Kept out of `npm test` and CI:
-// it needs an API key and spends real quota. Run with `npm run eval`.
+// Live evaluation (eval/suite.eval.ts): the real pipeline on Groq, judged by Claude via Claude Code.
+// Kept out of `npm test` and CI: it spends real quota. Run with `npm run eval -- --set=A` (eval/README.md).
 export default defineConfig({
   resolve: {
     alias: {
@@ -15,6 +15,8 @@ export default defineConfig({
     // Scenarios run one at a time so they share the provider's rate limit politely.
     fileParallelism: false,
     sequence: { concurrent: false },
-    testTimeout: 900_000,
+    testTimeout: 24 * 3600_000,
+    // The judge preflight (one `claude -p` probe) runs in beforeAll.
+    hookTimeout: 300_000,
   },
 });
