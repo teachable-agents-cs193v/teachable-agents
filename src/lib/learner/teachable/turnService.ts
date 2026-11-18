@@ -31,6 +31,9 @@ export type TurnResult =
     }
   | { ok: false; status: 404 | 409; error: string; session?: TeachingSession };
 
+/** On-device Pip is an experiment, off unless DEVICE_PIP_EXPERIMENT=1; off, the server always replies. */
+export const deviceExperiment = () => process.env.DEVICE_PIP_EXPERIMENT === "1";
+
 export interface DeviceTurn {
   forMessageId: string | null;
   messages: ChatTurn[];
@@ -97,7 +100,7 @@ export async function runServerTurn(args: {
     return { ok: false, status: 409, error: "There's no student message for Pip to reply to.", session };
   }
 
-  if (request.replyOn === "device") {
+  if (request.replyOn === "device" && deviceExperiment()) {
     const device = await deviceTurn({ session, storedState: context.learnerState, models });
     if (device) {
       const saved = await store.appendToSession(id, { version, append: [], learnerState: device.state });

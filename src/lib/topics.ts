@@ -118,7 +118,7 @@ TOPICS.push({
   teachingTips: [
     "Start with what a derivative means (a rate of change) before any rules.",
     "When Pip uses a wrong rule, ask it to try a case you can check, like the derivative of x times x.",
-    "Pip can run on your device: it only knows what's in its notes, so watch what it can and can't do.",
+    "Pip will share a few wrong ideas of its own. Catch them, and explain why they're wrong with an example.",
   ],
   preSessionPrompt:
     "In two or three sentences, explain what a derivative is and how you'd find the derivative of x squared times sin x.",

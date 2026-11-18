@@ -129,7 +129,10 @@ It spends real quota (roughly 3 calls per student message), so it isn't part of 
 - Quotas are per Groq **account** and per model, not per key. A second key on the same account shares the same quota. Each model has its own, so `LLM_MODEL=openai/gpt-oss-20b` (smaller and weaker, but with separate quota) works as a fallback when `gpt-oss-120b` runs out.
 - **Split the roles across models** to stretch the free quota. `LLM_MODEL_ASSESSOR` is the call that sees the answer key and makes the hard judgments, so keep it on `openai/gpt-oss-120b`. `LLM_MODEL_PIP` covers the calls that only see Pip's notebook (the reply), and can run on `openai/gpt-oss-20b`. Both default to `LLM_MODEL`. The eval report shows calls and tokens per role, including prompt-cache hits.
 
-## On-device Pip (Derivatives)
+## On-device Pip (Derivatives) — experiment, off for students
+
+**Not shown to students.** It worked as a research demo, but the 0.6B model is far weaker than the server Pip in conversation, so nothing about it renders and the server ignores it unless both switches are on, for local experiments only:
+`NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT=1` (the panel) and `DEVICE_PIP_EXPERIMENT=1` (the server honours `replyOn: "device"`; otherwise `/device-reply` answers 404).
 
 For topics whose pack has a `device` prompt (only Derivatives so far), Pip's reply can be written in the student's browser by a small model instead of the server's reply model:
 

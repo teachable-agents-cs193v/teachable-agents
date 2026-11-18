@@ -42,6 +42,7 @@ vi.mock("@/lib/learner/teachable/server", async (importOriginal) => ({
 beforeEach(() => {
   requestCookie = undefined;
   model = new FakeModel();
+  vi.stubEnv("DEVICE_PIP_EXPERIMENT", "1");
 });
 
 const URL_BASE = "http://localhost:3000/api/sessions";
@@ -67,6 +68,18 @@ const replyAs = async (cookie: string, id: string, body: unknown) => {
   const res = await as(cookie, () => deviceReply(post(body), ctx(id)));
   return { status: res.status, body: await res.json() };
 };
+
+describe.skipIf(!hasDb)("on-device Pip when the experiment is off (the default)", () => {
+  it("ignores replyOn device and hides /device-reply", async () => {
+    vi.stubEnv("DEVICE_PIP_EXPERIMENT", "");
+    const { cookie, session } = await newSession("derivatives");
+    const open = await turnAs(cookie, session.id, { replyOn: "device" });
+    expect(open.status).toBe(200);
+    expect(open.body.device).toBeUndefined();
+    expect(open.body.reply.text).toBe("Server Pip reply");
+    expect((await replyAs(cookie, session.id, { forMessageId: null, text: "Hi" })).status).toBe(404);
+  });
+});
 
 describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
   it("opens and answers in two steps, never calling the server's reply model", async () => {

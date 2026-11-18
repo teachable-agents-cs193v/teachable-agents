@@ -1,5 +1,5 @@
 import { requireApiUser } from "@/lib/auth/server";
-import { runDeviceReply } from "@/lib/learner/teachable/turnService";
+import { deviceExperiment, runDeviceReply } from "@/lib/learner/teachable/turnService";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import { parseDeviceReply } from "@/lib/persistence/validate";
 import { error, json, readJson } from "../../shared";
@@ -16,6 +16,7 @@ import { error, json, readJson } from "../../shared";
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Context) {
+  if (!deviceExperiment()) return error("Not found.", 404); // an experiment; off for students
   const user = await requireApiUser();
   if (user instanceof Response) return user;
   const read = await readJson(request);

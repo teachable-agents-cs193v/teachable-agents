@@ -12,6 +12,12 @@
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import type { ChatTurn } from "../teachable/llm";
 
+/**
+ * Experiment only, never shown to students: set NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT=1 (and
+ * DEVICE_PIP_EXPERIMENT=1 for the server) to turn it on locally. Off, nothing about it renders.
+ */
+export const DEVICE_EXPERIMENT = process.env.NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT === "1";
+
 /** Where the weights are served from. WebLLM appends "resolve/main/" to this. */
 const MODEL_URL = process.env.NEXT_PUBLIC_DEVICE_PIP_URL ?? "/webllm/pip-v10-q0f16-MLC/";
 const MODEL_ID = "pip-v10-q0f16";

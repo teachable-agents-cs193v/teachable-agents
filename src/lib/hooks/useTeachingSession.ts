@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getLearningProgress, getPipBeliefs, postDeviceReply, postTurn, TurnError, type TurnBody, type TurnResponse } from "../learner";
-import { deviceSupported, loadDevicePip, writeOnDevice, type DeviceStats } from "../learner/device/onDevicePip";
+import { DEVICE_EXPERIMENT, deviceSupported, loadDevicePip, writeOnDevice, type DeviceStats } from "../learner/device/onDevicePip";
 import { getSessionStore, SessionStoreError } from "../persistence";
 import { getTopic } from "../topics";
 import type { ChatMessage, LearningProgress, StudentBelief, TeachingSession, Topic } from "../types";
@@ -68,7 +68,7 @@ export interface TeachingSessionState {
   pipBeliefs: StudentBelief[] | null;
   /** Learning metrics and timeline, updated with every turn. Null for the scripted learner or until known. */
   progress: LearningProgress | null;
-  /** On-device Pip: null when this topic doesn't support it. */
+  /** On-device Pip (an experiment, off unless NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT=1): null when off or unsupported. */
   device: DevicePipState | null;
   sendMessage: (text: string) => Promise<void>;
   retry: () => Promise<void>;
@@ -228,7 +228,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       setSession(found);
       setLoading(false);
       // Turn on-device Pip back on if this browser had it on before.
-      if (getTopic(found.topicId)?.onDevice && readPref()) enableDevice();
+      if (DEVICE_EXPERIMENT && getTopic(found.topicId)?.onDevice && readPref()) enableDevice();
       if (awaitingPip(found)) void runTurn(found, {});
       else if (found.messages.length > 0) {
         const [beliefs, loadedProgress] = await Promise.all([getPipBeliefs(found.id), getLearningProgress(found.id)]);
@@ -286,7 +286,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
     learnerInfo,
     pipBeliefs,
     progress,
-    device: topic?.onDevice
+    device: DEVICE_EXPERIMENT && topic?.onDevice
       ? {
           status: deviceStatus,
           progress: deviceProgress.fraction,
