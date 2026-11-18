@@ -46,7 +46,8 @@ export function activeMisconceptions(notebook: Notebook): Belief[] {
 }
 
 /**
- * Records the assessor's verdict on one student message.
+ * Records the verdict on one student message (the note-taker's notes as claims, with the
+ * assessor's allowlisted grades; see buildAssessment in ./pipeline.ts).
  *
  * Invariants enforced here (on structured fields only):
  * - A misconception flips to `corrected` only when the assessor marked the

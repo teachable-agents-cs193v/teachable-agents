@@ -21,19 +21,54 @@ Any OpenAI-compatible provider works by changing the three variables: Gemini's O
 ## How a turn works
 
 ```
-student message ─► ASSESSOR (model call, sees the hidden answer key)
-                     what did the student claim? correct? explained?
+student message ─► NOTE-TAKER (model call, models.pip, NO answer key)
+                     what new ideas did the student teach? → notes, in Pip's words
+                     which earlier taught ideas do they take back? → revisedBeliefIds
+                 ─► ASSESSOR (model call, models.assessor, sees the hidden answer key)
+                     grade each note: concept? correct? explained? faithful?
                      did they fix one of Pip's misconceptions? which move next?
-                 ─► notebook update (code: records the verdict, enforces invariants)
-                 ─► PIP'S REPLY (model call, sees ONLY the notebook, the move and the chat)
+                     → ids, enums and booleans ONLY (code drops anything else)
+                 ─► notebook update (code: notes + grades → beliefs, enforces invariants)
+                 ─► PIP'S REPLY (model call, models.pip, sees ONLY the notebook, the move and the chat)
 ```
 
-- **Code never interprets language.** Every judgment about what someone said is made by one of the two prompts in `src/lib/learner/teachable/prompts.ts`. Code only stores structured verdicts, decides what each call can see, and validates JSON.
-- **The reply call never sees the answer key.** That's the main defence against Pip "knowing" things. Research shows that telling a model to pretend not to know doesn't work; hiding the information does.
+Three model calls per student message (the opening is one reply call). They run one after another, because the assessor grades the note-taker's notes.
+
+| Call | Label | Model role | Sees | Returns |
+| --- | --- | --- | --- | --- |
+| Note-taker | `noteTaker` | `pip` | The learning goal; the part of Pip's notebook the student can already see (taught beliefs and voiced or corrected misconceptions, with ids); the last 8 messages; the student message in `<student_message>` tags | `{ notes: [{ text }], revisedBeliefIds: [id] }` |
+| Assessor | `assessor` | `assessor` | The answer key and misconception details; the whole notebook with hidden verdicts; the last 8 messages; the student message; the notes, numbered `[0]`, `[1]`… | `{ noteGrades: [{ index, conceptId, correctness, explained, faithful }], corrections: [{ misconceptionId, targeted, explained }], nowExplainedBeliefIds, offTask, move, moveTarget, readyToWrapUp }` |
+| Reply | `reply` | `pip` | Background knowledge, `pipView()` of the notebook, the last 8 messages, the student message, what just changed, the move, its fixed guide text (`MOVE_GUIDE`) and the target belief's statement from the notebook | `{ mood, text }` |
+
+- **Code never interprets language.** Every judgment about what someone said is made by one of the prompts in `src/lib/learner/teachable/prompts.ts`. Code only stores structured verdicts, decides what each call can see, validates JSON and checks ids against allowlists.
+- **The note-taker writes Pip's new beliefs; the assessor only grades them.** Notes are capped at 3 per message and 300 characters each. Code joins each note with its grade (`buildAssessment` in `pipeline.ts`): a note graded `faithful: false` (it adds or fixes something the student didn't say) is dropped; a note with no grade is kept as `unclear` and not explained. The belief text always comes from the note-taker.
+- **The reply call never sees the answer key, or anything the assessor wrote.** That's the main defence against Pip "knowing" things. Research shows that telling a model to pretend not to know doesn't work; hiding the information does. (There used to be a `moveNote` sentence from the assessor to the reply. It was removed: it was a way for answer-key text to reach Pip.)
 - **Misconceptions only flip on a real correction.** A starting misconception becomes `corrected` only when the assessor marks the correction both *targeted* (it addressed that specific mistake) and *explained* (it said why). A bare "that's wrong" makes Pip push back instead.
 - **Pip learns wrong things too.** If the student teaches something incorrect, Pip believes it. The hidden `taughtCorrectly` verdict records it for the reflection page and evaluation.
 - **The server writes the whole conversation.** `POST /api/sessions/[id]/turn` with `{ clientMessageId, text }` saves the student's message before any model call, then saves Pip's reply, cursor and notebook together (`teaching_sessions.learner_state`). `PUT` can't change messages, so the stored transcript is what actually happened. Both writes check the session hasn't changed since it was read, so two tabs can't interleave turns. Retrying the same request never saves or answers a message twice, and a model failure leaves the student's message saved for the retry. Messages are capped at 1,500 characters.
 - **The browser never sees the notebook itself**, only the student view below. `GET /api/sessions/[id]` never returns it.
+- **A retry never re-runs the note-taker or the assessor.** Once a message is assessed, the state is saved as `pending` with the verdict in `lastAssessment`; a retried turn (or the device fallback) only runs the reply.
+
+## LLM safety: no call has the whole "lethal trifecta"
+
+A model call is dangerous when it has all three of: **untrusted input** (text an attacker controls, here the student's message), **sensitive data** (here the topic pack's answer key: `keyIdea`, `whyWrong`, `correctionMustAddress`), and **external output** (a way for its text to reach the student, including by way of Pip's reply). A prompt-injected message could then make the model copy the secret out. Before this split the assessor had all three: it read the student message, saw the key, and wrote `claims[].pipStatement` (shown in the beliefs panel and fed to the reply), `moveNote` (fed to the reply) and `analysis` (stored).
+
+Each call now lacks at least one leg, and the missing leg is enforced by code, not by asking the model nicely:
+
+| LLM call | Untrusted input | Sensitive data | External output | Software control |
+| --- | --- | --- | --- | --- |
+| Note-taker (`noteTaker`, `models.pip`) | Yes: student message, recent conversation | **No.** Only the learning goal and what the student can already see of the notebook (`noteTakerView()`: taught beliefs, voiced or corrected misconceptions). Not even unvoiced misconceptions. | Yes: its notes become belief text in the beliefs panel, progress, review and the reply prompt | The prompt is built by `noteTakerMessages()`, which is never passed the pack's concepts or misconception details. `parseNotes()` keeps at most 3 notes of 300 characters and only belief ids of taught beliefs in the notebook. Tested: the prompt never contains key text. |
+| Assessor (`assessor`, `models.assessor`) | Yes: student message, conversation, and the notes (a paraphrase of it) | Yes: the whole answer key | **No.** Only allowlisted ids, enum values, note indexes and booleans leave the call | `parseAssessorVerdict()` in `assessorBoundary.ts` builds a fresh object: `conceptId` must be a pack concept id, `misconceptionId` a pack misconception id (`m:` prefix mapped), `nowExplainedBeliefIds` and `moveTarget` ids in the current notebook, `move` one of `MOVES`, `correctness` one of its four values, `index` an integer index of a note from this turn; booleans must be `true`/`false`, not strings. Anything else is dropped or set to a fixed default; unknown keys are ignored; nested values are never copied. `upgradeState()` strips the old `analysis`/`moveNote` from states saved before the split. Tested with adversarial and fuzzed inputs and an end-to-end injected assessor. |
+| Reply (`reply`, `models.pip`) | Yes: student message, conversation | **No.** `pipView()` of the notebook only: statements and how sure Pip is | Yes: Pip's message | The prompt is built by `replyMessages()` from the notebook, the move, the fixed `MOVE_GUIDE` text and the target belief's statement from the notebook. Nothing the assessor wrote is passed. Tested: the prompt never contains key text, even when the assessor is injected. |
+| On-device reply (experiment, off) | Yes | **No.** `deviceReplyMessages()` uses the notebook only | Yes | Same as the reply. The device can only change Pip's wording; the server keeps the notebook. |
+| Eval judge (`npm run eval`, developers only) | Scripted test students, not real users | Yes: the answer key, to spot leaks | **No.** It writes a local report; nothing reaches the app | Not part of the app. |
+
+What's left, and accepted:
+
+- **The assessor's structured values still mean something.** Its correctness verdict is what makes the `taught_wrong` flag appear, so a student can learn "that idea was judged wrong" one idea at a time (the product decision above). It can't send the key's words: the most it can do is pick wrong ids, enums or moves, or drop a note by grading it unfaithful.
+- **A target belief's statement is notebook text.** `moveTarget` can point the reply at any belief, including a starting misconception the student hasn't seen yet (that's how Pip voices one). Those are Pip's own wrong ideas, written in the pack for Pip to say, not the answer key.
+- **The note-taker can be talked into writing anything the student typed.** It holds nothing secret, so the student only gets back their own words.
+- Tests: `src/lib/learner/teachable/__tests__/assessorBoundary.test.ts` (adversarial objects, a seeded fuzz test, the pipeline end to end) and the "prompt-injected assessor" case in `src/app/api/sessions/__tests__/turn.test.ts` (the route's response, the reply prompt and the stored `learner_state`).
 
 ## For the UI: what Pip believes
 
@@ -89,9 +124,10 @@ Components (`src/components/learning/`, self-contained; props are the shapes abo
 | Path | What it is |
 | --- | --- |
 | `src/lib/learner/teachable/packs/` | Hidden answer keys per topic: concepts, Pip's starting misconceptions, what a real correction must address. **Human-reviewed; the assessor treats them as ground truth.** |
-| `src/lib/learner/teachable/prompts.ts` | The assessor and Pip prompts. Most behavior changes happen here. |
+| `src/lib/learner/teachable/prompts.ts` | The note-taker, assessor and Pip prompts. Most behavior changes happen here. |
+| `src/lib/learner/teachable/assessorBoundary.ts` | `parseAssessorVerdict()`: the allowlist that keeps any text from leaving the assessor (the trifecta boundary). |
 | `src/lib/learner/teachable/notebook.ts` | Notebook state, invariants, and `pipView()` (what Pip may see). |
-| `src/lib/learner/teachable/pipeline.ts` | One turn: assessor, update, reply. |
+| `src/lib/learner/teachable/pipeline.ts` | One turn: note-taker, assessor, update, reply. |
 | `src/lib/learner/teachable/llm.ts` | OpenAI-compatible client. |
 | `src/lib/learner/teachable/turnService.ts` | One turn on the server: save the student's message, run the pipeline, save Pip's reply. |
 | `src/app/api/sessions/[id]/turn/route.ts` | The turn route. |
@@ -124,15 +160,15 @@ EVAL_JUDGE_MODEL=qwen/qwen3.8-27b npm run eval     # a different model family as
 EVAL_ONLY=injection,bare-corrections npm run eval  # just some scenarios
 ```
 
-It spends real quota (roughly 3 calls per student message), so it isn't part of `npm test` or CI. Unit and route tests use a fake model.
+It spends real quota (roughly 4 calls per student message: note-taker, assessor, reply, judge), so it isn't part of `npm test` or CI. Unit and route tests use a fake model.
 
 ## Free-tier caveats
 
 - Respect the provider's terms. Don't put real student names or personal details in messages during user tests.
-- There is also a daily cap of about 200,000 tokens on `openai/gpt-oss-120b`. One Pip turn uses about 4,000 tokens (assessor about 2,800, reply about 1,200), so one key handles about 50 student messages a day. A full `npm run eval` uses about half of that. When the daily cap runs out, every call returns 429 until it resets.
-- 8,000 tokens a minute is about 1–2 Pip turns a minute per account. Past that, Pip waits for the limit to clear (up to 30 seconds) before answering. A class-size user test on one account will hit it. Use several accounts or a paid tier for that.
+- There is also a daily cap of about 200,000 tokens on `openai/gpt-oss-120b`. One Pip turn uses roughly 5,000–5,500 tokens (note-taker about 1,300, assessor about 2,700, reply about 1,200; estimated from prompt sizes, not yet measured with `npm run eval`), so one key handles about 35–40 student messages a day if every role is on one model. A full `npm run eval` uses more than half of that. When the daily cap runs out, every call returns 429 until it resets.
+- 8,000 tokens a minute is about 1–1.5 Pip turns a minute per account. Past that, Pip waits for the limit to clear (up to 30 seconds) before answering. A class-size user test on one account will hit it. Use several accounts or a paid tier for that.
 - Quotas are per Groq **account** and per model, not per key. A second key on the same account shares the same quota. Each model has its own, so `LLM_MODEL=openai/gpt-oss-20b` (smaller and weaker, but with separate quota) works as a fallback when `gpt-oss-120b` runs out.
-- **Split the roles across models** to stretch the free quota. `LLM_MODEL_ASSESSOR` is the call that sees the answer key and makes the hard judgments, so keep it on `openai/gpt-oss-120b`. `LLM_MODEL_PIP` covers the calls that only see Pip's notebook (the reply), and can run on `openai/gpt-oss-20b`. Both default to `LLM_MODEL`. The eval report shows calls and tokens per role, including prompt-cache hits.
+- **Split the roles across models** to stretch the free quota. `LLM_MODEL_ASSESSOR` is the call that sees the answer key and makes the hard judgments, so keep it on `openai/gpt-oss-120b`. `LLM_MODEL_PIP` covers the calls that never see the answer key (the note-taker and the reply), and can run on `openai/gpt-oss-20b`. Both default to `LLM_MODEL`. The eval report shows calls and tokens per role, including prompt-cache hits.
 
 ## On-device Pip (Derivatives) — experiment, off for students
 
