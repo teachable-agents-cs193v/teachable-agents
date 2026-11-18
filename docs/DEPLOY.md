@@ -3,7 +3,7 @@
 Two people, in order:
 
 - **Part A**, Betania (database): create the Postgres database if needed and apply the auth migration.
-- **Part B**, Chase (Vercel): add the three environment variables and redeploy, then run the smoke test.
+- **Part B**, Chase (Vercel): add the four environment variables and redeploy, then run the smoke test.
 
 Everything below uses placeholders like `<your-production-domain>`. Real values never go in this file or anywhere else in the repo.
 
@@ -51,7 +51,10 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    | `DATABASE_URL` | the **pooled** string from Betania | Mark **Sensitive**. Production only, unless Preview has its own database |
    | `BETTER_AUTH_SECRET` | output of step 1 | Mark **Sensitive**. A separate value per environment |
    | `BETTER_AUTH_URL` | `https://<your-production-domain>` | Exact, with no trailing slash |
+   | `ENCRYPTION_MASTER_KEY` | output of `openssl rand -base64 32` | Mark **Sensitive**. A separate value per environment; see below |
 
+   - **`ENCRYPTION_MASTER_KEY`:** each tier (development, preview, production) needs its own, generated with `openssl rand -base64 32`, with a backup kept outside the repo (for example in the team password manager), because losing it makes the encrypted data unreadable.
+   - **Deploy order:** set `ENCRYPTION_MASTER_KEY` in Vercel for each tier **before** any code that calls `encryptField` is deployed to that tier. Otherwise every save fails on the live site.
    - Don't set `PWNED_PASSWORDS_API_URL`; it's for tests only.
    - Don't add a `NEXT_PUBLIC_` prefix to any of these.
 3. **Redeploy.** Variables only apply to new deployments: Deployments → latest `main` → **Redeploy**.

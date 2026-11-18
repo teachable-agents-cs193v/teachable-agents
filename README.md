@@ -78,7 +78,7 @@ Run the [one-time secret-scanning setup](#one-time-setup-secret-scanning) above 
 
 ### Deploying
 
-See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs the same three environment variables set in Vercel. Never commit real values, and never prefix them with `NEXT_PUBLIC_`.
+See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs every variable in the table in [Part B, step 2](docs/DEPLOY.md#part-b-chase-vercel) set in Vercel. Never commit real values, and never prefix them with `NEXT_PUBLIC_`.
 
 ## The student flow
 
