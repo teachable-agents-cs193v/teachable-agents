@@ -17,6 +17,7 @@ export function Footer() {
           <li><Link className="focus-ring rounded hover:underline" href="/#how-it-works">How it works</Link></li>
           <li><Link className="focus-ring rounded hover:underline" href="/#meet-pip">Meet Pip</Link></li>
           <li><Link className="focus-ring rounded hover:underline" href="/sessions">My sessions</Link></li>
+          <li><Link className="focus-ring rounded hover:underline" href="/ai-data">Your data and AI</Link></li>
         </ul>
       </div>
     </footer>

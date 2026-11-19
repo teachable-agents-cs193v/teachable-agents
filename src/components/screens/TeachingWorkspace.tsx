@@ -23,6 +23,7 @@ import { MisconceptionTracker } from "@/components/learning/MisconceptionTracker
 import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
 import { DevicePipPanel } from "@/components/learning/DevicePipPanel";
 import { LearningFlags } from "@/components/learning/LearningFlags";
+import { DataLine } from "@/components/DataLine";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -226,6 +227,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                   autoFocus
                   placeholder={learnerStatus === "thinking" ? `${PIP.name} is thinking…` : undefined}
                 />
+                <DataLine learnerId={session.learnerId} answeredBy={state.learnerInfo?.id ?? null} className="mt-2" />
               </div>
             </div>
             {state.progress && state.progress.flags.length > 0 && learnerStatus === "idle" && (
