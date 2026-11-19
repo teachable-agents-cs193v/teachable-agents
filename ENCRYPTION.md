@@ -18,6 +18,8 @@ The key is generated with `openssl rand -base64 32`, generating 32 random bytes 
 
 Additional safeguards are in place, such as the database refusing unencrypted data in the protected columns, damaged/tampered values throwing an error, a missing/malformed key stopping encryption operations, and errors and logs never showing the data or the key. Still, there are a few limitations, such as there is no key rotation yet, values aren't tied to a specific session, and the key is only checked on first use. Account data also needs to be covered in Issue #54.
 
+Names, email addresses, and authentication tokens are not encrypted at the application level because email lookup requires a searchable keyed hash, and encrypting Better Auth-managed data would require changes to its internal behavior. For now, database access is restricted to Chase and Betania, Neon encrypts data at rest, sessions expire, and IP addresses and browser information are no longer stored. Further encryption improvements are tracked in #54.
+
 The encryption mainly protects the data if the database or a backup is leaked, since without the key, the values can't be read. However, it won't protect against someone who has both the database and the key, and the running server can also decrypt the data. Messages sent to the AI provider are covered separately in issue #59.
 
 ## Deploying and testing
