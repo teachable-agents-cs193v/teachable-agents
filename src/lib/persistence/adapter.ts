@@ -1,3 +1,4 @@
+import type { LearnerMode } from "../aiData";
 import type { TeachingSession } from "../types";
 
 /**
@@ -11,8 +12,8 @@ export interface SessionStore {
   readonly id: string;
   listSessions(): Promise<TeachingSession[]>;
   getSession(id: string): Promise<TeachingSession | null>;
-  /** Creates and stores a new in-progress session. The store chooses its ID. */
-  createSession(topicId: string, preExplanation?: string): Promise<TeachingSession>;
+  /** Creates and stores a new in-progress session. The store chooses its ID. `mode`: AI Pip or the offline demo. */
+  createSession(topicId: string, preExplanation?: string, mode?: LearnerMode): Promise<TeachingSession>;
   /** Updates an existing session. Database-backed stores never create one here. */
   saveSession(session: TeachingSession): Promise<void>;
   deleteSession(id: string): Promise<void>;

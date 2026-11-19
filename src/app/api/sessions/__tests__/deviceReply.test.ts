@@ -56,7 +56,7 @@ async function as<T>(cookie: string | undefined, fn: () => Promise<T>): Promise<
 
 async function newSession(topicId: string) {
   const cookie = sessionCookie((await signUp()).res);
-  const res = await as(cookie, () => create(post({ topicId })));
+  const res = await as(cookie, () => create(post({ topicId, learner: "ai" })));
   return { cookie, session: (await res.json()) as TeachingSession };
 }
 

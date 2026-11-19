@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, inputClasses } from "@/components/ui/Field";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { TeachingTips } from "@/components/TeachingTips";
-import { ArrowLeftIcon, ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { AiChoiceCard } from "@/components/AiChoiceCard";
+import type { LearnerMode } from "@/lib/aiData";
+import { ArrowLeftIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 
 export function MeetLearner({ topic }: { topic: Topic }) {
   const router = useRouter();
@@ -21,7 +23,7 @@ export function MeetLearner({ topic }: { topic: Topic }) {
   const Icon = SUBJECT_ICONS[topic.subjectId];
   const [preExplanation, setPreExplanation] = useState("");
   const [active, setActive] = useState<TeachingSession | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [starting, setStarting] = useState<LearnerMode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,15 +40,15 @@ export function MeetLearner({ topic }: { topic: Topic }) {
     };
   }, [topic.id]);
 
-  const begin = async () => {
-    setStarting(true);
+  const begin = async (mode: LearnerMode) => {
+    setStarting(mode);
     setError(null);
     try {
-      const session = await startSession(topic.id, preExplanation);
+      const session = await startSession(topic.id, preExplanation, mode);
       router.push(`/teach/${session.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start the session.");
-      setStarting(false);
+      setStarting(null);
     }
   };
 
@@ -131,17 +133,15 @@ export function MeetLearner({ topic }: { topic: Topic }) {
             </p>
           )}
 
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-            <Button size="lg" onClick={begin} disabled={starting}>
-              {starting ? "Setting up…" : active ? "Start a new session" : "Start Teaching"}
-              <ArrowRightIcon className="size-5" />
-            </Button>
-            {active && (
-              <Button href={`/teach/${active.id}`} variant="outline" size="lg">
+          <AiChoiceCard onChoose={(mode) => void begin(mode)} starting={starting} />
+          {active && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <p className="text-sm text-muted">Or pick up where you left off:</p>
+              <Button href={`/teach/${active.id}`} variant="outline" size="md">
                 Resume session from {formatDate(active.startedAt)}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
     </div>

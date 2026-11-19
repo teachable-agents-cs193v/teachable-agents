@@ -2,6 +2,7 @@ import "server-only";
 import type { LearnerReply, TeachingSession } from "../../types";
 import { ScriptedLearnerAdapter } from "../scriptedLearner";
 import { getTopic } from "../../topics";
+import { aiAllowed } from "../../aiData";
 import { llmConfigFromEnv, OpenAiCompatibleModel } from "./llm";
 import { getTopicPack } from "./packs";
 import { initialState, prepareDeviceTurn, runOpening, runTurn, type Models, type TeachableState } from "./pipeline";
@@ -31,6 +32,16 @@ export function modelsFromEnv(): Models | null {
   const assessor = llmConfigFromEnv(process.env, "assessor");
   const pip = llmConfigFromEnv(process.env, "pip");
   return assessor && pip ? { assessor: new OpenAiCompatibleModel(assessor), pip: new OpenAiCompatibleModel(pip) } : null;
+}
+
+/**
+ * The models a session may use: none unless its student chose AI Pip when starting it.
+ * The choice is the session's learnerId, set by the server at creation and never updated
+ * (src/lib/aiData.ts), so a session without consent can't reach the provider. Every model
+ * call for a session goes through learnerTurn or deviceTurn, which both start here.
+ */
+export function modelsFor(session: Pick<TeachingSession, "learnerId">, models: Models | null): Models | null {
+  return aiAllowed(session.learnerId) ? models : null;
 }
 
 /** Pip's notebook from stored learner state, or null when the session hasn't used the AI learner. */
@@ -87,7 +98,8 @@ function withoutAssessorText(assessment: Assessment | null): Assessment | null {
  * back to a reply written on the server.
  */
 export async function deviceTurn(args: { session: TeachingSession; storedState: unknown; models: Models | null }) {
-  const { session, storedState, models } = args;
+  const { session, storedState } = args;
+  const models = modelsFor(session, args.models);
   const pack = getTopicPack(session.topicId);
   if (!pack?.device || !models) return null;
   const last = session.messages.at(-1);
@@ -98,15 +110,16 @@ export async function deviceTurn(args: { session: TeachingSession; storedState: 
 
 /**
  * Pip's next message for a session, worked out on the server.
- * Uses the teachable pipeline when a model is configured and the topic has a
- * pack; otherwise the scripted demo learner, so the app always works.
+ * Uses the teachable pipeline when the student chose AI Pip for this session, a model is
+ * configured and the topic has a pack; otherwise the scripted demo learner, so the app always works.
  */
 export async function learnerTurn(args: {
   session: TeachingSession;
   storedState: unknown;
   models: Models | null;
 }): Promise<{ reply: LearnerReply; learner: LearnerInfo; state: TeachableState | null }> {
-  const { session, storedState, models } = args;
+  const { session, storedState } = args;
+  const models = modelsFor(session, args.models);
   const { messages } = session;
   const last = messages.at(-1);
   if (last && last.role !== "student") throw new TurnConflictError();

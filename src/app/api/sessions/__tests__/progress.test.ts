@@ -89,7 +89,7 @@ async function taughtSession() {
     }),
   ]);
   const cookie = sessionCookie((await signUp()).res);
-  const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC })))).json()) as TeachingSession;
+  const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC, learner: "ai" })))).json()) as TeachingSession;
   expect((await as(cookie, () => read(turn(jsonRequest("POST", {}), ctx(session.id))))).status).toBe(200);
   const first = await say(cookie, session.id, "msg_1", "Independent means they don't affect each other.");
   const second = await say(cookie, session.id, "msg_2", "Heads and a six can both happen, and heads doesn't change the 1/6.");
@@ -168,7 +168,7 @@ describe.skipIf(!hasDb)("GET /api/sessions/[id]/progress", () => {
 
   it("is null for the scripted learner, and 404 for another user's session", async () => {
     const cookie = sessionCookie((await signUp()).res);
-    const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC })))).json()) as TeachingSession;
+    const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC, learner: "ai" })))).json()) as TeachingSession;
     await as(cookie, () => turn(jsonRequest("POST", {}), ctx(session.id)));
     expect(await progressOf(cookie, session.id)).toEqual({ status: 200, body: { progress: null } });
 
@@ -222,7 +222,7 @@ describe.skipIf(!hasDb)("GET /api/sessions/[id]/review", () => {
 
   it("is null for the scripted learner, and 404 for another user's session", async () => {
     const cookie = sessionCookie((await signUp()).res);
-    const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC })))).json()) as TeachingSession;
+    const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC, learner: "ai" })))).json()) as TeachingSession;
     await end(cookie, session);
     expect(await reviewOf(cookie, session.id)).toEqual({ status: 200, body: { review: null } });
 

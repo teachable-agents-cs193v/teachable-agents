@@ -1,4 +1,4 @@
-import { PIP } from "../learner";
+import { learnerIdFor, type LearnerMode } from "../aiData";
 import type { TeachingSession } from "../types";
 import { createId, nowIso } from "../utils";
 import type { SessionStore } from "./adapter";
@@ -79,11 +79,11 @@ export class LocalStorageSessionStore implements SessionStore {
     return this.readAll().find((s) => s.id === id) ?? null;
   }
 
-  async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+  async createSession(topicId: string, preExplanation?: string, mode: LearnerMode = "offline"): Promise<TeachingSession> {
     const session: TeachingSession = {
       id: createId("session"),
       topicId,
-      learnerId: PIP.id,
+      learnerId: learnerIdFor(mode),
       status: "in_progress",
       startedAt: nowIso(),
       messages: [],
