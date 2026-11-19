@@ -40,7 +40,7 @@ async function failSaves(page: Page, failing: number[]) {
 
 async function startTeaching(page: Page) {
   await page.goto("/learner/independence-vs-mutual-exclusivity");
-  await page.getByRole("button", { name: "Use the offline demo Pip instead" }).click();
+  await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
   await expect(log.locator("[data-role=learner]")).toHaveCount(1, { timeout: 10_000 });

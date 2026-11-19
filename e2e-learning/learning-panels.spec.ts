@@ -18,7 +18,7 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   });
 
   await page.goto("/learner/independence-vs-mutual-exclusivity");
-  await page.getByRole("button", { name: "Teach AI Pip" }).click();
+  await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
   await expect(log.locator("[data-role=learner]").first()).toContainText("Fake Pip reply");

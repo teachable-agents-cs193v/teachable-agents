@@ -52,7 +52,7 @@ test("logged out, picking a topic asks you to log in, then opens that topic", as
   await expect(page).toHaveURL(/\/login\?next=%2Flearner%2Findependence-vs-mutual-exclusivity$/);
   await logIn(page, email);
   await expect(page).toHaveURL(/\/learner\/independence-vs-mutual-exclusivity$/);
-  await expect(page.getByRole("button", { name: "Teach AI Pip" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start teaching Pip" })).toBeVisible();
 });
 
 test("after logging out, going back doesn't show the protected page", async ({ page, baseURL }) => {

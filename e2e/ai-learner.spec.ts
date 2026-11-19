@@ -21,7 +21,7 @@ test("a student teaches the AI learner and the session survives a reload", async
   });
 
   await page.goto("/learner/independence-vs-mutual-exclusivity");
-  await page.getByRole("button", { name: "Teach AI Pip" }).click();
+  await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
 
   const log = page.getByRole("log");
