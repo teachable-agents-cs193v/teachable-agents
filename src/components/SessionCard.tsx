@@ -5,12 +5,15 @@ import { accentStyle, getSubject } from "@/lib/subjects";
 import { formatDate, formatDuration, summarizeSession } from "@/lib/utils";
 import { SUBJECT_ICONS, ArrowRightIcon } from "./illustrations/Icons";
 import { Badge } from "./ui/Badge";
+import { DeleteSessionButton } from "./DeleteSessionButton";
 
 interface SessionCardProps {
   session: TeachingSession;
+  /** Shows a Delete button (with a confirmation); called once the session is deleted. */
+  onDeleted?: () => void;
 }
 
-export function SessionCard({ session }: SessionCardProps) {
+export function SessionCard({ session, onDeleted }: SessionCardProps) {
   const topic = getTopic(session.topicId);
   const summary = summarizeSession(session);
   const inProgress = session.status === "in_progress";
@@ -28,7 +31,7 @@ export function SessionCard({ session }: SessionCardProps) {
   const Icon = SUBJECT_ICONS[topic.subjectId];
 
   return (
-    <article style={accentStyle(subject)} className="card flex flex-col gap-4 p-5 transition-all hover:shadow-lift sm:flex-row sm:items-center">
+    <article style={accentStyle(subject)} className="card flex flex-col gap-4 p-5 transition-all hover:shadow-lift sm:flex-row sm:flex-wrap sm:items-center">
       <span className="grid size-12 shrink-0 place-items-center rounded-2xl accent-bg accent-text">
         <Icon className="size-6" />
       </span>
@@ -50,6 +53,7 @@ export function SessionCard({ session }: SessionCardProps) {
         {inProgress ? "Resume" : "Review"}
         <ArrowRightIcon className="size-4" />
       </Link>
+      {onDeleted && <DeleteSessionButton sessionId={session.id} topicTitle={topic.title} onDeleted={onDeleted} />}
     </article>
   );
 }
