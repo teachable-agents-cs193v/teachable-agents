@@ -33,6 +33,22 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
 4. **Get the pooled string to Chase privately.** The best option is to give Chase his own access to the database project, so he copies it himself. Otherwise use a password-manager share.
 5. **Tell Anahi and Chase "migration applied"**, saying which database and branch, but **not** the connection string.
 
+### Encrypting teaching sessions (`0003_encrypt_teaching_sessions.sql`)
+
+This changes the transcript, pre-explanation and reflection columns to hold encrypted values. **The order matters**, because the old code can't read the new columns and the new code can't write the old ones:
+
+1. **Chase:** set `ENCRYPTION_MASTER_KEY` in Vercel for every environment (see Part B, step 2).
+2. **Betania:** check the session count, then apply the migration. ⚠️ **It deletes every existing teaching session** (plaintext test data that can't go into the encrypted columns). Users and logins are kept.
+   ```bash
+   read -rs DB_DIRECT_URL && export DB_DIRECT_URL
+   psql "$DB_DIRECT_URL" -c 'select count(*) from teaching_sessions'   # make sure these are all test sessions
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -c '\d teaching_sessions'                     # expect messages/reflection as text, and *_encrypted checks
+   unset DB_DIRECT_URL
+   ```
+3. **Merge and deploy right after.** Between steps 2 and 3, saving and loading sessions on the live site fails, so do them together.
+4. **Smoke test:** start a session on the live site, send a message, log out and back in, and check that it's still there. In the Neon SQL Editor, `select left(messages, 3) from teaching_sessions` should show `v1:`.
+
 ## Part B: Chase (Vercel)
 
 **Before you start:** Betania has said the migration is applied, and you have the **pooled** connection string through a private channel.
@@ -79,4 +95,6 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
 | Error page on every request | `BETTER_AUTH_SECRET` missing or shorter than 32 characters, or `DATABASE_URL` missing. Fix it in Vercel and redeploy. |
 | "We couldn't check this password against known data breaches…" | The breach-check service was briefly unreachable, so signup refused, as designed. Retry in a minute. |
 | Login fails only on preview URLs | Known open concern: previews may need extra trusted origins. Test on the production domain. |
+| Sessions fail to save or load right after an encryption deploy | `ENCRYPTION_MASTER_KEY` missing or malformed in that environment (Vercel logs show `EncryptionKeyError`), or `0003` not applied yet. |
+| `Could not decrypt …` in the Vercel logs | The value was encrypted with a different `ENCRYPTION_MASTER_KEY`, such as a regenerated or another environment's key. Restore the original key from the backup; never generate a new one over existing data. |
 | `psql: … already exists` while applying the migration | It was applied before. Check the tables with `\dt` instead of re-running it. |
