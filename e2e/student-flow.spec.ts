@@ -16,21 +16,26 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await page.getByRole("link", { name: "New teaching session" }).click();
   await expect(page).toHaveURL(/\/topics$/);
 
-  // Filter, then pick the featured probability topic.
-  await page.getByRole("button", { name: /^Probability/ }).click();
-  await expect(page.getByRole("heading", { name: "Independence vs. Mutual Exclusivity" })).toBeVisible();
+  // Only Derivatives is offered, so there's nothing to filter; the hidden topics aren't listed.
+  await expect(page.getByRole("heading", { name: "Derivatives" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Filter topics by subject" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Independence vs. Mutual Exclusivity" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Supply and Demand" })).toHaveCount(0);
   await page.getByRole("link", { name: "Teach This Topic" }).click();
 
-  // Meet Pip, write a pre-session explanation, start.
-  await expect(page).toHaveURL(/\/learner\/independence-vs-mutual-exclusivity$/);
-  await page.getByLabel(/Before you start/).fill("Independent means the events don't affect each other.");
-  await page.getByRole("button", { name: "Start Teaching" }).click();
+  // Meet Pip, write a pre-session explanation, start (one button: there's no choice to make).
+  await expect(page).toHaveURL(/\/learner\/derivatives$/);
+  await page.getByLabel(/Before you start/).fill("A derivative is how fast something changes.");
+  await expect(page.getByRole("button", { name: /offline/i })).toHaveCount(0);
+  await page.getByRole("button", { name: "Start teaching Pip" }).click();
 
-  // Workspace: Pip opens the conversation.
+  // Workspace: no model is configured here, so the scripted Pip answers and the line says so.
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
-  await expect(log.locator("[data-role=learner]").first()).toContainText("independent", { timeout: 10_000 });
+  await expect(log.locator("[data-role=learner]").first()).toContainText("Derivatives are brand new to me", { timeout: 10_000 });
+  await expect(page.getByTestId("data-line")).toHaveAttribute("data-mode", "scripted");
+  await expect(page.getByTestId("data-line")).toContainText("The AI isn't available right now");
+  await expect(page.getByTestId("data-line")).toContainText("Nothing you type leaves our server");
 
   const composer = page.getByLabel("Your message to Pip");
   const sendButton = page.getByRole("button", { name: "Send message" });
@@ -38,11 +43,11 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   // Empty submissions are blocked.
   await expect(sendButton).toBeDisabled();
 
-  // Send a reply with Enter; Pip answers with the scripted misconception.
-  await composer.fill("Independence means one event happening doesn't change the probability of the other.");
+  // Send a reply with Enter; Pip answers with its next scripted question.
+  await composer.fill("A derivative is the rate of change: the slope of the curve at one point.");
   await composer.press("Enter");
   await expect(log.locator("[data-role=student]")).toHaveCount(1);
-  await expect(log.locator("[data-role=learner]").nth(1)).toContainText("can't happen at the same time", { timeout: 10_000 });
+  await expect(log.locator("[data-role=learner]").nth(1)).toContainText("how fast something changes", { timeout: 10_000 });
 
   // Shift+Enter inserts a newline instead of sending.
   await composer.fill("Line one");
@@ -62,17 +67,17 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await page.getByRole("button", { name: "Yes, end session" }).click();
   await expect(page).toHaveURL(/\/reflect\/session_/);
   await expect(page.getByRole("heading", { name: "You taught Pip." })).toBeVisible();
-  await expect(page.getByText("Independent events cannot happen at the same time")).toBeVisible();
+  await expect(page.getByText("The derivative of a product is the product of the derivatives")).toBeVisible();
 
   // Validation blocks an empty reflection.
   await page.getByRole("button", { name: "Save reflection" }).click();
   await expect(page.getByRole("alert").first()).toBeVisible();
 
-  await page.getByLabel("Explain one key concept without notes").fill("Check whether P(A and B) equals P(A) times P(B).");
+  await page.getByLabel("Explain one key concept without notes").fill("The product rule: (fg)' = f'g + fg'.");
   await page.getByRole("radio", { name: /4/ }).check({ force: true });
-  await page.getByLabel("What was hardest to explain?").fill("Why mutually exclusive events are dependent.");
+  await page.getByLabel("What was hardest to explain?").fill("Why the chain rule needs the inner derivative.");
   await page.getByRole("radio", { name: "Yes" }).check({ force: true });
-  await page.getByPlaceholder("What did you notice?").fill("I had never checked independence with numbers before.");
+  await page.getByPlaceholder("What did you notice?").fill("I had never checked the product rule on x times x before.");
   await page.getByRole("button", { name: "Save reflection" }).click();
   await expect(page.getByRole("heading", { name: "Reflection saved." })).toBeVisible();
 
@@ -83,7 +88,54 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await page.getByRole("link", { name: "Review" }).first().click();
   await expect(page).toHaveURL(/\/sessions\/session_/);
   await expect(page.getByRole("heading", { name: "Transcript" })).toBeVisible();
-  await expect(page.getByText("Check whether P(A and B) equals P(A) times P(B).")).toBeVisible();
+  await expect(page.getByText("The product rule: (fg)' = f'g + fg'.")).toBeVisible();
+
+  // Delete it from the dashboard: the confirmation says what goes, and "Keep it" keeps it.
+  await page.goto("/sessions");
+  const remove = page.getByRole("button", { name: "Delete session: Derivatives" });
+  await remove.click();
+  const confirm = page.getByRole("group", { name: "Confirm deleting the session" });
+  await expect(confirm).toContainText("permanently removes it from our database");
+  await confirm.getByRole("button", { name: "Keep it" }).click();
+  await expect(confirm).toHaveCount(0);
+  await remove.click();
+  await page.getByRole("button", { name: "Yes, delete it" }).click();
+  await expect(page.getByRole("heading", { name: "Nothing taught yet." })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Nothing taught yet." })).toBeVisible();
+});
+
+test("the start screen says where your words go, every time, with one way to start", async ({ page }) => {
+  await page.goto("/learner/derivatives");
+  const card = page.getByTestId("ai-notice");
+  await expect(card.getByRole("heading", { name: "Where your words go" })).toBeVisible();
+  // The card is open: what's sent, what isn't, what Groq does, what we keep.
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeVisible();
+  await expect(card.getByText(/name, email and account aren.t sent/)).toBeVisible();
+  await expect(card.getByText(/up to 30 days/)).toBeVisible();
+  await expect(card.getByText(/delete it from My sessions/)).toBeVisible();
+  await expect(card.getByRole("button")).toHaveCount(1);
+  await expect(card.getByRole("button", { name: "Start teaching Pip" })).toBeVisible();
+  await expect(card).not.toContainText(/offline|demo/i);
+
+  // Full details: the complete explanation, with Groq's own pages.
+  await card.getByRole("link", { name: "Full details" }).click();
+  await expect(page).toHaveURL(/\/ai-data$/);
+  await expect(page.getByRole("heading", { name: "What we never send" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Groq Services Agreement/ })).toHaveAttribute("href", "https://console.groq.com/docs/legal/services-agreement");
+  await expect(page.getByRole("main")).not.toContainText(/offline|your choice/i);
+
+  // After a session, the next start shows the whole notice again (nothing is remembered).
+  await page.goto("/learner/derivatives");
+  await card.getByRole("button", { name: "Start teaching Pip" }).click();
+  await expect(page).toHaveURL(/\/teach\/session_/);
+  await page.goto("/learner/derivatives");
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeVisible();
+  await expect(card.getByRole("link", { name: "Full details" })).toBeVisible();
+  // It can be folded down to its one line, which still says where messages go.
+  await card.getByText(/What.s sent, and what isn.t/).click();
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeHidden();
+  await expect(card).toContainText("your messages in this session go to Groq");
 });
 
 test("the sessions dashboard shows an empty state for new students", async ({ page }) => {
@@ -96,6 +148,22 @@ test("unknown topics and sessions get friendly not-found states", async ({ page 
   await page.goto("/learner/not-a-topic");
   await expect(page.getByRole("heading", { name: /isn.t in the library/ })).toBeVisible();
 
+  // A hidden topic can't be started from its old link either.
+  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await expect(page.getByRole("heading", { name: /isn.t in the library/ })).toBeVisible();
+
   await page.goto("/teach/session_missing");
   await expect(page.getByRole("heading", { name: /couldn.t find that session/ })).toBeVisible();
+});
+
+test("the notice card and the details page fit a phone screen", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  for (const path of ["/learner/derivatives", "/ai-data"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  }
+  await page.goto("/learner/derivatives");
+  const box = await page.getByRole("button", { name: "Start teaching Pip" }).boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(360);
 });

@@ -4,6 +4,7 @@
 // lists scoped to the current user.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPool } from "@/lib/db/pool";
+import { decryptField } from "@/lib/crypto/fieldEncryption";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import type { TeachingSession } from "@/lib/types";
 import { GET as list, POST as create } from "../route";
@@ -22,7 +23,7 @@ beforeEach(() => {
   requestCookie = undefined;
 });
 
-const TOPIC = "independence-vs-mutual-exclusivity";
+const TOPIC = "derivatives";
 const URL_BASE = "http://localhost:3000/api/sessions";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonRequest = (method: string, body: unknown, url = URL_BASE) =>
@@ -45,8 +46,8 @@ async function startSession(cookie: string, body: Record<string, unknown> = { to
 }
 
 const update = (s: TeachingSession, changes: Partial<TeachingSession> = {}) => {
-  const { status, endedAt, messages, learnerCursor, reflection } = { ...s, ...changes };
-  return { status, endedAt, messages, learnerCursor, reflection };
+  const { status, endedAt, reflection } = { ...s, ...changes };
+  return { status, endedAt, reflection };
 };
 
 describe("logged out", () => {
@@ -87,8 +88,6 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const s = await startSession(cookie);
     const bad = [
       { ...update(s), status: "archived" },
-      { ...update(s), learnerCursor: -1 },
-      { ...update(s), messages: [{ id: "m", role: "teacher", text: "hi", createdAt: new Date().toISOString() }] },
       { ...update(s), reflection: { confidence: 9 } },
     ];
     for (const body of bad) expect((await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)))).status).toBe(400);
@@ -98,19 +97,16 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
   it("answers 400 for values the database can't store", async () => {
     const cookie = await newStudent();
     const s = await startSession(cookie);
-    const msg = (createdAt: string) => [{ id: "m", role: "student", text: "hi", createdAt }];
     const bad = [
-      { ...update(s), learnerCursor: 3_000_000_000 },
       { ...update(s), status: "completed", endedAt: "2026" },
       { ...update(s), status: "completed", endedAt: "1000" },
       { ...update(s), status: "completed", endedAt: "2026-02-30T00:00:00Z" },
-      { ...update(s), messages: msg("2026") },
     ];
     for (const body of bad) {
       const res = await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)));
       expect(res.status, JSON.stringify(body)).toBe(400);
     }
-    const ok = { ...update(s), status: "completed", endedAt: "2026-11-12T02:48:47+05:30", learnerCursor: 2_147_483_647 };
+    const ok = { ...update(s), status: "completed", endedAt: "2026-11-12T02:48:47+05:30" };
     expect((await as(cookie, () => put(jsonRequest("PUT", ok), ctx(s.id)))).status).toBe(200);
   });
 
@@ -129,15 +125,35 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     expect((await as(cookie, () => put(declared, ctx(s.id)))).status).toBe(413);
   });
 
-  it("saves a transcript and reflection, and finds the active session for a topic", async () => {
+  it("never lets PUT change the transcript: only the turn route writes it", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    const forged = { id: "msg_1", role: "learner" as const, text: "Pip never said this", createdAt: new Date().toISOString() };
+    const res = await as(cookie, () => put(jsonRequest("PUT", { ...update(s), messages: [forged], learnerCursor: 7 }), ctx(s.id)));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id: s.id, messages: [], learnerCursor: 0 });
+    const { rows } = await getPool().query("select user_id, messages, learner_cursor from teaching_sessions where id = $1", [s.id]);
+    expect(JSON.parse(decryptField(rows[0].user_id, "messages", rows[0].messages))).toEqual([]);
+    expect(rows[0].learner_cursor).toBe(0);
+  });
+
+  it("never reopens a completed session (its review is open), but still saves it again", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    const endedAt = new Date().toISOString();
+    expect((await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt })), ctx(s.id)))).status).toBe(200);
+    const reopen = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "in_progress", endedAt: undefined })), ctx(s.id)));
+    expect(reopen.status).toBe(409);
+    const again = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt })), ctx(s.id)));
+    expect(again.status).toBe(200);
+    const { rows } = await getPool().query("select status from teaching_sessions where id = $1", [s.id]);
+    expect(rows[0].status).toBe("completed");
+  });
+
+  it("saves the reflection, and finds the active session for a topic", async () => {
     const cookie = await newStudent();
     const older = await startSession(cookie);
     const newer = await startSession(cookie);
-    const message = { id: "msg_1", role: "student" as const, text: "Independent means…", createdAt: new Date().toISOString() };
-
-    const res = await as(cookie, () => put(jsonRequest("PUT", update(newer, { messages: [message], learnerCursor: 1 })), ctx(newer.id)));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ id: newer.id, messages: [message], learnerCursor: 1 });
 
     const active = await as(cookie, () => list(new Request(`${URL_BASE}?activeTopicId=${TOPIC}`)));
     expect((await active.json()).sessions.map((s: TeachingSession) => s.id)).toEqual([newer.id]);
@@ -153,7 +169,7 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
       submittedAt: new Date().toISOString(),
     };
     const endedAt = new Date().toISOString();
-    await as(cookie, () => put(jsonRequest("PUT", update(newer, { status: "completed", endedAt, messages: [message], learnerCursor: 1, reflection: reflection as TeachingSession["reflection"] })), ctx(newer.id)));
+    await as(cookie, () => put(jsonRequest("PUT", update(newer, { status: "completed", endedAt, reflection: reflection as TeachingSession["reflection"] })), ctx(newer.id)));
     const saved = (await (await as(cookie, () => get(new Request(`${URL_BASE}/${newer.id}`), ctx(newer.id)))).json()) as TeachingSession;
     expect(saved).toMatchObject({ status: "completed", endedAt, reflection });
 
@@ -168,7 +184,7 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const before = (await getPool().query("select * from teaching_sessions where id = $1", [aliceSession.id])).rows[0];
 
     const id = aliceSession.id;
-    const hijack = update(aliceSession, { status: "completed", messages: [] , learnerCursor: 99 });
+    const hijack = { ...update(aliceSession, { status: "completed" }), messages: [], learnerCursor: 99 };
     expect((await as(bob, () => get(new Request(`${URL_BASE}/${id}`), ctx(id)))).status).toBe(404);
     expect((await as(bob, () => put(jsonRequest("PUT", hijack), ctx(id)))).status).toBe(404);
     expect((await as(bob, () => remove(new Request(`${URL_BASE}/${id}`, { method: "DELETE" }), ctx(id)))).status).toBe(404);
@@ -200,7 +216,37 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
   });
 });
 
-// Checkpoint 2: user-written session data is encrypted at rest (db/migrations/0003_*).
+// Only Derivatives is offered; the other topics are hidden (src/lib/topics.ts).
+describe.skipIf(!hasDb)("hidden topics", () => {
+  const HIDDEN = "independence-vs-mutual-exclusivity";
+
+  it("can't start a new session", async () => {
+    const cookie = await newStudent();
+    const res = await as(cookie, () => create(jsonRequest("POST", { topicId: HIDDEN })));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "That lesson isn't available right now." });
+    expect((await (await as(cookie, () => list(new Request(URL_BASE)))).json()).sessions).toEqual([]);
+  });
+
+  it("an existing session on one still lists, opens, saves and deletes", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    // A session started before the topic was hidden.
+    await getPool().query("update teaching_sessions set topic_id = $2 where id = $1", [s.id, HIDDEN]);
+
+    const listed = (await (await as(cookie, () => list(new Request(URL_BASE)))).json()).sessions as TeachingSession[];
+    expect(listed.map((x) => [x.id, x.topicId])).toEqual([[s.id, HIDDEN]]);
+    const opened = await as(cookie, () => get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id)));
+    expect(opened.status).toBe(200);
+    expect((await opened.json()).topicId).toBe(HIDDEN);
+    const ended = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt: new Date().toISOString() })), ctx(s.id)));
+    expect(ended.status).toBe(200);
+    expect((await as(cookie, () => remove(new Request(`${URL_BASE}/${s.id}`, { method: "DELETE" }), ctx(s.id)))).status).toBe(204);
+  });
+});
+
+// User-written session data is encrypted at rest (db/migrations/0003_*, 0004_*).
+// The transcript and learner state written by /turn are covered in turn.test.ts.
 describe.skipIf(!hasDb)("encryption at rest", () => {
   const raw = async (id: string) =>
     (await getPool().query("select messages, pre_explanation, reflection from teaching_sessions where id = $1", [id])).rows[0];
@@ -210,7 +256,6 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
     const s = await startSession(cookie, { topicId: TOPIC, preExplanation: "my secret guess" });
     expect((await raw(s.id)).messages).toMatch(/^v1:/); // even the empty transcript
 
-    const message = { id: "msg_1", role: "student" as const, text: "my secret transcript", createdAt: new Date().toISOString() };
     const reflection = {
       postExplanation: "my secret reflection",
       confidence: 3,
@@ -221,7 +266,7 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
       freeReflection: "",
       submittedAt: new Date().toISOString(),
     };
-    const body = update(s, { status: "completed", endedAt: new Date().toISOString(), messages: [message], learnerCursor: 1, reflection: reflection as TeachingSession["reflection"] });
+    const body = update(s, { status: "completed", endedAt: new Date().toISOString(), reflection: reflection as TeachingSession["reflection"] });
     expect((await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)))).status).toBe(200);
 
     const row = await raw(s.id);
@@ -230,7 +275,7 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
       expect(value).not.toContain("secret");
     }
     const saved = (await (await as(cookie, () => get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id)))).json()) as TeachingSession;
-    expect(saved).toMatchObject({ messages: [message], preExplanation: "my secret guess", reflection });
+    expect(saved).toMatchObject({ messages: [], preExplanation: "my secret guess", reflection });
   });
 
   it("can't decrypt a value copied into another user's session", async () => {
@@ -255,6 +300,7 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
       "update teaching_sessions set messages = '[]' where id = $1",
       "update teaching_sessions set pre_explanation = 'plain notes' where id = $1",
       `update teaching_sessions set reflection = '{"confidence":3}' where id = $1`,
+      `update teaching_sessions set learner_state = '{"notebook":{}}' where id = $1`,
     ]) {
       await expect(getPool().query(sql, [s.id]), sql).rejects.toThrow(/violates check constraint/);
     }

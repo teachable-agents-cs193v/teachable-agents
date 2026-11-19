@@ -1,4 +1,4 @@
-import { PIP } from "../learner";
+import { AI_LEARNER_ID } from "../aiData";
 import type { TeachingSession } from "../types";
 import { createId, nowIso } from "../utils";
 import type { SessionStore } from "./adapter";
@@ -83,7 +83,7 @@ export class LocalStorageSessionStore implements SessionStore {
     const session: TeachingSession = {
       id: createId("session"),
       topicId,
-      learnerId: PIP.id,
+      learnerId: AI_LEARNER_ID,
       status: "in_progress",
       startedAt: nowIso(),
       messages: [],

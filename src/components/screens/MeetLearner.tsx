@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, inputClasses } from "@/components/ui/Field";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { TeachingTips } from "@/components/TeachingTips";
-import { ArrowLeftIcon, ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { AiNoticeCard } from "@/components/AiNoticeCard";
+import { ArrowLeftIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 import { studentMessage } from "@/lib/errors";
 
 export function MeetLearner({ topic }: { topic: Topic }) {
@@ -132,17 +133,15 @@ export function MeetLearner({ topic }: { topic: Topic }) {
             </p>
           )}
 
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-            <Button size="lg" onClick={begin} disabled={starting}>
-              {starting ? "Setting up…" : active ? "Start a new session" : "Start Teaching"}
-              <ArrowRightIcon className="size-5" />
-            </Button>
-            {active && (
-              <Button href={`/teach/${active.id}`} variant="outline" size="lg">
+          <AiNoticeCard onStart={() => void begin()} starting={starting} label={active ? "Start a new session" : undefined} />
+          {active && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <p className="text-sm text-muted">Or pick up where you left off:</p>
+              <Button href={`/teach/${active.id}`} variant="outline" size="md">
                 Resume session from {formatDate(active.startedAt)}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
     </div>

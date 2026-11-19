@@ -13,9 +13,14 @@
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "db:generate": "npx --yes auth@1.7.14 generate --config db/auth-schema.config.ts --output db/migrations/0001_auth.sql --yes",
-    "test:e2e:auth": "playwright test --config playwright.auth.config.ts"
+    "test:e2e:auth": "playwright test --config playwright.auth.config.ts",
+    "test:e2e:learning": "playwright test --config playwright.learning.config.ts",
+    "eval": "node eval/run.mjs",
+    "dev:local": "node scripts/dev-local.mts",
+    "eval:catalog": "node eval/sets/catalog.mjs"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "0.2.86",
     "better-auth": "1.7.14",
     "next": "16.4.6",
     "pg": "8.23.1",

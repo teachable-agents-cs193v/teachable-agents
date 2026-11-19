@@ -3,7 +3,7 @@ import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { DoodleSprout } from "@/components/illustrations/Doodles";
-import { TOPICS } from "@/lib/topics";
+import { visibleTopics } from "@/lib/topics";
 import type { AuthUser, TeachingSession } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
@@ -15,7 +15,8 @@ import { formatDate } from "@/lib/utils";
 export function ProfileScreen({ user, sessions }: { user: AuthUser; sessions: TeachingSession[] }) {
   const completed = sessions.filter((s) => s.status === "completed");
   const active = sessions.filter((s) => s.status === "in_progress");
-  const lessonsTaught = new Set(completed.map((s) => s.topicId)).size;
+  const offered = visibleTopics();
+  const lessonsTaught = offered.filter((t) => completed.some((s) => s.topicId === t.id)).length;
   const first = sessions.length ? sessions.reduce((a, b) => (a.startedAt < b.startedAt ? a : b)) : null;
 
   return (
@@ -63,7 +64,7 @@ export function ProfileScreen({ user, sessions }: { user: AuthUser; sessions: Te
             <dd className="font-display text-lg font-semibold text-forest tabular-nums">{active.length}</dd>
             <dt className="text-charcoal/85">Lessons taught</dt>
             <dd className="font-display text-lg font-semibold text-forest tabular-nums">
-              {lessonsTaught} of {TOPICS.length}
+              {lessonsTaught} of {offered.length}
             </dd>
             <dt className="text-charcoal/85">First session</dt>
             <dd className="font-display text-lg font-semibold text-forest">{first ? formatDate(first.startedAt) : "Not yet"}</dd>

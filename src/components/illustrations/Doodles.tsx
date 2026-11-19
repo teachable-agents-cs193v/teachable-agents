@@ -272,10 +272,22 @@ export function DoodleMind(props: DoodleProps) {
   );
 }
 
+/** Calculus: a curve with its tangent line touching at one point. */
+export function DoodleTangent(props: DoodleProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8.4 38.6c7.6-1.6 12-7.4 15.6-15.2 3-6.6 7.4-12.4 15.6-14" />
+      <path d="M9.6 31.2 38.8 15.6" stroke={LEAF} />
+      <circle cx="23.6" cy="23.4" r="2.2" fill={BUTTER} />
+    </Svg>
+  );
+}
+
 export const SUBJECT_DOODLES = {
   probability: DoodleDice,
   economics: DoodleCurve,
   biology: DoodleLeaf,
   "computer-science": DoodleBraces,
   psychology: DoodleMind,
+  calculus: DoodleTangent,
 } as const;

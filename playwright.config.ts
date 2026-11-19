@@ -6,7 +6,7 @@ const PORT = 3210;
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
-  // next dev compiles each route on first visit (several seconds); #38 moves the suite to a production build.
+  // next dev compiles each page and route on first visit, which can take several seconds.
   expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0,

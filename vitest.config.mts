@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "eval/**/*.test.ts"],
     environment: "node",
     // A throwaway Postgres for database tests (see the file for details).
     globalSetup: ["./test/postgres.globalSetup.ts"],

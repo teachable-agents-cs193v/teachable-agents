@@ -7,7 +7,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /** Pages anyone may see. Add a page here ONLY if it shows no student data. */
-const PUBLIC_PAGES = new Set(["/", "/about", "/topics", "/login", "/signup"]);
+// /ai-data: what happens to your data with AI Pip, readable before signing up.
+const PUBLIC_PAGES = new Set(["/", "/about", "/topics", "/login", "/signup", "/ai-data"]);
 
 const APP_DIR = path.resolve(__dirname, "../../../app");
 

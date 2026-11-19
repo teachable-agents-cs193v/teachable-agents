@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { DETAILS_HREF } from "@/lib/aiData";
 import { getSessionStore } from "@/lib/persistence";
 import type { TeachingSession } from "@/lib/types";
 import { SessionCard } from "@/components/SessionCard";
@@ -54,6 +56,7 @@ export function SessionsDashboard() {
     );
   }
 
+  const removed = (id: string) => () => setSessions((all) => all?.filter((s) => s.id !== id) ?? null);
   const active = sessions.filter((s) => s.status === "in_progress");
   const completed = sessions.filter((s) => s.status === "completed");
 
@@ -64,7 +67,7 @@ export function SessionsDashboard() {
           <h2 id="active-title" className="font-display text-2xl text-charcoal">In progress</h2>
           <div className="flex flex-col gap-3">
             {active.map((s) => (
-              <SessionCard key={s.id} session={s} />
+              <SessionCard key={s.id} session={s} onDeleted={removed(s.id)} />
             ))}
           </div>
         </section>
@@ -78,13 +81,14 @@ export function SessionsDashboard() {
         ) : (
           <div className="flex flex-col gap-3">
             {completed.map((s) => (
-              <SessionCard key={s.id} session={s} />
+              <SessionCard key={s.id} session={s} onDeleted={removed(s.id)} />
             ))}
           </div>
         )}
       </section>
       <p className="text-xs text-muted">
-        Sessions are saved to your account, so they follow you to any browser you log in from.
+        Sessions are saved to your account, so they follow you to any browser you log in from. Delete removes a
+        session from our database for good. <Link href={DETAILS_HREF} className="focus-ring rounded font-medium text-forest underline underline-offset-2">What we keep, and what goes to the AI</Link>
       </p>
     </div>
   );

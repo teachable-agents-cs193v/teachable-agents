@@ -11,6 +11,7 @@ export const SUBJECTS: Subject[] = [
   { id: "biology", label: "Biology", accent: "#3f7558", accentSoft: "#e0ecd9" },
   { id: "computer-science", label: "Computer Science", accent: "#2d5f4b", accentSoft: "#dbe9e1" },
   { id: "psychology", label: "Psychology", accent: "#5f8f6c", accentSoft: "#e7f0e4" },
+  { id: "calculus", label: "Calculus", accent: "#2f6a52", accentSoft: "#e1ede4" },
 ];
 
 export function getSubject(id: SubjectId): Subject {

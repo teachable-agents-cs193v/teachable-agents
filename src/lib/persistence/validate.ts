@@ -1,11 +1,13 @@
-import type { ChatMessage, SessionReflection, TeachingSession } from "../types";
+import type { SessionReflection, TeachingSession } from "../types";
 
 /**
- * The fields of a session the browser may change. Everything else (id, owner,
- * topic, learner, start time, pre-session explanation) is fixed when the server
- * creates the session.
+ * The fields of a session the browser may change: ending it, and the reflection.
+ * Everything else is fixed when the server creates the session (id, owner, topic,
+ * learner, start time, pre-session explanation) or written only by the server's
+ * turn route (the transcript and the learner's cursor), so the stored record is
+ * what actually happened.
  */
-export type SessionUpdate = Pick<TeachingSession, "status" | "endedAt" | "messages" | "learnerCursor" | "reflection">;
+export type SessionUpdate = Pick<TeachingSession, "status" | "endedAt" | "reflection">;
 
 /** Rejects request bodies bigger than this (a long transcript is well under it). */
 export const MAX_BODY_BYTES = 1_000_000;
@@ -16,9 +18,6 @@ type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isText = (v: unknown, max = MAX_TEXT): v is string => typeof v === "string" && v.length <= max;
-const optionalText = (v: unknown, max = MAX_TEXT) => v === undefined || isText(v, max);
-/** Postgres `integer` max; learner_cursor is an integer column. */
-export const MAX_LEARNER_CURSOR = 2_147_483_647;
 
 // Full ISO-8601 timestamps only, e.g. 2026-11-12T02:48:47.123Z or ...+05:30. Date.parse
 // alone accepts "2026" and rolls 2026-02-30 over to March, both of which Postgres rejects.
@@ -32,21 +31,6 @@ const isIsoDate = (v: unknown): v is string => {
 };
 const oneOf = <T extends string>(v: unknown, options: readonly T[]): v is T => options.includes(v as T);
 
-const ROLES = ["student", "learner"] as const;
-const KINDS = ["opening", "question", "misconception", "realization", "closing"] as const;
-const MOODS = ["curious", "confused", "happy", "thinking"] as const;
-
-function parseMessage(v: unknown): ChatMessage | null {
-  if (!isObject(v)) return null;
-  const { id, role, text, createdAt, kind, concept, misconception, mood } = v;
-  if (!isText(id, 200) || !oneOf(role, ROLES) || !isText(text) || !isIsoDate(createdAt)) return null;
-  if (kind !== undefined && !oneOf(kind, KINDS)) return null;
-  if (mood !== undefined && !oneOf(mood, MOODS)) return null;
-  if (!optionalText(concept, 500) || !optionalText(misconception, 500)) return null;
-  // Rebuild the object so unknown keys are dropped rather than stored.
-  return { id, role, text, createdAt, kind, concept, misconception, mood } as ChatMessage;
-}
-
 function parseReflection(v: unknown): SessionReflection | null {
   if (!isObject(v)) return null;
   const { postExplanation, confidence, hardestToExplain, misconceptionReflection, noticedGap, noticedGapDetail, freeReflection, submittedAt } = v;
@@ -56,18 +40,68 @@ function parseReflection(v: unknown): SessionReflection | null {
   return { postExplanation, confidence, hardestToExplain, misconceptionReflection, noticedGap, noticedGapDetail, freeReflection, submittedAt } as SessionReflection;
 }
 
-/** Checks a PUT /api/sessions/[id] body. Unknown fields (id, userId, topicId, ...) are ignored. */
+/** Longest student message for one turn. Keeps one message from using up a free tier's per-minute token limit. */
+export const MAX_TURN_TEXT = 1_500;
+
+const CLIENT_MESSAGE_ID = /^[\w-]{1,100}$/;
+
+/**
+ * Body of POST /api/sessions/[id]/turn.
+ * - `{ clientMessageId, text }`: the student's new message. The browser picks the id,
+ *   so retrying the same request never adds the message twice.
+ * - `{}`: answer whatever is waiting (Pip's opening, or a student message Pip hasn't answered).
+ */
+export interface TurnRequest {
+  clientMessageId: string | null;
+  text: string | null;
+  /** "device": the browser will write Pip's reply on the student's device (POST /device-reply). */
+  replyOn: "server" | "device";
+}
+
+export function parseTurnRequest(body: unknown): Result<TurnRequest> {
+  if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
+  const { clientMessageId, text } = body;
+  if (body.replyOn !== undefined && body.replyOn !== "server" && body.replyOn !== "device") return { ok: false, error: "Invalid replyOn." };
+  const replyOn = body.replyOn === "device" ? "device" : "server";
+  if (clientMessageId === undefined && text === undefined) return { ok: true, value: { clientMessageId: null, text: null, replyOn } };
+  if (typeof clientMessageId !== "string" || !CLIENT_MESSAGE_ID.test(clientMessageId)) {
+    return { ok: false, error: "Invalid clientMessageId." };
+  }
+  if (typeof text !== "string" || !text.trim()) return { ok: false, error: "Message can't be empty." };
+  if (text.trim().length > MAX_TURN_TEXT) return { ok: false, error: `Messages can be at most ${MAX_TURN_TEXT} characters.` };
+  return { ok: true, value: { clientMessageId, text: text.trim(), replyOn } };
+}
+
+/** The longest reply a device may save for Pip (its model is asked for one to three sentences). */
+export const MAX_DEVICE_REPLY = 1_200;
+
+export interface DeviceReply {
+  /** The student message this answers, or null for Pip's opening. */
+  forMessageId: string | null;
+  text: string;
+}
+
+/** Checks a POST /api/sessions/[id]/device-reply body. */
+export function parseDeviceReply(body: unknown): Result<DeviceReply> {
+  if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
+  const { forMessageId, text } = body;
+  if (forMessageId !== null && (typeof forMessageId !== "string" || !CLIENT_MESSAGE_ID.test(forMessageId))) {
+    return { ok: false, error: "Invalid forMessageId." };
+  }
+  if (typeof text !== "string" || !text.trim()) return { ok: false, error: "Reply can't be empty." };
+  if (text.trim().length > MAX_DEVICE_REPLY) return { ok: false, error: `Replies can be at most ${MAX_DEVICE_REPLY} characters.` };
+  return { ok: true, value: { forMessageId, text: text.trim() } };
+}
+
+/**
+ * Checks a PUT /api/sessions/[id] body. Unknown fields (id, userId, topicId, and
+ * the transcript: messages, learnerCursor) are ignored, never stored.
+ */
 export function parseSessionUpdate(body: unknown): Result<SessionUpdate> {
   if (!isObject(body)) return { ok: false, error: "Expected a JSON object." };
-  const { status, endedAt, messages, learnerCursor, reflection } = body;
+  const { status, endedAt, reflection } = body;
   if (!oneOf(status, ["in_progress", "completed"] as const)) return { ok: false, error: "Invalid status." };
   if (endedAt !== undefined && endedAt !== null && !isIsoDate(endedAt)) return { ok: false, error: "Invalid endedAt." };
-  if (!Number.isInteger(learnerCursor) || (learnerCursor as number) < 0 || (learnerCursor as number) > MAX_LEARNER_CURSOR) {
-    return { ok: false, error: "Invalid learnerCursor." };
-  }
-  if (!Array.isArray(messages) || messages.length > 1_000) return { ok: false, error: "Invalid messages." };
-  const parsedMessages = messages.map(parseMessage);
-  if (parsedMessages.some((m) => m === null)) return { ok: false, error: "Invalid message." };
   let parsedReflection: SessionReflection | undefined;
   if (reflection !== undefined && reflection !== null) {
     const r = parseReflection(reflection);
@@ -79,8 +113,6 @@ export function parseSessionUpdate(body: unknown): Result<SessionUpdate> {
     value: {
       status,
       endedAt: (endedAt as string | null | undefined) ?? undefined,
-      messages: parsedMessages as ChatMessage[],
-      learnerCursor: learnerCursor as number,
       reflection: parsedReflection,
     },
   };

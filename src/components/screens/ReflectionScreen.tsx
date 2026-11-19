@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SessionReflection, TeachingSession } from "@/lib/types";
+import type { LearningReview, SessionReflection, TeachingSession } from "@/lib/types";
 import { getSessionStore } from "@/lib/persistence";
 import { getTopic } from "@/lib/topics";
 import { accentStyle, getSubject } from "@/lib/subjects";
 import { formatDate, formatDuration, summarizeSession } from "@/lib/utils";
-import { PIP } from "@/lib/learner";
+import { getLearningReview, PIP } from "@/lib/learner";
+import { LearningReviewPanel } from "@/components/learning/LearningReviewPanel";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ReflectionForm } from "@/components/ReflectionForm";
@@ -21,6 +22,7 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
   const [saved, setSaved] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [review, setReview] = useState<LearningReview | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +32,12 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
         if (cancelled) return;
         setSession(found);
         setLoading(false);
+        // The review is extra: without it (scripted learner, or it failed to load) the page still works.
+        if (found?.status === "completed") {
+          void getLearningReview(found.id).then((loaded) => {
+            if (!cancelled) setReview(loaded);
+          });
+        }
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -142,50 +150,54 @@ export function ReflectionScreen({ sessionId }: { sessionId: string }) {
         These are counts of what happened. They are not a score, and they do not measure what you learned.
       </p>
 
-      {/* Scripted content */}
-      <section className="grid gap-6 md:grid-cols-2" aria-label="What Pip brought up">
-        <div className="card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
-              <SparkleIcon className="size-5 text-leaf" /> Concepts discussed
-            </h2>
-            <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
+      {/* AI learner: what the teaching changed, from the review endpoint. The scripted learner has no review. */}
+      {review ? (
+        <LearningReviewPanel review={review} learnerName={PIP.name} />
+      ) : (
+        <section className="grid gap-6 md:grid-cols-2" aria-label="What Pip brought up">
+          <div className="card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
+                <SparkleIcon className="size-5 text-leaf" /> Concepts discussed
+              </h2>
+              <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
+            </div>
+            {summary.concepts.length ? (
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {summary.concepts.map((c) => (
+                  <li key={c} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-charcoal/90">
+                    <CheckIcon className="mt-1 size-4 shrink-0 accent-text" /> {c}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-muted">Pip did not get far enough to raise a concept this time.</p>
+            )}
           </div>
-          {summary.concepts.length ? (
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {summary.concepts.map((c) => (
-                <li key={c} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-charcoal/90">
-                  <CheckIcon className="mt-1 size-4 shrink-0 accent-text" /> {c}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-muted">Pip did not get far enough to raise a concept this time.</p>
-          )}
-        </div>
-        <div className="card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
-              <QuestionIcon className="size-5 text-leaf" /> Misconceptions {PIP.name} introduced
-            </h2>
-            <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
+          <div className="card p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-display text-2xl text-charcoal">
+                <QuestionIcon className="size-5 text-leaf" /> Misconceptions {PIP.name} introduced
+              </h2>
+              <Badge tone="neutral">From {PIP.name}&rsquo;s script</Badge>
+            </div>
+            {summary.misconceptions.length ? (
+              <ul className="mt-4 flex flex-col gap-2.5">
+                {summary.misconceptions.map((m) => (
+                  <li key={m} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-charcoal/90">
+                    <span className="mt-2 size-2 shrink-0 rounded-full bg-leaf" aria-hidden="true" /> {m}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-muted">No misconceptions came up before the session ended.</p>
+            )}
+            <p className="mt-4 text-xs leading-relaxed text-muted">
+              Whether each one was fully corrected is for you to judge in the reflection below. The app does not grade your explanations.
+            </p>
           </div>
-          {summary.misconceptions.length ? (
-            <ul className="mt-4 flex flex-col gap-2.5">
-              {summary.misconceptions.map((m) => (
-                <li key={m} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-charcoal/90">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-leaf" aria-hidden="true" /> {m}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-4 text-sm text-muted">No misconceptions came up before the session ended.</p>
-          )}
-          <p className="mt-4 text-xs leading-relaxed text-muted">
-            Whether each one was fully corrected is for you to judge in the reflection below. The app does not grade your explanations.
-          </p>
-        </div>
-      </section>
+        </section>
+      )}
 
       {session.preExplanation && (
         <section className="card paper-lines p-6 pl-14" aria-label="Your explanation before the session">

@@ -59,9 +59,9 @@ export function Hero() {
 
 /** The plan written on the page. Decorative: the real lesson is in the library. */
 const PLAN = [
-  { text: "Coins and dice first", done: true },
-  { text: "Multiplication rule", done: true },
-  { text: "Exclusive \u2260 independent", done: false },
+  { text: "Slope first, then rules", done: true },
+  { text: "Power rule", done: true },
+  { text: "(fg)\u2032 \u2260 f\u2032g\u2032", done: false },
 ];
 
 /**
@@ -80,7 +80,7 @@ function LessonPlanScene() {
           Lesson plan
         </span>
         <p className="font-mono text-xs uppercase leading-[1.9rem] tracking-[0.12em] text-leaf">Today, teach Pip</p>
-        <p className="font-display text-lg font-semibold leading-[1.9rem] text-forest sm:text-xl">Independence vs. mutual exclusivity</p>
+        <p className="font-display text-lg font-semibold leading-[1.9rem] text-forest sm:text-xl">Derivatives</p>
         <ul className="mt-[1.9rem] flex flex-col">
           {PLAN.map((item) => (
             <li key={item.text} className="flex items-center gap-2 text-[13px] leading-[1.9rem] text-charcoal sm:gap-2.5 sm:text-[15px]">

@@ -9,7 +9,7 @@ import { DoodleBookOpen, DoodleStar, DoodleTicks, SUBJECT_DOODLES } from "@/comp
 import { ArrowRightIcon } from "@/components/illustrations/Icons";
 import { firstName } from "@/lib/auth/displayName";
 import { accentStyle, getSubject } from "@/lib/subjects";
-import { TOPICS, getTopic } from "@/lib/topics";
+import { getTopic, visibleTopics } from "@/lib/topics";
 import type { AuthUser, TeachingSession, Topic } from "@/lib/types";
 import { formatDate, summarizeSession } from "@/lib/utils";
 
@@ -39,7 +39,8 @@ export function DashboardScreen({ user, sessions }: DashboardScreenProps) {
 }
 
 function WelcomeBand({ name, firstTime, active, completed }: { name: string; firstTime: boolean; active: number; completed: TeachingSession[] }) {
-  const lessonsTaught = new Set(completed.map((s) => s.topicId)).size;
+  const offered = visibleTopics();
+  const lessonsTaught = offered.filter((t) => completed.some((s) => s.topicId === t.id)).length;
   return (
     <section className="border-b border-sage bg-mint" aria-labelledby="welcome-title">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -80,7 +81,7 @@ function WelcomeBand({ name, firstTime, active, completed }: { name: string; fir
           <dl className="paper-lines grid w-full max-w-xs grid-cols-[1fr_auto] gap-x-6 rounded-2xl border border-sage-deep py-3 pl-14 pr-5 shadow-soft lg:justify-self-center">
             <Stat label="Sessions completed" value={completed.length} />
             <Stat label="In progress" value={active} />
-            <Stat label="Lessons taught" value={`${lessonsTaught} of ${TOPICS.length}`} />
+            <Stat label="Lessons taught" value={`${lessonsTaught} of ${offered.length}`} />
           </dl>
         )}
       </div>
@@ -190,7 +191,7 @@ function LessonPicker({ sessions }: { sessions: TeachingSession[] }) {
         </Button>
       </div>
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TOPICS.map((topic) => (
+        {visibleTopics().map((topic) => (
           <li key={topic.id}>
             <LessonCard
               topic={topic}

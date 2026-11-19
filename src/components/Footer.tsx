@@ -7,6 +7,7 @@ const links = [
   { href: "/#how-it-works", label: "How it works" },
   { href: "/about", label: "About" },
   { href: "/sessions", label: "My sessions" },
+  { href: "/ai-data", label: "Your data and AI" },
 ];
 
 export function Footer() {

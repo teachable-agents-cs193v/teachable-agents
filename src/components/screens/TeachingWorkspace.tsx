@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTeachingSession } from "@/lib/hooks/useTeachingSession";
-import { PIP, getLearnerAdapter } from "@/lib/learner";
+import { PIP } from "@/lib/learner";
 import { accentStyle, getSubject } from "@/lib/subjects";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,12 @@ import { SessionProgress } from "@/components/SessionProgress";
 import { Logo } from "@/components/Logo";
 import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowRightIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { LearningStrip } from "@/components/learning/LearningStrip";
+import { MisconceptionTracker } from "@/components/learning/MisconceptionTracker";
+import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
+import { DevicePipPanel } from "@/components/learning/DevicePipPanel";
+import { LearningFlags } from "@/components/learning/LearningFlags";
+import { DataLine } from "@/components/DataLine";
 import { studentMessage } from "@/lib/errors";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
@@ -50,7 +56,6 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const studentMessages = session.messages.filter((m) => m.role === "student").length;
   const learnerMessages = session.messages.length - studentMessages;
   const latestMood = [...session.messages].reverse().find((m) => m.role === "learner")?.mood ?? "curious";
-  const adapter = getLearnerAdapter();
 
   const endSession = async () => {
     setEnding(true);
@@ -79,15 +84,35 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted">Learning objective</p>
         <p className="mt-1 text-[15px] leading-relaxed text-charcoal/90">{topic.learningObjective}</p>
       </section>
+      {state.device && <DevicePipPanel device={state.device} learnerName={PIP.name} />}
+      {state.pipBeliefs && <PipBeliefsPanel beliefs={state.pipBeliefs} learnerName={PIP.name} />}
+      {state.progress && (
+        <MisconceptionTracker
+          misconceptions={state.progress.misconceptions}
+          wrongTaught={state.progress.wrongTaught}
+          studentTurns={state.progress.studentTurns}
+          learnerName={PIP.name}
+        />
+      )}
       <TeachingTips tips={topic.teachingTips} compact />
-      <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
-        <p className="font-semibold text-charcoal/80">Demo mode</p>
-        <p className="mt-1">
-          {PIP.name} is powered by the <em>{adapter.displayName}</em>. It follows a fixed sequence of
-          questions and mistakes for this topic and does not interpret your exact wording. The real AI
-          learner will replace this adapter.
-        </p>
-      </section>
+      {state.learnerInfo?.id === "teachable" ? (
+        <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
+          <p className="font-semibold text-charcoal/80">AI learner</p>
+          <p className="mt-1">
+            {PIP.name} only knows what you teach it in this session, including any mistakes. It is an AI
+            and can still misunderstand you, so check what it says back.
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-dashed border-line bg-paper/60 p-4 text-xs leading-relaxed text-muted">
+          <p className="font-semibold text-charcoal/80">Demo mode</p>
+          <p className="mt-1">
+            {PIP.name} is powered by the <em>{state.learnerInfo?.displayName ?? "Scripted demo learner"}</em>. It
+            follows a fixed sequence of questions and mistakes for this topic and does not interpret your exact
+            wording.
+          </p>
+        </section>
+      )}
     </div>
   );
 
@@ -121,7 +146,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                 aria-controls="workspace-sidebar"
                 onClick={() => setSidebarOpen((v) => !v)}
               >
-                {sidebarOpen ? "Hide tips" : "Tips"}
+                {state.pipBeliefs ? (sidebarOpen ? "Hide notes" : `${PIP.name}'s notes`) : sidebarOpen ? "Hide tips" : "Tips"}
               </button>
               {confirmEnd ? (
                 <div className="flex items-center gap-2 animate-pop" role="group" aria-label="Confirm ending the session">
@@ -203,8 +228,13 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
                   autoFocus
                   placeholder={learnerStatus === "thinking" ? `${PIP.name} is thinking…` : undefined}
                 />
+                <DataLine learnerId={session.learnerId} answeredBy={state.learnerInfo?.id ?? null} className="mt-2" />
               </div>
             </div>
+            {state.progress && state.progress.flags.length > 0 && learnerStatus === "idle" && (
+              <LearningFlags flags={state.progress.flags} learnerName={PIP.name} className="mt-3" />
+            )}
+            {state.progress && <LearningStrip progress={state.progress} learnerName={PIP.name} className="mt-3" />}
             <SessionProgress
               startedAt={session.startedAt}
               studentMessages={studentMessages}
@@ -215,7 +245,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
 
           {/* Desktop sidebar */}
           <aside className="hidden lg:block" aria-label="Session details">
-            <div className="sticky top-24">{sidebar}</div>
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-2">{sidebar}</div>
           </aside>
         </div>
       </div>

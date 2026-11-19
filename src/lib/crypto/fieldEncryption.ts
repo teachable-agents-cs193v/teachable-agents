@@ -50,7 +50,7 @@ export const ENCRYPTED_FIELDS = [
   "messages", // the transcript
   "pre_explanation",
   "reflection",
-  // teaching_sessions.learner_state, from PR #42 (db/migrations/0003_learner_state.sql)
+  // teaching_sessions.learner_state, Pip's notebook (db/migrations/0004_learner_state.sql)
   "learner_state",
 ] as const;
 

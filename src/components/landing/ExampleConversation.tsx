@@ -11,11 +11,11 @@ import type { LearnerMood } from "@/lib/types";
  * not a recording of a real student and is labelled as an example on screen.
  */
 const PIP_MISCONCEPTION =
-  "Wait, I'm a little confused. If two events are independent, doesn't that mean they can't happen at the same time?";
+  "Wait, I'm a little confused. For two things multiplied together, don't you just multiply their derivatives?";
 const STUDENT_EXPLANATION =
-  "Not quite. Independence means one event happening doesn't change the probability of the other. Flip a coin and roll a die: heads doesn't make a six any more or less likely, but they can both happen on the same turn.";
+  "Not quite. Try x times x: that's x squared, and its derivative is 2x. Multiplying the derivatives gives 1 times 1, which is 1. The product rule is f\u2032g + fg\u2032.";
 const PIP_REPLY =
-  "Oh! So independent events can happen together. And mutually exclusive ones can't, which actually makes them dependent?";
+  "Oh! So for x times sin x I'd get sin x + x cos x, not just cos x?";
 
 function PipTurn({ mood, label, children }: { mood: LearnerMood; label: string; children: string }) {
   return (
@@ -50,14 +50,14 @@ export function ExampleConversation() {
         <SectionHeading
           eyebrow="An example"
           title={<span id="example-title">What teaching Pip looks like.</span>}
-          description="A short exchange from a probability lesson, written to show the shape of a session. It isn't a recording of a real student."
+          description="A short exchange from the derivatives lesson, written to show the shape of a session. It isn't a recording of a real student."
         />
 
         <div className="card relative flex flex-col gap-6 p-5 sm:p-7" aria-label="Example teaching exchange">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
             <div className="flex flex-col">
               <span className="type-label text-muted">Lesson</span>
-              <span className="font-display text-lg font-semibold text-forest">Independence vs. mutual exclusivity</span>
+              <span className="font-display text-lg font-semibold text-forest">Derivatives</span>
             </div>
             <Badge tone="butter" mono>
               Example
@@ -79,13 +79,13 @@ export function ExampleConversation() {
               <div className="flex flex-col gap-1">
                 <dt className="type-label text-muted">Pip believed</dt>
                 <dd className="text-charcoal/70 line-through decoration-leaf decoration-2">
-                  Independent events can&rsquo;t happen at the same time.
+                  The derivative of a product is the product of the derivatives.
                 </dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="type-label text-leaf">Pip now believes</dt>
                 <dd className="font-medium text-charcoal">
-                  Independent events can happen together. Independence is about one not changing the other&rsquo;s probability.
+                  (fg)&prime; = f&prime;g + fg&prime;. Multiplying the derivatives fails even for x times x.
                 </dd>
               </div>
             </dl>

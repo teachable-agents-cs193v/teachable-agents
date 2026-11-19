@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signUpTestStudent } from "../e2e-auth/signIn";
+import { visibleTopics } from "../src/lib/topics";
 
 // The logged-in home: a first-time student sees how to start, and a returning
 // one sees their unfinished and recent sessions, built from real saved data.
@@ -36,18 +37,18 @@ test("a first-time student sees a welcome, how a session works, and one way to s
   await expect(page.getByRole("heading", { name: "Your first session" })).toBeVisible();
   await expect(page.getByRole("link", { name: "New teaching session" })).toHaveAttribute("href", "/topics");
   await expect(page.getByRole("heading", { name: /Continue learning|Recent sessions/ })).toHaveCount(0);
-  // Every lesson can be started from here.
-  await expect(page.getByRole("link", { name: "Teach this" })).toHaveCount(5);
+  // Every lesson on offer can be started from here (only Derivatives right now).
+  await expect(page.getByRole("link", { name: "Teach this" })).toHaveCount(visibleTopics().length);
   await page.getByRole("link", { name: "Teach this" }).first().click();
   await expect(page).toHaveURL(/\/learner\//);
   await expect(page.getByRole("button", { name: "Start Teaching" })).toBeVisible();
 });
 
 test("unfinished and completed sessions show up from saved data", async ({ page }) => {
-  const started = await createSession(page, "recursion");
+  const started = await createSession(page, "derivatives");
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: /^Welcome back, Test!/ })).toBeVisible();
-  const resume = page.getByRole("link", { name: /Continue your lesson Recursion/ });
+  const resume = page.getByRole("link", { name: /Continue your lesson Derivatives/ });
   await expect(resume).toHaveAttribute("href", `/teach/${started.id}`);
   await expect(page.getByText("No completed sessions yet.")).toBeVisible();
 
@@ -55,7 +56,7 @@ test("unfinished and completed sessions show up from saved data", async ({ page 
   await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Pick up where you left off." })).toHaveCount(0);
   const recent = page.getByRole("region", { name: "What you have taught so far." });
-  await expect(recent.getByRole("heading", { name: "Recursion" })).toBeVisible();
+  await expect(recent.getByRole("heading", { name: "Derivatives" })).toBeVisible();
   await expect(recent.getByRole("link", { name: "Review" })).toHaveAttribute("href", `/sessions/${started.id}`);
   await expect(page.getByText("Taught once")).toBeVisible();
   await expect(page.getByText("Sessions completed")).toBeVisible();

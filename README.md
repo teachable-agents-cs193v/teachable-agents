@@ -2,7 +2,7 @@
 
 **The best way to learn is to teach.** Protégé is the student-facing frontend for our Stanford CS193V final project, *Teachable Agents and the Protégé Effect*. Instead of being tutored by an AI, the student teaches **Pip**, a curious AI learner who asks questions, makes plausible mistakes, and needs the student to explain concepts and correct misunderstandings.
 
-This repository contains the complete frontend MVP with a **scripted demo learner**. Teaching sessions are now stored using PostgreSQL, allowing users to save and access their sessions across browsers. The real AI learner plugs in through the adapter interface described below.
+Pip is an **AI learner**: three model calls per student message (a note-taker, an assessor that holds the hidden answer key, and Pip's reply, which sees only Pip's notebook), so Pip only knows what the student taught it. Without a model configured, a scripted demo learner answers instead. Teaching sessions are stored in PostgreSQL per user, with the transcript, reflection and Pip's notebook encrypted at rest. The AI learner is described in [docs/AI_LEARNER.md](docs/AI_LEARNER.md).
 
 ## Running the app
 
@@ -41,6 +41,10 @@ Other scripts:
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest unit tests (learner script, persistence, summaries) |
 | `npm run test:e2e` | Playwright end-to-end test of the full student flow (starts its own dev server on port 3210) |
+| `npm run test:e2e:auth` | Playwright tests for signup, login, logout and protected pages |
+| `npm run test:e2e:learning` | Playwright tests of the AI learner's panels, with a local fake model (port 3220) |
+| `npm run eval` | Live evaluation of the AI learner against the real models, judged by Claude (`eval/README.md`; spends real quota, not part of CI) |
+| `npm run dev:local` | Dev server with a throwaway Postgres, for the on-device experiment (docs/AI_LEARNER.md) |
 | `npm run check` | lint + typecheck + unit tests + build |
 
 Playwright is pinned to the browser already installed in the course container. If you run the e2e tests elsewhere, run `npx playwright install chromium` once.
@@ -58,10 +62,14 @@ Students sign up with a name, email and password, then log in and out. The teach
    - `DATABASE_URL`: a Postgres database you control (local or a dev database, never production)
    - `BETTER_AUTH_SECRET`: generate one with `openssl rand -base64 32`
    - `BETTER_AUTH_URL`: `http://localhost:3000`
+   - `ENCRYPTION_MASTER_KEY`: generate one with `openssl rand -base64 32` (sessions can't be saved without it)
+   - Optional, for the AI learner: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (and `LLM_MODEL_ASSESSOR` / `LLM_MODEL_PIP`); see [docs/AI_LEARNER.md](docs/AI_LEARNER.md). Without them the scripted learner answers.
 3. Create the tables, in order:
    ```
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
    ```
 4. Run `npm install`, then `npm run dev`.
 
@@ -80,14 +88,16 @@ Run the [one-time secret-scanning setup](#one-time-setup-secret-scanning) above 
 
 See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs every variable in the table in [Part B, step 2](docs/DEPLOY.md#part-b-chase-vercel) set in Vercel. Never commit real values, and never prefix them with `NEXT_PUBLIC_`.
 
+**Deploying this version:** apply the migrations in number order before deploying the code. `0004_learner_state.sql` (Pip's notebook, encrypted) goes after `0003_encrypt_teaching_sessions.sql`; `ENCRYPTION_MASTER_KEY` must already be set in Vercel. The steps and smoke tests are in [docs/DEPLOY.md](docs/DEPLOY.md#pips-notebook-0004_learner_statesql). Leave the `DEVICE_*` experiment variables unset.
+
 ## The student flow
 
 1. **Landing** (`/`): the pitch, how it works, why Pip is different, a labelled example exchange. `/about` describes the project and the target user.
-2. **Topic library** (`/topics`): five topics across five subjects with filters. Probability is the featured demo with the longest script.
-3. **Meet your learner** (`/learner/[topicId]`): Pip introduces its confusion, three teaching tips, an optional *pre-session explanation* the student writes before teaching, and **Start Teaching** (or resume an in-progress session for that topic).
-4. **Teaching workspace** (`/teach/[sessionId]`): the conversation. Enter sends, Shift+Enter adds a newline, empty messages are blocked, Pip shows a thinking indicator, the view auto-scrolls, errors offer a retry, and the session survives a page refresh. **End Session** asks for confirmation.
-5. **Reflection** (`/reflect/[sessionId]`): observed counts (messages, duration, misconceptions raised), the concepts and misconceptions from Pip's script, the student's pre-session explanation, and a self-assessment form (explain a key concept without notes, confidence rating, hardest thing to explain, whether Pip's mistakes exposed uncertainty, whether the student noticed a gap). Nothing is scored.
-6. **Past sessions** (`/sessions`, `/sessions/[sessionId]`): dashboard with in-progress and completed sessions, an empty state, and a read-only review of each transcript with its reflection.
+2. **Topic library** (`/topics`): only **Derivatives** is offered right now, and it's the featured topic. The other five topics (probability, economics, biology, computer science, psychology) are hidden with `hidden: true` in `src/lib/topics.ts`: every list and picker uses `visibleTopics()`, `/learner/<hidden-id>` is a 404, and `POST /api/sessions` answers 404 for them. Their packs and scripts are kept, and existing sessions on them still open, can be reviewed and deleted. Remove the flag to offer a topic again. Subject filters show only when more than one subject has a topic.
+3. **Meet your learner** (`/learner/[topicId]`): Pip introduces its confusion, three teaching tips, an optional *pre-session explanation* the student writes before teaching, and the **Where your words go** notice: what is sent to the AI provider (Groq), what isn't, and what is kept, with a link to the full explanation at `/ai-data` (public). Its one button, **Start teaching Pip**, starts the session (or resumes an in-progress one for that topic).
+4. **Teaching workspace** (`/teach/[sessionId]`): the conversation. Each student message goes to `POST /api/sessions/[id]/turn`, which saves it, runs the three model calls and saves Pip's reply; the browser never writes the transcript. Beside the chat: **What Pip believes** (updated each turn, new beliefs highlighted), Pip's starting misconceptions once voiced and the wrong ideas the student taught, flags when the latest message voiced or taught a wrong idea (never the right answer), and a progress strip with one dot per message. A line under the message box says where messages go. Errors are friendly and offer a retry that never sends a message twice; when the provider is rate limited or out of quota, Pip says it's at capacity and roughly when to try again. Enter sends, Shift+Enter adds a newline, and the session survives a page refresh. **End Session** asks for confirmation.
+5. **Reflection** (`/reflect/[sessionId]`): observed counts (messages, duration), the end-of-session review for the AI learner (which misconceptions the student corrected, what they taught and whether it was right, message by message), the student's pre-session explanation, and a self-assessment form. Nothing is scored. For the scripted learner, the review is replaced by the concepts and misconceptions from Pip's script.
+6. **Past sessions** (`/sessions`, `/sessions/[sessionId]`): in-progress and completed sessions, an empty state, a read-only review of each transcript with its reflection, and **Delete** on every session. The logged-in home (`/dashboard`) and `/profile` show the same data.
 
 ## Project structure
 
@@ -95,8 +105,9 @@ See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs every variable in the tab
 src/
   app/                      Next.js App Router routes (thin wrappers around screens)
     (site)/layout.tsx       Shared shell: server-rendered nav + footer
-    (site)/(public)/        Landing (page.tsx), about/, topics/, login/, signup/
-    (site)/(app)/           learner/[topicId]/, reflect/[sessionId]/, sessions/ (login required)
+    (site)/(public)/        Landing (page.tsx), about/, ai-data/, topics/, login/, signup/
+    (site)/(app)/           dashboard/, profile/, learner/[topicId]/, reflect/[sessionId]/, sessions/ (login required)
+    api/sessions/           Session API: CRUD, and [id]/turn, pip, progress, review, device-reply for the AI learner
     (focus)/teach/[sessionId]/  Teaching workspace, with its own header
     globals.css             Design tokens (colors, fonts, type scale, utilities)
   components/
@@ -108,18 +119,24 @@ src/
     LearnerAvatar.tsx       Pip at avatar size, with moods
     ChatMessage.tsx, ChatComposer.tsx, ThinkingIndicator.tsx
     TopicCard.tsx, TopicFilters.tsx, TeachingTips.tsx, SessionProgress.tsx
-    ReflectionForm.tsx, SessionCard.tsx, ConversationPreview.tsx
+    learning/               The AI learner's panels: beliefs, misconception tracker, flags, progress strip, review
+    AiNoticeCard.tsx, DataLine.tsx   "Where your words go" notice and the line under the message box
+    ReflectionForm.tsx, SessionCard.tsx, DeleteSessionButton.tsx
     Footer.tsx, Logo.tsx
   lib/
     types.ts                Shared interfaces (Topic, ChatMessage, TeachingSession, LearnerReply, SessionReflection, ...)
-    topics.ts, subjects.ts  Mock topic catalogue and subject accent colors
+    topics.ts, subjects.ts  Topic catalogue (visibleTopics(): only Derivatives is offered) and subject accent colors
     scripts/                Scripted learner conversations, one file per topic
-    learner/                LearnerAdapter interface + ScriptedLearnerAdapter (Chase)
-    persistence/            SessionStore interface, HttpSessionStore, and PostgreSQL storage for teaching sessions (Betania)
+    learner/                The browser client for turns (httpLearner.ts), the scripted learner, and the
+                            AI learner in teachable/ (packs, prompts, pipeline, assessor boundary, progress)
+    crypto/                 Per-user, per-field encryption for stored session data
+    persistence/            SessionStore interface, HttpSessionStore, and PostgreSQL storage for teaching sessions
     hooks/useTeachingSession.ts   Session lifecycle used by the workspace
     sessions.ts, utils.ts   Session creation, summaries, formatting
     __tests__/              Vitest unit tests
-e2e/                        Playwright student-flow spec
+e2e/, e2e-auth/, e2e-learning/   Playwright specs (student flow, auth, the AI learner's panels with a fake model)
+eval/                       Live evaluation of the AI learner (npm run eval)
+db/migrations/              Hand-written SQL migrations, applied in number order
 ```
 
 ## Design system
@@ -138,16 +155,17 @@ The UI never talks to a model or a database directly. Each concern has one inter
 
 ### Chase · AI learner
 
-- Interface: `LearnerAdapter` in `src/lib/learner/adapter.ts` with `open(context)` and `respond(context)`. The context carries the topic, the full transcript, the student's latest message, and an opaque numeric `cursor` stored on the session.
-- Return a `LearnerReply` (`text`, `kind`, `mood`, optional `concept` / `misconception`, `isFinal`, `nextCursor`). `concept` and `misconception` feed the reflection page, so if the model can tag its turns, the reflection screen lights up automatically.
-- Swap it in `getLearnerAdapter()` in `src/lib/learner/index.ts`. Keep the API key server-side (for example a route handler under `src/app/api/learner/`) and have the adapter call it.
-- The workspace shows the adapter's `displayName` in a "Demo mode" note so it is always transparent which learner is running. Thinking delay currently lives inside the scripted adapter, not the UI.
+**Pip is now an AI learner.** See [`docs/AI_LEARNER.md`](docs/AI_LEARNER.md) for setup (a free Groq key in `.env.local`), how a turn works, and `npm run eval`. Without a key, the scripted learner described below still runs.
+
+- Which learner answers is chosen on the server, in `learnerTurn()` (`src/lib/learner/teachable/server.ts`): the AI learner when `LLM_*` is set and the topic has a pack, otherwise the scripted learner (`LearnerAdapter` in `src/lib/learner/adapter.ts`). The browser only calls `POST /api/sessions/[id]/turn` through `postTurn()`; the API key never leaves the server.
+- The workspace says which learner is running ("AI learner" or "Demo mode"), and the line under the message box says where messages go.
+- Pip's beliefs, progress and review come from `GET /api/sessions/[id]/pip`, `/progress` and `/review`, shaped for students (no answer-key text). See [`docs/AI_LEARNER.md`](docs/AI_LEARNER.md) for the shapes and the components that show them.
 
 ### Betania · persistence
 
-- Sessions live in Postgres, in `teaching_sessions` (`db/migrations/0002_teaching_sessions.sql`): one row per session, with `messages` and `reflection` as `jsonb`, owned by `user_id` (deleted with the user).
+- Sessions live in Postgres, in `teaching_sessions` (`db/migrations/0002_teaching_sessions.sql`): one row per session, owned by `user_id` (deleted with the user). `messages`, `pre_explanation` and `reflection` are encrypted per user (`0003_encrypt_teaching_sessions.sql`), and so is `learner_state`, Pip's notebook, which only the server reads (`0004_learner_state.sql`).
 - Browser: `getSessionStore()` in `src/lib/persistence/index.ts` returns `HttpSessionStore`, which calls `/api/sessions`. Components use the same `SessionStore` interface as before, plus `createSession(topicId, preExplanation?)`: the server picks every ID.
-- Server: `getUserSessionStore(user)` in `src/lib/persistence/server.ts` filters every query by the logged-in user. Routes call `requireApiUser()` first; another user's session answers 404, like a missing one. `PUT` bodies are checked by `parseSessionUpdate()` in `validate.ts` and may change only `status`, `endedAt`, `messages`, `learnerCursor` and `reflection`.
+- Server: `getUserSessionStore(user)` in `src/lib/persistence/server.ts` filters every query by the logged-in user. Routes call `requireApiUser()` first; another user's session answers 404, like a missing one. `PUT` bodies are checked by `parseSessionUpdate()` in `validate.ts` and may change only `status`, `endedAt` and `reflection`. The transcript is written only by the server, through `POST /api/sessions/[id]/turn` (see `docs/AI_LEARNER.md`), so the stored conversation is what actually happened.
 - Routes: `GET`/`POST /api/sessions` (`?activeTopicId=` finds the in-progress session for a topic) and `GET`/`PUT`/`DELETE /api/sessions/[id]`.
 - Tests run against the throwaway Postgres, which applies `db/migrations/0002+` via `test/appMigrations.ts`. `LocalStorageSessionStore` remains as the reference implementation.
 
@@ -161,8 +179,9 @@ The UI never talks to a model or a database directly. Each concern has one inter
 - [`docs/EVALUATION.md`](docs/EVALUATION.md): hypothesis, user-testing protocol, rubric, and how we separate engagement from learning
 - [`docs/CHECKPOINT_1.md`](docs/CHECKPOINT_1.md): Week 8/9 status, demo script, test results, integration plan
 - [`docs/AUTH.md`](docs/AUTH.md): authentication contract (helpers, protected routes, ownership rules, auth tables, env vars)
+- [`docs/AI_LEARNER.md`](docs/AI_LEARNER.md): the AI learner: setup, how a turn works, adding topics, evaluation
 
 ## What the demo deliberately does not do
 
-- Pip does not interpret the student's wording. The scripted adapter advances through a fixed sequence of questions and misconceptions regardless of the reply, and says so on screen.
+- The scripted fallback learner does not interpret the student's wording: it advances through a fixed sequence of questions and misconceptions regardless of the reply, and says so on screen. (The AI learner does respond to what was said.)
 - The reflection page reports counts and the student's own self-assessment. It does not compute accuracy, mastery, or learning gains.

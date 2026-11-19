@@ -24,6 +24,8 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    read -rs DB_DIRECT_URL && export DB_DIRECT_URL     # paste the DIRECT string; hidden, not saved to history
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
    psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions
    unset DB_DIRECT_URL
    ```
@@ -49,6 +51,19 @@ This changes the transcript, pre-explanation and reflection columns to hold encr
 3. **Merge and deploy right after.** Between steps 2 and 3, saving and loading sessions on the live site fails, so do them together.
 4. **Smoke test:** start a session on the live site, send a message, log out and back in, and check that it's still there. In the Neon SQL Editor, `select left(messages, 3) from teaching_sessions` should show `v1:`.
 
+### Pip's notebook (`0004_learner_state.sql`)
+
+Adds `teaching_sessions.learner_state` (Pip's notebook, per-turn history and the assessor's verdicts), stored encrypted like the transcript. It must be applied **after `0003`, and before deploying the code that uses it** (otherwise every AI turn fails with a missing column). It drops any earlier plaintext `learner_state` column first; `0003` has already deleted every session, so nothing is lost.
+
+```bash
+read -rs DB_DIRECT_URL && export DB_DIRECT_URL
+psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
+psql "$DB_DIRECT_URL" -c '\d teaching_sessions'   # expect learner_state as text, with teaching_sessions_learner_state_encrypted
+unset DB_DIRECT_URL
+```
+
+Smoke test after the deploy: send Pip a message on the live site, then in the Neon SQL Editor `select left(learner_state, 3) from teaching_sessions where learner_state is not null` should show `v1:`.
+
 ## Part B: Chase (Vercel)
 
 **Before you start:** Betania has said the migration is applied, and you have the **pooled** connection string through a private channel.
@@ -68,11 +83,17 @@ This changes the transcript, pre-explanation and reflection columns to hold encr
    | `BETTER_AUTH_SECRET` | output of step 1 | Mark **Sensitive**. A separate value per environment |
    | `BETTER_AUTH_URL` | `https://<your-production-domain>` | Exact, with no trailing slash |
    | `ENCRYPTION_MASTER_KEY` | output of `openssl rand -base64 32` | Mark **Sensitive**. A separate value per environment; see below |
+   | `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | The AI learner's provider (any OpenAI-compatible API) |
+   | `LLM_API_KEY` | the provider's API key | Mark **Sensitive**. Without it Pip falls back to the scripted learner |
+   | `LLM_MODEL` | `openai/gpt-oss-120b` | Default model for every role |
+   | `LLM_MODEL_ASSESSOR` | `openai/gpt-oss-120b` | Optional. The assessor sees the answer key; keep it on the strong model |
+   | `LLM_MODEL_PIP` | `openai/gpt-oss-20b` | Optional. The note-taker and Pip's reply; a separate quota on Groq |
 
    - **`ENCRYPTION_MASTER_KEY`:** each tier (development, preview, production) needs its own, generated with `openssl rand -base64 32`, with a backup kept outside the repo (for example in the team password manager), because losing it makes the encrypted data unreadable.
    - **Deploy order:** set `ENCRYPTION_MASTER_KEY` in Vercel for each tier **before** any code that calls `encryptField` is deployed to that tier. Otherwise every save fails on the live site.
    - Don't set `PWNED_PASSWORDS_API_URL`; it's for tests only.
    - Don't add a `NEXT_PUBLIC_` prefix to any of these.
+   - Don't set `DEVICE_PIP_EXPERIMENT`, `NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT` or `NEXT_PUBLIC_DEVICE_PIP_URL`: the on-device Pip is a local experiment and stays off in production.
 3. **Redeploy.** Variables only apply to new deployments: Deployments → latest `main` → **Redeploy**.
 4. **Smoke test on the live site**, with an email you control and a test-only password:
 
@@ -96,5 +117,7 @@ This changes the transcript, pre-explanation and reflection columns to hold encr
 | "We couldn't check this password against known data breaches…" | The breach-check service was briefly unreachable, so signup refused, as designed. Retry in a minute. |
 | Login fails only on preview URLs | Known open concern: previews may need extra trusted origins. Test on the production domain. |
 | Sessions fail to save or load right after an encryption deploy | `ENCRYPTION_MASTER_KEY` missing or malformed in that environment (Vercel logs show `EncryptionKeyError`), or `0003` not applied yet. |
+| Pip answers "having trouble thinking" on every message; logs show `column "learner_state" does not exist` or a type error on it | `0004_learner_state.sql` isn't applied. Apply it (after `0003`). |
+| Pip answers "at capacity" | The provider's rate limit or daily quota (Groq: per account and model). It resets on its own; see docs/AI_LEARNER.md, "Free-tier caveats". |
 | `Could not decrypt …` in the Vercel logs | The value was encrypted with a different `ENCRYPTION_MASTER_KEY`, such as a regenerated or another environment's key. Restore the original key from the backup; never generate a new one over existing data. |
 | `psql: … already exists` while applying the migration | It was applied before. Check the tables with `\dt` instead of re-running it. |

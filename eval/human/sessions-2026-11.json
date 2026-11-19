@@ -1,0 +1,1564 @@
+{
+  "about": "Real teaching sessions by a project team member, Derivatives topic, 2026-11-17/18, exported from a local throwaway database. Identities removed. Sessions marked pipWrittenOnDevice used the on-device model for Pip's replies (now an experiment); the rest used the server pipeline before the assessor/note-taker split.",
+  "sessions": [
+    {
+      "id": "human-1",
+      "topicId": "derivatives",
+      "date": "2026-11-17",
+      "pipWrittenOnDevice": true,
+      "messages": [
+        {
+          "role": "learner",
+          "text": "Hey! I'm Pip. I'm trying to get my head around derivatives, but the terms keep tripping me up. Where should I start?"
+        },
+        {
+          "role": "student",
+          "text": "hello"
+        },
+        {
+          "role": "learner",
+          "text": "Hi! I don't really know anything about derivatives yet. Where should we start?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "what is a derivitive"
+        },
+        {
+          "role": "learner",
+          "text": "My notes don't cover what a derivative actually means yet, so I'm not sure. Can you explain it?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "tell me what it is"
+        },
+        {
+          "role": "learner",
+          "text": "The derivative of a function is the first its derivative is found by the first principles, and the power comes down in front and drops by one.",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "no thats wrong"
+        },
+        {
+          "role": "learner",
+          "text": "I don't know where you got that from. Let me know!",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "a derivitive is the instant rate of change of a function"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say a derivative is the instant rate of change of a function. Does that mean it's just the slope of a function at a point?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "yeah but the instantaneous rate of change at that point"
+        },
+        {
+          "role": "learner",
+          "text": "My notes don't cover instantaneous rates of change yet, so I'm not sure. How does that part work?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "so at any point how fast the function is changing so localized slope"
+        },
+        {
+          "role": "learner",
+          "text": "I don't really know what a derivative means yet. Can you explain it?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "i just explained that part but you can measure this by certain rules so one is the power rule where the derivitive of x^2 is 2x do u see how we did that"
+        },
+        {
+          "role": "learner",
+          "text": "My notes say e to the x works like x squared: bring the x down in front and lower the power by one. They don't cover the power rule, so I can't do this one yet. How does that part work?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "thats not right, derivitive of e^x is e^x and the power rule is x^2 is 2x because the rule is you bring down the exponent in front of the variable in this case x and subtract 1 from the exponent so der(x^2) = 2x^(2-1)"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say e to the x works like x squared with the x coming down in front and the power comes down in front and drops by one. They don't cover e to the x with a function inside another, so I can't do that part yet. What's the derivative of e^x with a function inside another? My notes don't cover that, so I can't do it yet. How does that part work?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "so sorry what is the derivitive of x^2"
+        },
+        {
+          "role": "learner",
+          "text": "My notes say the power comes down in front and drops by one; and x^2 goes to 2x; and the power comes down in front and drops by one; and e^x comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one; and the power comes down in front and drops by one",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "whats the derivitive of x^3"
+        },
+        {
+          "role": "learner",
+          "text": "My notes say the power comes down in front and drops by one. So x^3 becomes 3x^2. Did I do that right?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "yeah that is right not bad kid"
+        },
+        {
+          "role": "learner",
+          "text": "I don't know anything about derivatives yet. How would you explain it?",
+          "generatedOn": "device"
+        }
+      ],
+      "finalBeliefs": [
+        {
+          "statement": "For two things multiplied together, I think you just multiply their derivatives: (f times g)' is f' times g'.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "When one function is inside another, like sin(3x), I think you take the derivative of the outside and leave the inside alone, so it's cos(3x).",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think e to the x works like x squared: bring the x down in front and lower the power by one.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "A derivative is the instant rate of change of a function",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think a derivative is the instantaneous rate of change of a function, which is the localized slope at a point.",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "The derivative of x^2 is 2x",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the derivative of e^x is e^x",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the power rule says the derivative of x^2 is 2x because you bring down the exponent and subtract one",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        }
+      ],
+      "history": [
+        {
+          "move": "admit_confusion",
+          "turn": 0,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_32f659ec-99cc-4408-a004-630e3245fd49",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 1,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_aae3f112-0768-4af3-80ad-4e412a5b8d07",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 2,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_198eb7a4-8b58-4395-a99b-a0e3d61f88c8",
+          "corrections": []
+        },
+        {
+          "move": "push_back",
+          "turn": 3,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_e8e257e4-073e-4a2b-af9a-1757b50b2402",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 4,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t4-1",
+              "conceptId": "derivative-meaning",
+              "statement": "A derivative is the instant rate of change of a function",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_a32e893d-e9c1-4e51-970f-80c99e91e2d7",
+          "corrections": []
+        },
+        {
+          "move": "ask_for_example",
+          "turn": 5,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_15686978-c4dc-474c-ba36-54f1ef39854c",
+          "corrections": []
+        },
+        {
+          "move": "ask_for_example",
+          "turn": 6,
+          "added": [
+            {
+              "status": "understood",
+              "beliefId": "t6-2",
+              "conceptId": "derivative-meaning",
+              "statement": "I think a derivative is the instantaneous rate of change of a function, which is the localized slope at a point.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [
+            {
+              "to": "understood",
+              "from": "heard",
+              "beliefId": "t4-1",
+              "statement": "A derivative is the instant rate of change of a function"
+            }
+          ],
+          "offTask": false,
+          "messageId": "msg_b0aad8c2-5d76-414f-be81-3a24d6598725",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 7,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t7-3",
+              "conceptId": "power-rule",
+              "statement": "The derivative of x^2 is 2x",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_39e57bea-efd8-4f2c-bbfe-71ca66e8ee30",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 8,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t8-4",
+              "conceptId": "basic-functions",
+              "statement": "I think the derivative of e^x is e^x",
+              "correctness": "correct"
+            },
+            {
+              "status": "understood",
+              "beliefId": "t8-5",
+              "conceptId": "power-rule",
+              "statement": "I think the power rule says the derivative of x^2 is 2x because you bring down the exponent and subtract one",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [
+            {
+              "to": "understood",
+              "from": "heard",
+              "beliefId": "t7-3",
+              "statement": "The derivative of x^2 is 2x"
+            }
+          ],
+          "offTask": false,
+          "messageId": "msg_cc6062c0-0ffd-40a6-a0de-7282e708dba9",
+          "corrections": [
+            {
+              "accepted": false,
+              "targeted": true,
+              "explained": false,
+              "misconceptionId": "exp-as-power"
+            }
+          ]
+        },
+        {
+          "move": "redirect",
+          "turn": 9,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_b74dfad8-4cd5-426b-8694-77208ec5cfe9",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 10,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_be8f0b2f-f4e2-4e6f-9dba-eb9bbbb93272",
+          "corrections": []
+        },
+        {
+          "move": "ask_for_example",
+          "turn": 11,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_1422ac9f-8999-47fc-ad1e-6b44af3a6787",
+          "corrections": []
+        }
+      ]
+    },
+    {
+      "id": "human-2",
+      "topicId": "derivatives",
+      "date": "2026-11-17",
+      "pipWrittenOnDevice": true,
+      "messages": [
+        {
+          "role": "learner",
+          "text": "Hey! I'm Pip. I'm trying to get what a derivative is, but the words keep tripping me up. Where should we start?"
+        },
+        {
+          "role": "student",
+          "text": "idk what is a derivative"
+        },
+        {
+          "role": "learner",
+          "text": "I haven't learned what a derivative is yet. Where should we start?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "what is it"
+        },
+        {
+          "role": "learner",
+          "text": "I haven't learned what a derivative is yet. Where should we start?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "no what is one i dont know"
+        },
+        {
+          "role": "learner",
+          "text": "I haven't learned what a derivative is yet. Where should we start?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "tell me"
+        },
+        {
+          "role": "learner",
+          "text": "I haven't learned what a derivative is yet. Where should we start?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "okay so a derivative measures instant rate of change at a point"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say a derivative measures the rate of change at a point. Is there more to it?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "yeah theres rules to evaluate it so like there the power rule where for example the derivative of x^2 is 2x and thats becasuse you take the exponent down in front of the variable and subtract one from the exponent so for example x^2 -> 2x^(2-1) = 2x"
+        },
+        {
+          "role": "learner",
+          "text": "Alright, my notes say the power rule works by subtracting one from the exponent and multiplying by the derivative of the inside function. Does that part come into play?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "yeah i just explained it so whats the derivitive of 6x^2"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say the power rule works by subtracting one from the exponent and multiplying by the derivative of the inside function. The inside function here is 6x^2, and its derivative is 12x, so I get 12x*2x = 24x. Does that look right?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "not quite! we just bring the 2 in front and multiply whatever is in front by that so 6*2x = 12x"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say the power rule works by subtracting one from the exponent and multiplying by the derivative of the inside function. The inside function is 6x^2, and its derivative is 12x, so I get 12x*2x = 24x. Is that correct?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "no inside function here"
+        },
+        {
+          "role": "learner",
+          "text": "I don't know what the inside function is, so I can't do this one yet. Can you explain it?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "no this isnt a thing yet right now what is the der of 6x^2"
+        },
+        {
+          "role": "learner",
+          "text": "Okay, my notes say the power rule works by subtracting one from the exponent and multiplying by the derivative of the inside function. The inside function is 6x^2, and its derivative is 12x, so I get 12*2x = 24x. Is that right?",
+          "generatedOn": "device"
+        },
+        {
+          "role": "student",
+          "text": "yep the first part is right but there is no inside or outside function so its just 12x not 24x"
+        },
+        {
+          "role": "learner",
+          "text": "My notes say the power rule works by subtracting one from the exponent and multiplying by the derivative of the inside function. They don't cover a function inside another function, so I can't do this one yet. How does that part work?",
+          "generatedOn": "device"
+        }
+      ],
+      "finalBeliefs": [
+        {
+          "statement": "For two things multiplied together, I think you just multiply their derivatives: (f times g)' is f' times g'.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "When one function is inside another, like sin(3x), I think you take the derivative of the outside and leave the inside alone, so it's cos(3x).",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think e to the x works like x squared: bring the x down in front and lower the power by one.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "A derivative measures instant rate of change at a point",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "The power rule says the derivative of x^n is n\u00b7x^(n-1), so for x^2 the derivative is 2x.",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "The derivative of 6x^2 is 12x",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "There is no inside function here.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        }
+      ],
+      "history": [
+        {
+          "move": "ask_why",
+          "turn": 0,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_99ac4d14-d965-4165-b088-028e441a228b",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 1,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_34754a24-636d-4833-bd8b-4b3674ddee21",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 2,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_4a60730d-3a19-484b-ab45-a4cf06f4bbd8",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 3,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_c633481e-999a-4fd8-b14d-ee5650e942c2",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 4,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t4-1",
+              "conceptId": "derivative-meaning",
+              "statement": "A derivative measures instant rate of change at a point",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_c2e3fa1e-481c-4854-8a46-3ab7e73c811d",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 5,
+          "added": [
+            {
+              "status": "understood",
+              "beliefId": "t5-2",
+              "conceptId": "power-rule",
+              "statement": "The power rule says the derivative of x^n is n\u00b7x^(n-1), so for x^2 the derivative is 2x.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_2def27c4-a45a-4d7d-bc55-3f65efdb4935",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 6,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_6b67f9c2-9518-450b-84f6-030d7887efbb",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 7,
+          "added": [
+            {
+              "status": "understood",
+              "beliefId": "t7-3",
+              "conceptId": "power-rule",
+              "statement": "The derivative of 6x^2 is 12x",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_b3a44d91-b56f-44f8-a063-d28ce44f347b",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 8,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t8-4",
+              "conceptId": "power-rule",
+              "statement": "There is no inside function here.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_afd5b24e-f773-4c21-8514-9c6ed62ea2df",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 9,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_c3636a79-1d4f-4057-a770-cb29e10241c4",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 10,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_e84d7395-cc72-4195-a320-2a36ae48ba31",
+          "corrections": [
+            {
+              "accepted": false,
+              "targeted": true,
+              "explained": false,
+              "misconceptionId": "chain-without-inner"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "human-3",
+      "topicId": "derivatives",
+      "date": "2026-11-17",
+      "pipWrittenOnDevice": false,
+      "messages": [
+        {
+          "role": "learner",
+          "text": "Hey! I'm Pip. I'm trying to get how derivatives work, but some words keep tripping me up. Where should I start?"
+        },
+        {
+          "role": "student",
+          "text": "idk"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I get it\u2014what part of derivatives do you want to talk about first?"
+        },
+        {
+          "role": "student",
+          "text": "how do they work"
+        },
+        {
+          "role": "learner",
+          "text": "Hmm, I\u2019m still figuring this out myself. Could you tell me what part of derivatives feels confusing to you right now?"
+        },
+        {
+          "role": "student",
+          "text": "idk how"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I get what you mean by \u201cidk how.\u201d Is there a particular part of derivatives that\u2019s confusing, like how to find one or what it represents?"
+        },
+        {
+          "role": "student",
+          "text": "yeah how do u do deriv of x^2"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I know the answer yet. What do you think the derivative of x^2 might be, or how would you try to find it?"
+        },
+        {
+          "role": "student",
+          "text": "tell. me"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I know the answer yet. What do you think the derivative of x^2 might be, or how would you try to find it?"
+        },
+        {
+          "role": "student",
+          "text": "its 2x"
+        },
+        {
+          "role": "learner",
+          "text": "So you say it's 2x. How did you figure that out?"
+        },
+        {
+          "role": "student",
+          "text": "whats the derivitive of x^5"
+        },
+        {
+          "role": "learner",
+          "text": "Hmm, so you want the derivative of x^5. I know the rule for x^2 gives 2x, but I\u2019m not sure how to do it for x^5. How would you try to find it?"
+        },
+        {
+          "role": "student",
+          "text": "well based on the last on"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I get what you mean by \u201cwell based on the last one.\u201d Could you explain that a bit more?"
+        },
+        {
+          "role": "student",
+          "text": "based on the last derivative what is the new ione'"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I know how to find the derivative of x^5 yet. Maybe you could try using the pattern from x^2? What do you think could happen if we followed that idea?"
+        },
+        {
+          "role": "student",
+          "text": "yeah so the pattern is 2x so the other one is 5x"
+        },
+        {
+          "role": "learner",
+          "text": "So you think the pattern gives 5x for x^5. Why does that pattern work the same way as it did for x^2?"
+        },
+        {
+          "role": "student",
+          "text": "you just bring down the exponent so whats the derivative of x^7"
+        },
+        {
+          "role": "learner",
+          "text": "So you say we just bring down the exponent, but why do you think that works? What makes the exponent drop out when we take the derivative?"
+        },
+        {
+          "role": "student",
+          "text": "thats how it works its the power rule"
+        },
+        {
+          "role": "learner",
+          "text": "I get that you say you just bring down the exponent, but why does that make the derivative of x^2 become 2x? What makes that work for any power?"
+        }
+      ],
+      "finalBeliefs": [
+        {
+          "statement": "For two things multiplied together, I think you just multiply their derivatives: (f times g)' is f' times g'.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "When one function is inside another, like sin(3x), I think you take the derivative of the outside and leave the inside alone, so it's cos(3x).",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think e to the x works like x squared: bring the x down in front and lower the power by one.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think the derivative of x^2 is 2x.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the derivative of x^5 is 5x.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "incorrect"
+        },
+        {
+          "statement": "I think you just bring down the exponent",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "partly"
+        },
+        {
+          "statement": "I think the power rule works by bringing down the exponent.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        }
+      ],
+      "history": [
+        {
+          "move": "admit_confusion",
+          "turn": 0,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_1ee8c21a-a754-4d7c-8cda-11e4b66aed83",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 1,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_b38f444a-acfd-4317-a92e-93af1fa6c72d",
+          "corrections": []
+        },
+        {
+          "move": "admit_confusion",
+          "turn": 2,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_f1d99f80-db7f-42ff-86b2-afa32daa5818",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 3,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_6e3afb59-d975-49ca-b028-b406a92cbb85",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 4,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_631f0986-0eb5-4bac-8ae1-e744259b1721",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 5,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t5-1",
+              "conceptId": "power-rule",
+              "statement": "I think the derivative of x^2 is 2x.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_16ae5c2c-8392-4370-8d05-469b52205d21",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 6,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_4cd6b87f-dbcc-4f1e-8b62-2c1e1212c42c",
+          "corrections": [
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "product-of-derivatives"
+            },
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "chain-without-inner"
+            },
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "exp-as-power"
+            }
+          ]
+        },
+        {
+          "move": "admit_confusion",
+          "turn": 7,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_f2f276c0-c7cf-4728-9a4a-691bf09fc7c0",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 8,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_9be16a17-8b1c-4e5a-aad2-12aa7af9efdc",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 9,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t9-2",
+              "conceptId": "power-rule",
+              "statement": "I think the derivative of x^5 is 5x.",
+              "correctness": "incorrect"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_c26ca13e-165d-4a01-9152-b645b205003a",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 10,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t10-3",
+              "conceptId": "power-rule",
+              "statement": "I think you just bring down the exponent",
+              "correctness": "partly"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_2ec660af-47d7-47ae-9c23-cfc9efdd6504",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 11,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t11-4",
+              "conceptId": "power-rule",
+              "statement": "I think the power rule works by bringing down the exponent.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_4c3b09e3-eca9-44f4-873f-38b1b2b35094",
+          "corrections": []
+        }
+      ]
+    },
+    {
+      "id": "human-4",
+      "topicId": "derivatives",
+      "date": "2026-11-18",
+      "pipWrittenOnDevice": false,
+      "messages": [
+        {
+          "role": "learner",
+          "text": "Hey, I'm Pip! I'm trying to figure out how derivatives work, but the words and symbols keep tripping me up. Where should we start?"
+        },
+        {
+          "role": "student",
+          "text": "idk how they work"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure I get it. Which part of derivatives do you find confusing?"
+        },
+        {
+          "role": "student",
+          "text": "i dont know how to do them"
+        },
+        {
+          "role": "learner",
+          "text": "What part of doing derivatives feels the most confusing to you?"
+        },
+        {
+          "role": "student",
+          "text": "how to derive x^2"
+        },
+        {
+          "role": "learner",
+          "text": "So if I think of x^2 as x times x, then the derivative would be 1 times x plus x times 1, giving 2x. Does that sound right?"
+        },
+        {
+          "role": "student",
+          "text": "what"
+        },
+        {
+          "role": "learner",
+          "text": "Hmm, I\u2019m not sure I get what you\u2019re asking. Could you explain a bit more about what part of derivatives is confusing to you?"
+        },
+        {
+          "role": "student",
+          "text": "whats the derivitive of x^5"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure how to find the derivative of x^5. Could you show me how you would tackle it?"
+        },
+        {
+          "role": "student",
+          "text": "no i dont know"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure which part of finding the derivative you\u2019re unsure about. Could you tell me which step or rule is confusing for you?"
+        },
+        {
+          "role": "student",
+          "text": "well the derivitive is 5x"
+        },
+        {
+          "role": "learner",
+          "text": "You said the derivative is 5x. How did you figure that out?"
+        },
+        {
+          "role": "student",
+          "text": "its just a rule u move the top number and multiply x by that"
+        },
+        {
+          "role": "learner",
+          "text": "So you say you just move the top number and multiply x by that? Why do you think that gives the right answer?"
+        },
+        {
+          "role": "student",
+          "text": "thats just how it works so whats the derivative of x^6"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m still trying to understand how the rule works. If moving the top number and multiplying x by that gives 5x for x^5, what would that rule say for x^6? Do you think it would be 6x?"
+        },
+        {
+          "role": "student",
+          "text": "yeah it is"
+        },
+        {
+          "role": "learner",
+          "text": "If I use that rule for a different power, like x^4, what would you get?"
+        },
+        {
+          "role": "student",
+          "text": "4x"
+        },
+        {
+          "role": "learner",
+          "text": "So you said the derivative of x^4 is 4x. Why do you think moving the top number and multiplying x by that gives that result?"
+        }
+      ],
+      "finalBeliefs": [
+        {
+          "statement": "For two things multiplied together, I think you just multiply their derivatives: (f times g)' is f' times g'.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "When one function is inside another, like sin(3x), I think you take the derivative of the outside and leave the inside alone, so it's cos(3x).",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think e to the x works like x squared: bring the x down in front and lower the power by one.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "the derivative is 5x",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the rule is to move the top number and multiply x by that.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "incorrect"
+        },
+        {
+          "statement": "the derivative of x^6 is 6x",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "The derivative of x^4 is 4x",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        }
+      ],
+      "history": [
+        {
+          "move": "admit_confusion",
+          "turn": 0,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_801fccb4-d7a2-49fb-b9d4-cec6ad21c2bb",
+          "corrections": [
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "product-of-derivatives"
+            },
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "chain-without-inner"
+            },
+            {
+              "accepted": false,
+              "targeted": false,
+              "explained": false,
+              "misconceptionId": "exp-as-power"
+            }
+          ]
+        },
+        {
+          "move": "ask_why",
+          "turn": 1,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_b11f0309-0bd0-434a-9671-a991adc42ee4",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 2,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_8daf1ccb-71e8-4cf8-b933-44d5074a59ba",
+          "corrections": []
+        },
+        {
+          "move": "admit_confusion",
+          "turn": 3,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_a0159915-eacc-480b-8b42-4df7f12739c4",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 4,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_3b6be2a6-175d-4736-87a2-bfc0d4895791",
+          "corrections": []
+        },
+        {
+          "move": "admit_confusion",
+          "turn": 5,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_9a1ef966-743a-4509-9591-5bc24217e105",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 6,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t6-1",
+              "conceptId": "power-rule",
+              "statement": "the derivative is 5x",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_5a610c53-73d9-43bd-a083-31d3b3872afa",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 7,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t7-2",
+              "conceptId": "power-rule",
+              "statement": "I think the rule is to move the top number and multiply x by that.",
+              "correctness": "incorrect"
+            }
+          ],
+          "voiced": [],
+          "changed": [
+            {
+              "to": "understood",
+              "from": "heard",
+              "beliefId": "t6-1",
+              "statement": "the derivative is 5x"
+            }
+          ],
+          "offTask": false,
+          "messageId": "msg_5ebc8a45-db77-4354-a5b0-cc9fee3846c4",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 8,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_bd80ec8b-275f-4fed-bf27-9e28700f8ece",
+          "corrections": []
+        },
+        {
+          "move": "ask_for_example",
+          "turn": 9,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t9-3",
+              "conceptId": "power-rule",
+              "statement": "the derivative of x^6 is 6x",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_70832962-e9f5-48d9-a464-dea1daf27ac6",
+          "corrections": []
+        },
+        {
+          "move": "ask_why",
+          "turn": 10,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t10-4",
+              "conceptId": "power-rule",
+              "statement": "The derivative of x^4 is 4x",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_e5946688-a22e-496d-bab5-fbe2956f2328",
+          "corrections": []
+        }
+      ]
+    },
+    {
+      "id": "human-5",
+      "topicId": "derivatives",
+      "date": "2026-11-18",
+      "pipWrittenOnDevice": false,
+      "messages": [
+        {
+          "role": "learner",
+          "text": "Hey! I'm Pip, and I'm trying to get a handle on derivatives. The words like 'power rule' or 'chain rule' trip me up. Where should I start?"
+        },
+        {
+          "role": "student",
+          "text": "what do you think of the power rule"
+        },
+        {
+          "role": "learner",
+          "text": "I don't know the power rule yet, but I'm guessing it has something to do with exponents. What do you think the power rule says?"
+        },
+        {
+          "role": "student",
+          "text": "yeah tell me more"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m still figuring out how that works. Do you know a simple example of a function with an exponent that we could look at together?"
+        },
+        {
+          "role": "student",
+          "text": "yeah basically it says for something like x^5 its 5x"
+        },
+        {
+          "role": "learner",
+          "text": "If the rule says x^5 turns into 5x, then maybe x^3 would become 3x? Did I get that right?"
+        },
+        {
+          "role": "student",
+          "text": "oh i meant x^5 is 5x^4 you multiple the variable by the exponent and then subtract one from the exponent"
+        },
+        {
+          "role": "learner",
+          "text": "If the power rule says x^5 becomes 5x, then x^3 should become 3x, right? Did I get that correct?"
+        },
+        {
+          "role": "student",
+          "text": "nope that would be 3x^2"
+        },
+        {
+          "role": "learner",
+          "text": "So if x^3 goes to 3x^2, what about a function like x^7? How would the power rule work there?"
+        },
+        {
+          "role": "student",
+          "text": "well use the rule"
+        },
+        {
+          "role": "learner",
+          "text": "I\u2019m not sure which rule you mean. Do you want to use the 5x rule or the 5x^4 rule? How do we pick the right one?"
+        },
+        {
+          "role": "student",
+          "text": "the first rule i taught was wrong"
+        },
+        {
+          "role": "learner",
+          "text": "If I use the rule that says x^5 becomes 5x, then for x^4 I would get 4x, right? Did I do that right?"
+        },
+        {
+          "role": "student",
+          "text": "nope but that rule was wrong so it should be x^4 would be 4x^3 use the minus 1 rule"
+        },
+        {
+          "role": "learner",
+          "text": "If the rule says x^5 turns into 5x, then maybe x^6 would turn into 6x. Did I do that right?"
+        }
+      ],
+      "finalBeliefs": [
+        {
+          "statement": "For two things multiplied together, I think you just multiply their derivatives: (f times g)' is f' times g'.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "When one function is inside another, like sin(3x), I think you take the derivative of the outside and leave the inside alone, so it's cos(3x).",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "I think e to the x works like x squared: bring the x down in front and lower the power by one.",
+          "status": "misconception",
+          "source": "prior_misconception",
+          "taughtCorrectly": null
+        },
+        {
+          "statement": "The power rule says that for something like x^5 its derivative is 5x.",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "incorrect"
+        },
+        {
+          "statement": "I think the power rule says that for x^5 the derivative is 5x^4, i.e., you multiply the variable by the exponent and then subtract one from the exponent.",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the derivative of x^3 is 3x^2",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "I think the first rule I taught was wrong.",
+          "status": "heard",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        },
+        {
+          "statement": "x^4 would be 4x^3 using the minus 1 rule",
+          "status": "understood",
+          "source": "taught",
+          "taughtCorrectly": "correct"
+        }
+      ],
+      "history": [
+        {
+          "move": "redirect",
+          "turn": 0,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_1497030a-70d9-498d-a9e0-f2af069133aa",
+          "corrections": []
+        },
+        {
+          "move": "redirect",
+          "turn": 1,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": true,
+          "messageId": "msg_7f2d85f9-34df-445c-855f-972ff551aac7",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 2,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t2-1",
+              "conceptId": "power-rule",
+              "statement": "The power rule says that for something like x^5 its derivative is 5x.",
+              "correctness": "incorrect"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_c93be4d8-7cb6-420f-b976-2b2b24623195",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 3,
+          "added": [
+            {
+              "status": "understood",
+              "beliefId": "t3-2",
+              "conceptId": "power-rule",
+              "statement": "I think the power rule says that for x^5 the derivative is 5x^4, i.e., you multiply the variable by the exponent and then subtract one from the exponent.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [
+            {
+              "to": "understood",
+              "from": "heard",
+              "beliefId": "t2-1",
+              "statement": "The power rule says that for something like x^5 its derivative is 5x."
+            }
+          ],
+          "offTask": false,
+          "messageId": "msg_7be2b24f-a8cc-4b8e-88e7-4b3020ae003a",
+          "corrections": []
+        },
+        {
+          "move": "ask_for_example",
+          "turn": 4,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t4-3",
+              "conceptId": "power-rule",
+              "statement": "I think the derivative of x^3 is 3x^2",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_b5ec12bb-2581-490d-bebf-1fffbf18c88c",
+          "corrections": []
+        },
+        {
+          "move": "admit_confusion",
+          "turn": 5,
+          "added": [],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_b6083073-0ccc-4982-9ec4-8ff1c5df620f",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 6,
+          "added": [
+            {
+              "status": "heard",
+              "beliefId": "t6-4",
+              "conceptId": "power-rule",
+              "statement": "I think the first rule I taught was wrong.",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [],
+          "offTask": false,
+          "messageId": "msg_4667838c-9e60-4fe1-8c49-aee7f5d964fa",
+          "corrections": []
+        },
+        {
+          "move": "try_to_apply",
+          "turn": 7,
+          "added": [
+            {
+              "status": "understood",
+              "beliefId": "t7-5",
+              "conceptId": "power-rule",
+              "statement": "x^4 would be 4x^3 using the minus 1 rule",
+              "correctness": "correct"
+            }
+          ],
+          "voiced": [],
+          "changed": [
+            {
+              "to": "understood",
+              "from": "heard",
+              "beliefId": "t4-3",
+              "statement": "I think the derivative of x^3 is 3x^2"
+            }
+          ],
+          "offTask": false,
+          "messageId": "msg_bc051f85-8879-46e5-baa0-09f104db153f",
+          "corrections": []
+        }
+      ]
+    }
+  ]
+}
