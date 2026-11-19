@@ -1,5 +1,5 @@
 import { requireApiUser } from "@/lib/auth/server";
-import { AT_CAPACITY, atCapacityMessage } from "@/lib/learner/capacity";
+import { AT_CAPACITY, atCapacityMessage, PIP_BUSY } from "@/lib/learner/capacity";
 import { isRateLimited, LlmError } from "@/lib/learner/teachable/llm";
 import { modelsFromEnv } from "@/lib/learner/teachable/server";
 import { runServerTurn } from "@/lib/learner/teachable/turnService";
@@ -30,8 +30,6 @@ type Context = { params: Promise<{ id: string }> };
 /** A turn can wait out a per-minute rate limit (see llm.ts), so allow more than the default. */
 export const maxDuration = 60;
 
-const BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
-
 export async function POST(request: Request, { params }: Context) {
   const user = await requireApiUser();
   if (user instanceof Response) return user;
@@ -60,6 +58,6 @@ export async function POST(request: Request, { params }: Context) {
       const retryAfterSeconds = cause.retryAfterSeconds;
       return json({ error: atCapacityMessage(retryAfterSeconds), code: AT_CAPACITY, ...(retryAfterSeconds ? { retryAfterSeconds } : {}) }, 503);
     }
-    return error(BUSY, cause instanceof LlmError ? 503 : 500);
+    return error(PIP_BUSY, cause instanceof LlmError ? 503 : 500);
   }
 }

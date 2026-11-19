@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LlmError, type ChatTurn, type JsonCallOptions, type JsonModel } from "../../src/lib/learner/teachable/llm";
+import { LlmError, type JsonCallOptions, type JsonModel } from "../../src/lib/learner/teachable/llm";
 import { PacedModel, QuotaExhaustedError, TokenLimiter } from "../pacedModel";
 
 /** Fails with a 429 a given number of times, then answers. */
@@ -7,7 +7,7 @@ class Flaky implements JsonModel {
   readonly name = "fake-model";
   calls = 0;
   constructor(private failures: number, private retryAfter: number) {}
-  async completeJson(_m: ChatTurn[], _o: JsonCallOptions): Promise<unknown> {
+  async completeJson(): Promise<unknown> {
     this.calls++;
     if (this.calls <= this.failures) throw new LlmError(`assessor: provider returned 429 (retry after ${this.retryAfter}s)`, false);
     return { ok: true };

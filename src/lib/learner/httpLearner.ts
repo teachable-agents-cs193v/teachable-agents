@@ -1,20 +1,19 @@
 import { StudentFacingError } from "../errors";
 import type { LearnerReply, LearningProgress, LearningReview, StudentBelief, TeachingSession } from "../types";
 import type { ChatTurn } from "./teachable/llm";
-import { AT_CAPACITY, atCapacityMessage } from "./capacity";
+import { AT_CAPACITY, atCapacityMessage, PIP_BUSY } from "./capacity";
 
 type Fetch = typeof fetch;
 
 /** Shown when the server gives no student-safe message (never the raw error, #22). */
 const FALLBACK = "Pip couldn't respond. Check your connection and try again.";
-/** For any server error. The server's own text is only trusted for 4xx answers, which are written for students. */
-const BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
 const LOGGED_OUT = "You've been logged out. Log in again to keep going.";
 
 type ErrorBody = { error?: string; code?: string; retryAfterSeconds?: unknown };
 
 /**
- * The student-facing text for a failed response. A 5xx gets BUSY, except a 503 whose `code` says the
+ * The student-facing text for a failed response. The server's own text is only trusted for 4xx
+ * answers, which are written for students. A 5xx gets PIP_BUSY, except a 503 whose `code` says the
  * AI provider is out of capacity: that gets the capacity message, with roughly when to try again.
  */
 function failureMessage(status: number, data: ErrorBody | null): string {
@@ -23,7 +22,7 @@ function failureMessage(status: number, data: ErrorBody | null): string {
     const wait = typeof data.retryAfterSeconds === "number" ? data.retryAfterSeconds : undefined;
     return atCapacityMessage(wait);
   }
-  if (status >= 500) return BUSY;
+  if (status >= 500) return PIP_BUSY;
   return data?.error ?? FALLBACK;
 }
 

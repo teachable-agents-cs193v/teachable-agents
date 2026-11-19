@@ -1,8 +1,12 @@
 /**
- * What a student sees when the AI provider is out of capacity (a rate limit or the daily quota).
- * Shared by the /turn route and the browser client, which tell it apart from other failures by
- * the response's `code`, never by its text. Safe to import from the browser and the server.
+ * What a student sees when Pip's models fail: out of capacity (a rate limit or the daily quota),
+ * or any other server error. Shared by the /turn route and the browser client, which tell the
+ * capacity case apart by the response's `code`, never by its text. Safe to import from the
+ * browser and the server.
  */
+
+/** Any other server-side failure of a turn (#22: never the raw error). */
+export const PIP_BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
 
 /** The `code` a 503 carries when the provider is rate limited or out of quota. */
 export const AT_CAPACITY = "at_capacity";
