@@ -10,7 +10,7 @@ Groq's policy is that they don't train on user data. They keep logs for abuse, b
 
 ## How we present this to users
 
-We present this to the user with the card before each session. We just don't provide the local agent option.
+We present this to the user with the card before each session.
 
 ## Why we chose this way of informing users
 
