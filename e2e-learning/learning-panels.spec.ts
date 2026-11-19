@@ -18,10 +18,11 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   });
 
   await page.goto("/learner/independence-vs-mutual-exclusivity");
-  await page.getByRole("button", { name: "Start Teaching" }).click();
+  await page.getByRole("button", { name: "Teach AI Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
   await expect(log.locator("[data-role=learner]").first()).toContainText("Fake Pip reply");
+  await expect(page.getByTestId("data-line")).toContainText("your messages in this session go to Groq");
 
   const beliefs = visible(page, "pip-beliefs");
   const tracker = visible(page, "misconception-tracker");

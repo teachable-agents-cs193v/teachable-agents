@@ -21,15 +21,17 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Supply and Demand" })).toHaveCount(0);
   await page.getByRole("link", { name: "Teach This Topic" }).click();
 
-  // Meet Pip, write a pre-session explanation, start.
+  // Meet Pip, write a pre-session explanation, start with the offline demo Pip.
   await expect(page).toHaveURL(/\/learner\/independence-vs-mutual-exclusivity$/);
   await page.getByLabel(/Before you start/).fill("Independent means the events don't affect each other.");
-  await page.getByRole("button", { name: "Start Teaching" }).click();
+  await page.getByRole("button", { name: "Use the offline demo Pip instead" }).click();
 
-  // Workspace: Pip opens the conversation.
+  // Workspace: Pip opens the conversation, and the page says nothing leaves the server.
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
   await expect(log.locator("[data-role=learner]").first()).toContainText("independent", { timeout: 10_000 });
+  await expect(page.getByTestId("data-line")).toHaveAttribute("data-mode", "offline");
+  await expect(page.getByTestId("data-line")).toContainText("nothing you type leaves our server");
 
   const composer = page.getByLabel("Your message to Pip");
   const sendButton = page.getByRole("button", { name: "Send message" });
@@ -83,6 +85,50 @@ test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await expect(page).toHaveURL(/\/sessions\/session_/);
   await expect(page.getByRole("heading", { name: "Transcript" })).toBeVisible();
   await expect(page.getByText("Check whether P(A and B) equals P(A) times P(B).")).toBeVisible();
+
+  // Delete it from the dashboard: the confirmation says what goes, and "Keep it" keeps it.
+  await page.goto("/sessions");
+  const remove = page.getByRole("button", { name: "Delete session: Independence vs. Mutual Exclusivity" });
+  await remove.click();
+  const confirm = page.getByRole("group", { name: "Confirm deleting the session" });
+  await expect(confirm).toContainText("permanently removes it from our database");
+  await confirm.getByRole("button", { name: "Keep it" }).click();
+  await expect(confirm).toHaveCount(0);
+  await remove.click();
+  await page.getByRole("button", { name: "Yes, delete it" }).click();
+  await expect(page.getByRole("heading", { name: "Nothing taught yet." })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Nothing taught yet." })).toBeVisible();
+});
+
+test("the start screen says where your words go, and remembers the last choice", async ({ page }) => {
+  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  const card = page.getByTestId("ai-choice");
+  await expect(card.getByRole("heading", { name: "Where your words go" })).toBeVisible();
+  // The first time, the whole card is open: what's sent, what isn't, what Groq does, what we keep.
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeVisible();
+  await expect(card.getByText(/name, email and account aren.t sent/)).toBeVisible();
+  await expect(card.getByText(/up to 30 days/)).toBeVisible();
+  await expect(card.getByText(/delete it from My sessions/)).toBeVisible();
+  await expect(card.getByRole("button", { name: "Teach AI Pip" })).toBeVisible();
+
+  // Full details: the complete explanation, with Groq's own pages.
+  await card.getByRole("link", { name: "Full details" }).click();
+  await expect(page).toHaveURL(/\/ai-data$/);
+  await expect(page.getByRole("heading", { name: "What we never send" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Groq Services Agreement/ })).toHaveAttribute("href", "https://console.groq.com/docs/legal/services-agreement");
+
+  // Choose the offline demo; next time the card is one line, with that choice highlighted.
+  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await page.getByRole("button", { name: "Use the offline demo Pip instead" }).click();
+  await expect(page).toHaveURL(/\/teach\/session_/);
+  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await expect(card).toContainText("Last time you used the offline demo Pip");
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeHidden();
+  await card.getByText("What's sent, and what isn't").click();
+  await expect(card.getByText("Sent to Groq", { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Use the offline demo Pip instead" })).toHaveClass(/bg-forest/);
+  await expect(card.getByRole("button", { name: "Teach AI Pip" })).not.toHaveClass(/bg-forest/);
 });
 
 test("the sessions dashboard shows an empty state for new students", async ({ page }) => {
@@ -97,4 +143,18 @@ test("unknown topics and sessions get friendly not-found states", async ({ page 
 
   await page.goto("/teach/session_missing");
   await expect(page.getByRole("heading", { name: /couldn.t find that session/ })).toBeVisible();
+});
+
+test("the choice card and the details page fit a phone screen", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  for (const path of ["/learner/independence-vs-mutual-exclusivity", "/ai-data"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  }
+  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  for (const name of ["Teach AI Pip", "Use the offline demo Pip instead"]) {
+    const box = await page.getByRole("button", { name }).boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+  }
 });
