@@ -12,7 +12,7 @@ Pip only knows what the student teaches it in the session, including any mistake
    LLM_MODEL=openai/gpt-oss-120b
    ```
 3. Apply the migration to your database: `psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql`
-4. `npm run dev`, then start a session on any topic. The note under the teaching tips says "AI learner" when the model is answering.
+4. `npm run dev`, then start a session on any topic with **Teach AI Pip**. The note under the teaching tips says "AI learner" when the model is answering.
 
 With no key, or on a topic without a topic pack, Pip falls back to the scripted demo learner. Nothing breaks.
 
@@ -69,6 +69,16 @@ What's left, and accepted:
 - **A target belief's statement is notebook text.** `moveTarget` can point the reply at any belief, including a starting misconception the student hasn't seen yet (that's how Pip voices one). Those are Pip's own wrong ideas, written in the pack for Pip to say, not the answer key.
 - **The note-taker can be talked into writing anything the student typed.** It holds nothing secret, so the student only gets back their own words.
 - Tests: `src/lib/learner/teachable/__tests__/assessorBoundary.test.ts` (adversarial objects, a seeded fuzz test, the pipeline end to end) and the "prompt-injected assessor" case in `src/app/api/sessions/__tests__/turn.test.ts` (the route's response, the reply prompt and the stored `learner_state`).
+
+## AI consent: the student chooses, per session
+
+Before each session the start screen shows "Where your words go" (`src/components/AiChoiceCard.tsx`): what goes to Groq, what doesn't, what Groq does with it, what we keep, and two buttons, **Teach AI Pip** and **Use the offline demo Pip instead**. The first time it's open in full; after that it's one line (the last choice, from `localStorage` key `protege:learner-choice`, is the highlighted button) with the rest a click away. "Full details" goes to `/ai-data` (public). On the teach screen a line under the message box says where messages go (`src/components/DataLine.tsx`), and the dashboard has Delete on every session.
+
+- **Stored:** `POST /api/sessions { topicId, preExplanation?, learner: "ai" | "offline" }`. Missing means `"offline"` (AI is opt-in); anything else is a 400. The choice goes into the existing `teaching_sessions.learner_id` column: `"pip"` for AI, `"pip-offline"` for the offline demo. No migration. No update query writes `learner_id`, so the browser can't change it afterwards (`PUT` ignores it).
+- **Enforced:** `modelsFor(session, models)` in `src/lib/learner/teachable/server.ts` returns no models unless `learner_id` is `"pip"`, and `learnerTurn` and `deviceTurn` (the only code that calls a model for a session) start with it. So an offline session always gets the scripted learner and never calls the provider, whatever `LLM_*` says. Unknown ids fail closed.
+- **Old sessions:** created before the choice existed, they all have `learner_id = "pip"`, so they keep the AI learner they started with.
+- **Copy:** every sentence about the provider is in `src/lib/aiData.ts`, with the policy links. Set `ZDR_ENABLED = true` there after turning on Zero Data Retention in the Groq console (Settings → Data Controls); it changes the retention sentences.
+- **What's sent:** the note-taker, assessor and reply prompts (`prompts.ts`) carry the topic pack, Pip's notebook, the last few messages and the newest message. No name, email, user id or session id; the request body has no `user` field. `src/app/api/sessions/__tests__/consent.test.ts` checks that against a fake model, and that an offline session makes zero model calls.
 
 ## For the UI: what Pip believes
 
