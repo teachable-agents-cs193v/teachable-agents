@@ -1,12 +1,13 @@
-// The student's AI choice through the real routes, against the throwaway Postgres: it's stored
-// when the session is created, the browser can't change it, and a session without AI consent
-// never calls the model (a fake that records every call), even with models configured.
+// AI use through the real routes, against the throwaway Postgres: every new session is AI Pip
+// whatever the body asks for, the browser can't change that afterwards, nothing sent to the model
+// names the student, and an old row whose learner id doesn't allow AI ("pip-offline", from testing
+// the removed offline choice) never calls the model (a fake that records every call).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
-import { AI_LEARNER_ID, OFFLINE_LEARNER_ID } from "@/lib/aiData";
+import { AI_LEARNER_ID } from "@/lib/aiData";
 import type { TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { PUT as put } from "../[id]/route";
@@ -34,7 +35,7 @@ class RecordingModel implements JsonModel {
   }
 }
 
-// Models are always configured here: only the session's choice decides whether they're used.
+// Models are always configured here: only the session's learner id decides whether they're used.
 let model = new RecordingModel();
 vi.mock("@/lib/learner/teachable/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/learner/teachable/server")>()),
@@ -94,77 +95,80 @@ async function teach(cookie: string, id: string, replyOn?: "device") {
 const storedLearnerId = async (id: string) =>
   (await getPool().query<{ learner_id: string }>("select learner_id from teaching_sessions where id = $1", [id])).rows[0].learner_id;
 
-describe.skipIf(!hasDb)("the AI choice on /api/sessions", () => {
-  it("stores the choice as the session's learner id", async () => {
+/** An old session from testing the removed offline-demo choice. No route can create one now. */
+async function legacyOfflineSession(userId: string, topicId = TOPIC) {
+  const id = `session_offline-${crypto.randomUUID()}`;
+  await getPool().query(`insert into teaching_sessions (id, user_id, topic_id, learner_id) values ($1, $2, $3, 'pip-offline')`, [
+    id,
+    userId,
+    topicId,
+  ]);
+  return id;
+}
+
+describe.skipIf(!hasDb)("AI use on /api/sessions", () => {
+  it("every new session is AI Pip: a learner or learnerId field in the body is ignored", async () => {
     const { cookie } = await student();
-    const ai = await start(cookie, { learner: "ai" });
-    const offline = await start(cookie, { learner: "offline" });
-    expect(ai.status).toBe(201);
-    expect(ai.session.learnerId).toBe(AI_LEARNER_ID);
-    expect(offline.session.learnerId).toBe(OFFLINE_LEARNER_ID);
-    expect(await storedLearnerId(offline.session.id)).toBe(OFFLINE_LEARNER_ID);
+    for (const body of [{}, { learner: "offline" }, { learner: "ai" }, { learner: "offline", learnerId: "pip-offline" }, { learner: "yes" }]) {
+      const { status, session } = await start(cookie, body);
+      expect(status).toBe(201);
+      expect(session.learnerId).toBe(AI_LEARNER_ID);
+      expect(await storedLearnerId(session.id)).toBe(AI_LEARNER_ID);
+    }
   });
 
-  it("is opt-in: no choice means offline, a learnerId in the body is ignored, and unknown values are refused", async () => {
-    const { cookie } = await student();
-    expect((await start(cookie, {})).session.learnerId).toBe(OFFLINE_LEARNER_ID);
-    expect((await start(cookie, { learner: "offline", learnerId: AI_LEARNER_ID })).session.learnerId).toBe(OFFLINE_LEARNER_ID);
-    for (const learner of ["AI", "yes", true, 1, null]) expect((await start(cookie, { learner })).status).toBe(400);
-  });
-
-  it("can't be changed by the browser afterwards", async () => {
+  it("a session asked for with learner 'offline' still gets the AI learner", async () => {
     const { cookie } = await student();
     const { session } = await start(cookie, { learner: "offline" });
-    const res = await as(cookie, () => put(jsonRequest("PUT", { status: "in_progress", learnerId: AI_LEARNER_ID, learner: "ai" }), ctx(session.id)));
+    const opening = await turnAs(cookie, session.id);
+    expect(opening.status).toBe(200);
+    expect(opening.body.learner.id).toBe("teachable");
+    expect(model.calls.map((c) => c.label)).toEqual(["reply"]);
+  });
+
+  it("the learner id can't be changed by the browser afterwards", async () => {
+    const { cookie } = await student();
+    const { session } = await start(cookie, {});
+    const res = await as(cookie, () => put(jsonRequest("PUT", { status: "in_progress", learnerId: "pip-offline", learner: "offline" }), ctx(session.id)));
     expect(res.status).toBe(200);
-    expect((await res.json()).learnerId).toBe(OFFLINE_LEARNER_ID);
-    expect(await storedLearnerId(session.id)).toBe(OFFLINE_LEARNER_ID);
+    expect((await res.json()).learnerId).toBe(AI_LEARNER_ID);
+    expect(await storedLearnerId(session.id)).toBe(AI_LEARNER_ID);
   });
 
-  it("an offline session never calls the model and always uses the scripted learner", async () => {
-    const { cookie } = await student();
-    const { session } = await start(cookie, { learner: "offline" });
-    const results = await teach(cookie, session.id);
+  it("an old 'pip-offline' session is still readable, never calls the model and uses the scripted learner", async () => {
+    const { cookie, userId } = await student();
+    const id = await legacyOfflineSession(userId);
+    const results = await teach(cookie, id);
     for (const r of results) {
       expect(r.body.learner.id).toBe("scripted-demo");
       expect(r.body.pip).toBeNull();
     }
     expect(model.calls).toHaveLength(0);
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [session.id]);
+    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [id]);
     expect(rows[0].learner_state).toBeNull();
   });
 
-  it("an offline session never calls the model on the on-device path either", async () => {
+  it("an old 'pip-offline' session never calls the model on the on-device path either", async () => {
     vi.stubEnv("DEVICE_PIP_EXPERIMENT", "1");
-    const { cookie } = await student();
-    const { session } = await start(cookie, { learner: "offline", topicId: "derivatives" });
-    const results = await teach(cookie, session.id, "device");
+    const { cookie, userId } = await student();
+    const id = await legacyOfflineSession(userId, "derivatives");
+    const results = await teach(cookie, id, "device");
     for (const r of results) {
       expect(r.body.device).toBeUndefined();
       expect(r.body.learner.id).toBe("scripted-demo");
     }
-    const reply = await as(cookie, () => deviceReply(jsonRequest("POST", { forMessageId: "m2", text: "Hi" }), ctx(session.id)));
+    const reply = await as(cookie, () => deviceReply(jsonRequest("POST", { forMessageId: "m2", text: "Hi" }), ctx(id)));
     expect(reply.status).toBe(409);
     expect(model.calls).toHaveLength(0);
   });
 
   it("an AI session uses the model, and nothing sent to it names the student", async () => {
     const { cookie, email, userId } = await student();
-    const { session } = await start(cookie, { learner: "ai" });
+    const { session } = await start(cookie, {});
     const results = await teach(cookie, session.id);
     expect(results.at(-1)!.body.learner.id).toBe("teachable");
     expect(model.calls.map((c) => c.label)).toEqual(["reply", "noteTaker", "assessor", "reply", "noteTaker", "assessor", "reply"]);
     const sent = JSON.stringify(model.calls.map((c) => c.messages));
     for (const identifier of [NAME, "Ada", email, userId, session.id]) expect(sent).not.toContain(identifier);
-  });
-
-  it("a session from before the choice existed (learner_id 'pip') keeps the AI learner", async () => {
-    const { cookie, userId } = await student();
-    const id = `session_legacy-${crypto.randomUUID()}`;
-    await getPool().query(`insert into teaching_sessions (id, user_id, topic_id, learner_id) values ($1, $2, $3, 'pip')`, [id, userId, TOPIC]);
-    const opening = await turnAs(cookie, id);
-    expect(opening.status).toBe(200);
-    expect(opening.body.learner.id).toBe("teachable");
-    expect(model.calls.map((c) => c.label)).toEqual(["reply"]);
   });
 });

@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { getPool } from "../db/pool";
-import { learnerIdFor, type LearnerMode } from "../aiData";
+import { AI_LEARNER_ID } from "../aiData";
 import type { AuthUser, ChatMessage, TeachingSession } from "../types";
 import type { SessionStore } from "./adapter";
 import type { SessionUpdate } from "./validate";
@@ -87,14 +87,14 @@ export class PostgresSessionStore implements SessionStore {
 
   /**
    * Creates a session with a server-generated ID. The caller checks `topicId` is a real topic.
-   * `mode` is the student's AI choice, stored once in learner_id (src/lib/aiData.ts). No update
-   * below ever writes learner_id, so the browser can't change it later. Without a choice, no AI.
+   * learner_id is always AI_LEARNER_ID (src/lib/aiData.ts), and no update below ever writes it,
+   * so the browser can't change it later.
    */
-  async createSession(topicId: string, preExplanation?: string, mode: LearnerMode = "offline"): Promise<TeachingSession> {
+  async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
     const { rows } = await this.pool.query<Row>(
       `insert into teaching_sessions (id, user_id, topic_id, learner_id, pre_explanation)
        values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
-      [`session_${randomUUID()}`, this.userId, topicId, learnerIdFor(mode), preExplanation?.trim() || null],
+      [`session_${randomUUID()}`, this.userId, topicId, AI_LEARNER_ID, preExplanation?.trim() || null],
     );
     return toSession(rows[0]);
   }

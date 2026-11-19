@@ -35,10 +35,10 @@ export function modelsFromEnv(): Models | null {
 }
 
 /**
- * The models a session may use: none unless its student chose AI Pip when starting it.
- * The choice is the session's learnerId, set by the server at creation and never updated
- * (src/lib/aiData.ts), so a session without consent can't reach the provider. Every model
- * call for a session goes through learnerTurn or deviceTurn, which both start here.
+ * The models a session may use: none unless its learnerId allows AI (src/lib/aiData.ts). The
+ * server sets learnerId at creation and never updates it; unknown ids (such as old "pip-offline"
+ * test rows) get no models. Every model call for a session goes through learnerTurn or
+ * deviceTurn, which both start here.
  */
 export function modelsFor(session: Pick<TeachingSession, "learnerId">, models: Models | null): Models | null {
   return aiAllowed(session.learnerId) ? models : null;
@@ -110,7 +110,7 @@ export async function deviceTurn(args: { session: TeachingSession; storedState: 
 
 /**
  * Pip's next message for a session, worked out on the server.
- * Uses the teachable pipeline when the student chose AI Pip for this session, a model is
+ * Uses the teachable pipeline when the session's learnerId allows AI, a model is
  * configured and the topic has a pack; otherwise the scripted demo learner, so the app always works.
  */
 export async function learnerTurn(args: {

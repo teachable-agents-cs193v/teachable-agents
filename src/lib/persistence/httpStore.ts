@@ -1,4 +1,3 @@
-import type { LearnerMode } from "../aiData";
 import type { TeachingSession } from "../types";
 import type { SessionStore } from "./adapter";
 
@@ -64,8 +63,8 @@ export class HttpSessionStore implements SessionStore {
     return (await this.json<{ sessions: TeachingSession[] }>(res)).sessions[0] ?? null;
   }
 
-  async createSession(topicId: string, preExplanation?: string, mode: LearnerMode = "offline"): Promise<TeachingSession> {
-    const res = await this.request("", { method: "POST", body: JSON.stringify({ topicId, preExplanation, learner: mode }) });
+  async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+    const res = await this.request("", { method: "POST", body: JSON.stringify({ topicId, preExplanation }) });
     return this.json<TeachingSession>(res);
   }
 

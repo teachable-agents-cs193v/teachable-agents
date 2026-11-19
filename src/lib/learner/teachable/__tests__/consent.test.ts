@@ -1,7 +1,8 @@
-// The AI choice, enforced where the models are used: a session whose student didn't choose
-// AI Pip never reaches a model, whatever models the server has configured.
+// AI use, enforced where the models are used: a session whose learner id doesn't allow AI (an
+// old "pip-offline" test row, or anything unknown) never reaches a model, whatever models the
+// server has configured. New sessions are always "pip".
 import { describe, expect, it } from "vitest";
-import { AI_LEARNER_ID, aiAllowed, learnerIdFor, modeOf, OFFLINE_LEARNER_ID } from "@/lib/aiData";
+import { AI_LEARNER_ID, aiAllowed } from "@/lib/aiData";
 import type { TeachingSession } from "@/lib/types";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "../llm";
 import { deviceTurn, learnerTurn, modelsFor, SCRIPTED, TEACHABLE } from "../server";
@@ -34,31 +35,31 @@ const opened = (learnerId: string) =>
     { id: "s1", role: "student", text: "Independent means one doesn't change the other.", createdAt: "2026-11-19T10:00:02.000Z" },
   ]);
 
-describe("the stored AI choice", () => {
-  it("maps each choice to a learner id, and only the AI id allows AI", () => {
-    expect(learnerIdFor("ai")).toBe(AI_LEARNER_ID);
-    expect(learnerIdFor("offline")).toBe(OFFLINE_LEARNER_ID);
+/** Left over from testing the removed offline-demo choice; still readable, never AI. */
+const NO_AI_ID = "pip-offline";
+
+describe("the stored learner id", () => {
+  it("only the AI id allows AI; unknown ids fail closed", () => {
     expect(aiAllowed(AI_LEARNER_ID)).toBe(true);
     // Sessions made before the choice existed were all "pip": they keep the AI learner.
     expect(aiAllowed("pip")).toBe(true);
-    for (const id of [OFFLINE_LEARNER_ID, "", "PIP", "pip ", "teachable", "anything-else"]) expect(aiAllowed(id)).toBe(false);
-    expect(modeOf("weird")).toBe("offline");
+    for (const id of [NO_AI_ID, "", "PIP", "pip ", "teachable", "anything-else"]) expect(aiAllowed(id)).toBe(false);
   });
 
-  it("modelsFor hands out no models without consent", () => {
+  it("modelsFor hands out no models to a learner id that does not allow AI", () => {
     const model = new RecordingModel();
     const models = { assessor: model, pip: model };
-    expect(modelsFor({ learnerId: OFFLINE_LEARNER_ID }, models)).toBeNull();
+    expect(modelsFor({ learnerId: NO_AI_ID }, models)).toBeNull();
     expect(modelsFor({ learnerId: AI_LEARNER_ID }, models)).toBe(models);
   });
 });
 
-describe("a session without AI consent", () => {
+describe("a session whose learner id does not allow AI", () => {
   it("never calls a model: the opening and every reply come from the scripted learner", async () => {
     const model = new RecordingModel();
     const models = { assessor: model, pip: model };
-    const opening = await learnerTurn({ session: session(OFFLINE_LEARNER_ID), storedState: null, models });
-    const reply = await learnerTurn({ session: opened(OFFLINE_LEARNER_ID), storedState: null, models });
+    const opening = await learnerTurn({ session: session(NO_AI_ID), storedState: null, models });
+    const reply = await learnerTurn({ session: opened(NO_AI_ID), storedState: null, models });
     expect(opening.learner).toEqual(SCRIPTED);
     expect(reply.learner).toEqual(SCRIPTED);
     expect(reply.state).toBeNull();
@@ -67,7 +68,7 @@ describe("a session without AI consent", () => {
 
   it("never prepares an on-device turn (that would call the assessor)", async () => {
     const model = new RecordingModel();
-    const derivatives = { ...opened(OFFLINE_LEARNER_ID), topicId: "derivatives" };
+    const derivatives = { ...opened(NO_AI_ID), topicId: "derivatives" };
     expect(await deviceTurn({ session: derivatives, storedState: null, models: { assessor: model, pip: model } })).toBeNull();
     expect(model.calls).toHaveLength(0);
   });

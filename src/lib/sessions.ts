@@ -1,6 +1,5 @@
 import { PIP } from "./learner";
 import { getSessionStore } from "./persistence";
-import type { LearnerMode } from "./aiData";
 import type { TeachingSession } from "./types";
 import { createId, nowIso } from "./utils";
 
@@ -18,6 +17,6 @@ export function buildSession(topicId: string, preExplanation?: string): Teaching
 }
 
 /** Creates and persists a fresh session, returning it. The store chooses the ID. */
-export async function startSession(topicId: string, preExplanation: string | undefined, mode: LearnerMode): Promise<TeachingSession> {
-  return getSessionStore().createSession(topicId, preExplanation, mode);
+export async function startSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+  return getSessionStore().createSession(topicId, preExplanation);
 }

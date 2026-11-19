@@ -27,8 +27,8 @@ describe("HttpSessionStore", () => {
 
   it("creates through POST and finds the active session through the list route", async () => {
     const { store, fetchImpl } = storeReturning(Response.json(session, { status: 201 }), Response.json({ sessions: [session] }));
-    expect(await store.createSession("recursion", "guess", "ai")).toEqual(session);
-    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ method: "POST", body: JSON.stringify({ topicId: "recursion", preExplanation: "guess", learner: "ai" }) });
+    expect(await store.createSession("recursion", "guess")).toEqual(session);
+    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ method: "POST", body: JSON.stringify({ topicId: "recursion", preExplanation: "guess" }) });
     expect(await store.findActiveSession("recursion")).toEqual(session);
     expect(fetchImpl.mock.calls[1][0]).toBe("/api/sessions?activeTopicId=recursion");
   });
