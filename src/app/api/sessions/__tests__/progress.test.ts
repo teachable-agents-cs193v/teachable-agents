@@ -3,7 +3,7 @@
 // answering by call label; no network calls.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
-import { getPool } from "@/lib/db/pool";
+import { storedLearnerState, writeLearnerState } from "./storedSession";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer, type FakeTurn } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import { probabilityPack as pack } from "@/lib/learner/teachable/packs/probability";
@@ -149,15 +149,17 @@ describe.skipIf(!hasDb)("GET /api/sessions/[id]/progress", () => {
 
   it("stores the history inside learner_state, at version 2", async () => {
     const { session } = await taughtSession();
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [session.id]);
-    expect(rows[0].learner_state).toMatchObject({ version: 2, historyFrom: 0 });
-    expect(rows[0].learner_state.history.map((r: { messageId: string }) => r.messageId)).toEqual(["msg_1", "msg_2"]);
+    const state = (await storedLearnerState(session.id)) as { history: Array<{ messageId: string }> };
+    expect(state).toMatchObject({ version: 2, historyFrom: 0 });
+    expect(state.history.map((r) => r.messageId)).toEqual(["msg_1", "msg_2"]);
   });
 
   it("upgrades a session saved before history existed", async () => {
     const { cookie, session } = await taughtSession();
     // Strip the state back to version 1's shape.
-    await getPool().query("update teaching_sessions set learner_state = learner_state - 'version' - 'history' - 'historyFrom' where id = $1", [session.id]);
+    const v1 = { ...(await storedLearnerState(session.id)) };
+    for (const key of ["version", "history", "historyFrom"]) delete v1[key];
+    await writeLearnerState(session.id, v1);
     const loaded = await progressOf(cookie, session.id);
     expect(loaded.body.progress).toMatchObject({ studentTurns: 2, recordedFromTurn: 2, timeline: [], misconceptions: [{ status: "changed_mind", voicedAtTurn: null, attempts: 1 }] });
 

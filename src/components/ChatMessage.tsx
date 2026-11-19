@@ -44,7 +44,7 @@ export function ChatMessage({ message, learnerName = "Pip", showTurnLabels = fal
           {message.text}
         </div>
         {showTurnLabels && message.role === "learner" && message.misconception && (
-          <Badge tone="terracotta" className="normal-case tracking-normal">
+          <Badge tone="leaf" className="normal-case tracking-normal">
             Misconception: {message.misconception}
           </Badge>
         )}

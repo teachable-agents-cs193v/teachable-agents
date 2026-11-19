@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { studentMessage } from "../errors";
 import { getLearningProgress, getPipBeliefs, postDeviceReply, postTurn, TurnError, type TurnBody, type TurnResponse } from "../learner";
 import { DEVICE_EXPERIMENT, deviceSupported, loadDevicePip, writeOnDevice, type DeviceStats } from "../learner/device/onDevicePip";
-import { getSessionStore, SessionStoreError } from "../persistence";
+import { getSessionStore } from "../persistence";
 import { getTopic } from "../topics";
 import type { ChatMessage, LearningProgress, StudentBelief, TeachingSession, Topic } from "../types";
 import { createId, nowIso } from "../utils";
@@ -77,10 +78,10 @@ export interface TeachingSessionState {
 }
 
 const SAVE_FAILED = "Your session couldn't be saved. Check your connection and try again.";
-const TURN_FAILED = "Pip could not respond. Please try again.";
+const LEARNER_FAILED = "Pip couldn't respond. Please try again.";
 
-/** Store errors carry a student-safe message; anything else gets the fallback. */
-const saveErrorMessage = (error: unknown) => (error instanceof SessionStoreError ? error.message : SAVE_FAILED);
+/** Store errors carry a student-safe message; anything else gets the fallback (#22). */
+const saveErrorMessage = (error: unknown) => studentMessage(error, SAVE_FAILED);
 
 /** Pip still has to speak: its opening, or a reply to a saved student message. */
 const awaitingPip = (s: TeachingSession) => s.status === "in_progress" && (s.messages.length === 0 || s.messages.at(-1)?.role === "student");
@@ -174,7 +175,7 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
         setSession({ ...error.session, messages: [...error.session.messages, ...unsent] });
       }
       setErrorKind("learner");
-      setErrorMessage(error instanceof Error ? error.message : TURN_FAILED);
+      setErrorMessage(studentMessage(error, LEARNER_FAILED));
       setLearnerStatus("error");
     }
   }, []);
@@ -193,9 +194,8 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
         setDeviceStatus("ready");
       })
       .catch((cause: unknown) => {
-        console.error("[on-device Pip] load failed", cause);
         deviceReady.current = false;
-        setDeviceError(cause instanceof Error ? cause.message : "The model couldn't load.");
+        setDeviceError(studentMessage(cause, "The model couldn't load."));
         setDeviceStatus("error");
       });
   }, []);
@@ -250,11 +250,11 @@ export function useTeachingSession(sessionId: string): TeachingSessionState {
       if (!session || !trimmed || learnerStatus !== "idle" || session.status !== "in_progress") {
         return;
       }
-      const studentMessage: ChatMessage = { id: createId("msg"), role: "student", text: trimmed, createdAt: nowIso() };
+      const message: ChatMessage = { id: createId("msg"), role: "student", text: trimmed, createdAt: nowIso() };
       // Shown right away; it stays on screen if the turn fails, and "Try again" sends it again.
-      const next = { ...session, messages: [...session.messages, studentMessage] };
+      const next = { ...session, messages: [...session.messages, message] };
       setSession(next);
-      await runTurn(next, { clientMessageId: studentMessage.id, text: trimmed });
+      await runTurn(next, { clientMessageId: message.id, text: trimmed });
     },
     [session, learnerStatus, runTurn],
   );

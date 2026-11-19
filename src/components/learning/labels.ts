@@ -4,12 +4,12 @@
  */
 import type { StudentBelief, TaughtCorrectness, TimelineEvent } from "@/lib/types";
 
-type Tone = "sage" | "butter" | "terracotta" | "forest" | "neutral";
+type Tone = "sage" | "butter" | "leaf" | "forest" | "neutral";
 
 export const BELIEF_STATUS: Record<StudentBelief["status"], { label: string; hint: string; tone: Tone }> = {
   heard: { label: "Heard it", hint: "You said it, but haven't said why yet", tone: "butter" },
   understood: { label: "Gets why", hint: "You explained why, or gave an example", tone: "sage" },
-  believes: { label: "Still believes", hint: "Pip started out thinking this", tone: "terracotta" },
+  believes: { label: "Still believes", hint: "Pip started out thinking this", tone: "leaf" },
   changed_mind: { label: "Changed its mind", hint: "Your explanation changed Pip's mind", tone: "forest" },
 };
 
@@ -19,7 +19,7 @@ export const STATUS_ORDER: StudentBelief["status"][] = ["believes", "heard", "un
 export const CORRECTNESS: Record<TaughtCorrectness, { label: string; tone: Tone }> = {
   correct: { label: "Correct", tone: "sage" },
   partly: { label: "Partly right", tone: "butter" },
-  incorrect: { label: "Not right", tone: "terracotta" },
+  incorrect: { label: "Not right", tone: "leaf" },
   unclear: { label: "Unclear", tone: "neutral" },
 };
 
@@ -44,7 +44,7 @@ export function eventLabel(event: TimelineEvent): string {
 export const EVENT_DOT: Record<TimelineEvent["type"], string> = {
   learned: "bg-butter-deep",
   explained: "bg-sage-deep",
-  voiced: "bg-terracotta",
+  voiced: "bg-leaf",
   changed_mind: "bg-forest",
   taken_back: "bg-line",
 };

@@ -6,13 +6,14 @@ test.beforeEach(async ({ page, baseURL }) => signUpTestStudent(page, baseURL));
 
 /**
  * Walks the complete student journey against the scripted demo learner:
- * landing → library → meet Pip → teach → end → reflect → sessions dashboard → review.
+ * dashboard → library → meet Pip → teach → end → reflect → sessions dashboard → review.
  */
 test("a student can teach Pip and reflect on the session", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "The best way to learn is to teach." })).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
 
-  await page.getByRole("link", { name: "Start Teaching" }).first().click();
+  await page.getByRole("link", { name: "New teaching session" }).click();
   await expect(page).toHaveURL(/\/topics$/);
 
   // Filter, then pick the featured probability topic.

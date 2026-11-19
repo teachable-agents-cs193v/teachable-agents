@@ -28,13 +28,13 @@ const signupError = (page: Page) => page.locator("#signup-error");
 
 // next dev compiles each route on first use; do that once up front.
 test.beforeAll(async ({ request }) => {
-  for (const path of ["/", "/login", "/signup", "/topics", "/sessions", "/api/auth/get-session"]) await request.get(path);
+  for (const path of ["/", "/login", "/signup", "/topics", "/sessions", "/dashboard", "/api/auth/get-session"]) await request.get(path);
 });
 
 test.describe("signup, logout and login", () => {
   test("a new student can sign up, log out and log back in", async ({ page }) => {
     const email = await signUp(page);
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await expect(nav(page).getByTestId("auth-greeting")).toHaveText("Hi, Jordan");
 
     await nav(page).getByRole("button", { name: "Log out" }).click();
@@ -52,7 +52,7 @@ test.describe("signup, logout and login", () => {
 
   test("a wrong password shows one generic error and stays logged out", async ({ page }) => {
     const email = await signUp(page);
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await nav(page).getByRole("button", { name: "Log out" }).click();
     await expect(nav(page).getByRole("link", { name: "Log in" })).toBeVisible();
 
@@ -112,7 +112,7 @@ test.describe("password policy in the signup form", () => {
   test("an email that's already registered offers to log in instead", async ({ browser }) => {
     const first = await browser.newPage();
     const email = await signUp(first);
-    await expect(first).toHaveURL(/\/topics$/);
+    await expect(first).toHaveURL(/\/dashboard$/);
     await first.close();
 
     const page = await browser.newPage();
@@ -128,13 +128,13 @@ test.describe("redirects", () => {
   test("login returns the student to a safe next path, and ignores an off-site one", async ({ browser }) => {
     const setup = await browser.newPage();
     const email = await signUp(setup);
-    await expect(setup).toHaveURL(/\/topics$/);
+    await expect(setup).toHaveURL(/\/dashboard$/);
     await setup.close();
 
     for (const [next, expected] of [
       ["/sessions", /\/sessions$/],
-      ["//evil.example", /\/topics$/],
-      ["/\t/evil.example", /\/topics$/], // a browser would strip the tab: //evil.example
+      ["//evil.example", /\/dashboard$/],
+      ["/\t/evil.example", /\/dashboard$/], // a browser would strip the tab: //evil.example
     ] as const) {
       const page = await browser.newPage();
       await page.goto(`/login?next=${encodeURIComponent(next)}`);
@@ -149,9 +149,9 @@ test.describe("redirects", () => {
 
   test("a logged-in student visiting /login or /signup is sent on", async ({ page }) => {
     await signUp(page);
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/login");
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/signup?next=%2Fsessions");
     await expect(page).toHaveURL(/\/sessions$/);
   });
@@ -181,11 +181,11 @@ test.describe("form behaviour", () => {
 
   test("if logging out fails, the student is told and stays logged in", async ({ page }) => {
     await signUp(page);
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await page.route("**/api/auth/sign-out", (route) => route.fulfill({ status: 500, body: "{}" }));
     await nav(page).getByRole("button", { name: "Log out" }).click();
     await expect(nav(page).getByRole("alert")).toHaveText("Couldn't log out. Please try again.");
-    await expect(page).toHaveURL(/\/topics$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
     await page.unroute("**/api/auth/sign-out");
     await page.reload();
     await expect(nav(page).getByTestId("auth-greeting")).toHaveText("Hi, Jordan");

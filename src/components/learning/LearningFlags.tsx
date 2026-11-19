@@ -20,7 +20,7 @@ export function LearningFlags({ flags, learnerName = "Pip", className }: Learnin
     <section className={cn("flex flex-col gap-2", className)} aria-label="Heads up" aria-live="polite" data-testid="learning-flags">
       {flags.map((flag) =>
         flag.kind === "pip_wrong_idea" ? (
-          <p key={`p-${flag.beliefId}`} className="rounded-2xl border border-terracotta/40 bg-terracotta/10 px-4 py-2.5 text-sm text-charcoal">
+          <p key={`p-${flag.beliefId}`} className="rounded-2xl border border-leaf/40 bg-leaf/10 px-4 py-2.5 text-sm text-charcoal">
             <span className="font-semibold">Catch it:</span> {learnerName} just said something that isn&rsquo;t right: &ldquo;{flag.statement}&rdquo;
             {" "}Can you show {learnerName} why?
           </p>

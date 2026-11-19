@@ -13,6 +13,7 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { LoadErrorState } from "@/components/LoadErrorState";
 import { ArrowLeftIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
+import { studentMessage } from "@/lib/errors";
 
 const CONFIDENCE_LABELS = ["", "Not confident", "A little", "Somewhat", "Fairly", "Very confident"];
 
@@ -32,7 +33,7 @@ export function SessionReview({ sessionId }: { sessionId: string }) {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setLoadError(error instanceof Error ? error.message : "Please try again.");
+        setLoadError(studentMessage(error, "Please try again."));
         setLoading(false);
       });
     return () => {

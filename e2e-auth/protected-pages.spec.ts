@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { PASSWORDS } from "./fixtures";
 import { signUpTestStudent } from "./signIn";
 
-const PROTECTED = ["/learner/independence-vs-mutual-exclusivity", "/teach/session_any", "/reflect/session_any", "/sessions", "/sessions/session_any"];
+const PROTECTED = ["/dashboard", "/profile", "/learner/independence-vs-mutual-exclusivity", "/teach/session_any", "/reflect/session_any", "/sessions", "/sessions/session_any"];
 const PUBLIC = ["/", "/topics", "/login", "/signup"];
 
 test.beforeAll(async ({ request }) => {

@@ -43,13 +43,13 @@ export function LearningReviewPanel({ review, learnerName = "Pip", className }: 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="card p-6" aria-labelledby={ids.misconceptions}>
           <h2 id={ids.misconceptions} className="flex items-center gap-2 font-display text-2xl text-charcoal">
-            <QuestionIcon className="size-5 text-terracotta" /> {learnerName}&rsquo;s starting ideas
+            <QuestionIcon className="size-5 text-leaf" /> {learnerName}&rsquo;s starting ideas
           </h2>
           <ul className="mt-4 flex flex-col gap-3">
             {review.misconceptions.map((m) => (
               <li key={m.id} data-outcome={m.outcome} className="rounded-2xl border border-line bg-paper px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={m.outcome === "corrected" ? "forest" : "terracotta"}>
+                  <Badge tone={m.outcome === "corrected" ? "forest" : "leaf"}>
                     {m.outcome === "corrected" ? "Corrected" : "Still believes"}
                   </Badge>
                   {!m.voiced && m.outcome === "still_held" && <span className="text-xs text-muted">Didn&rsquo;t come up</span>}
@@ -64,7 +64,7 @@ export function LearningReviewPanel({ review, learnerName = "Pip", className }: 
 
         <section className="card p-6" aria-labelledby={ids.taught}>
           <h2 id={ids.taught} className="flex items-center gap-2 font-display text-2xl text-charcoal">
-            <SparkleIcon className="size-5 text-terracotta" /> What you taught
+            <SparkleIcon className="size-5 text-leaf" /> What you taught
           </h2>
           {review.taught.length === 0 ? (
             <p className="mt-4 text-sm text-muted">{learnerName} didn&rsquo;t take on any new ideas this time.</p>

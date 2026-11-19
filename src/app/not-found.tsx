@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/Navbar";
+import { SiteNav } from "@/components/nav/SiteNav";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
@@ -6,7 +6,7 @@ import { LearnerAvatar } from "@/components/LearnerAvatar";
 export default function NotFound() {
   return (
     <>
-      <Navbar />
+      <SiteNav />
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-5 px-4 py-20 text-center">
         <LearnerAvatar mood="confused" size={96} />
         <h1 className="font-display text-4xl text-forest">Hmm, that page isn&rsquo;t in the library.</h1>

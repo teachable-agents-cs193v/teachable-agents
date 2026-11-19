@@ -24,6 +24,7 @@ import { PipBeliefsPanel } from "@/components/learning/PipBeliefsPanel";
 import { DevicePipPanel } from "@/components/learning/DevicePipPanel";
 import { LearningFlags } from "@/components/learning/LearningFlags";
 import { DataLine } from "@/components/DataLine";
+import { studentMessage } from "@/lib/errors";
 
 export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -63,7 +64,7 @@ export function TeachingWorkspace({ sessionId }: { sessionId: string }) {
       const ended = await state.endSession();
       if (ended) return router.push(`/reflect/${ended.id}`);
     } catch (error) {
-      setEndError(error instanceof Error ? error.message : "The session couldn't be ended. Try again.");
+      setEndError(studentMessage(error, "The session couldn't be ended. Try again."));
     }
     setEnding(false);
   };

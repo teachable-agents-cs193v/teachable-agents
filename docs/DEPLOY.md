@@ -3,7 +3,7 @@
 Two people, in order:
 
 - **Part A**, Betania (database): create the Postgres database if needed and apply the auth migration.
-- **Part B**, Chase (Vercel): add the three environment variables and redeploy, then run the smoke test.
+- **Part B**, Chase (Vercel): add the four environment variables and redeploy, then run the smoke test.
 
 Everything below uses placeholders like `<your-production-domain>`. Real values never go in this file or anywhere else in the repo.
 
@@ -24,7 +24,8 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    read -rs DB_DIRECT_URL && export DB_DIRECT_URL     # paste the DIRECT string; hidden, not saved to history
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0001_auth.sql
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
-   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
    psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions
    unset DB_DIRECT_URL
    ```
@@ -33,6 +34,22 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    - Never point `npm run db:generate` at this database. It refuses non-local databases anyway.
 4. **Get the pooled string to Chase privately.** The best option is to give Chase his own access to the database project, so he copies it himself. Otherwise use a password-manager share.
 5. **Tell Anahi and Chase "migration applied"**, saying which database and branch, but **not** the connection string.
+
+### Encrypting teaching sessions (`0003_encrypt_teaching_sessions.sql`)
+
+This changes the transcript, pre-explanation and reflection columns to hold encrypted values. **The order matters**, because the old code can't read the new columns and the new code can't write the old ones:
+
+1. **Chase:** set `ENCRYPTION_MASTER_KEY` in Vercel for every environment (see Part B, step 2).
+2. **Betania:** check the session count, then apply the migration. ⚠️ **It deletes every existing teaching session** (plaintext test data that can't go into the encrypted columns). Users and logins are kept.
+   ```bash
+   read -rs DB_DIRECT_URL && export DB_DIRECT_URL
+   psql "$DB_DIRECT_URL" -c 'select count(*) from teaching_sessions'   # make sure these are all test sessions
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
+   psql "$DB_DIRECT_URL" -c '\d teaching_sessions'                     # expect messages/reflection as text, and *_encrypted checks
+   unset DB_DIRECT_URL
+   ```
+3. **Merge and deploy right after.** Between steps 2 and 3, saving and loading sessions on the live site fails, so do them together.
+4. **Smoke test:** start a session on the live site, send a message, log out and back in, and check that it's still there. In the Neon SQL Editor, `select left(messages, 3) from teaching_sessions` should show `v1:`.
 
 ## Part B: Chase (Vercel)
 
@@ -52,7 +69,10 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    | `DATABASE_URL` | the **pooled** string from Betania | Mark **Sensitive**. Production only, unless Preview has its own database |
    | `BETTER_AUTH_SECRET` | output of step 1 | Mark **Sensitive**. A separate value per environment |
    | `BETTER_AUTH_URL` | `https://<your-production-domain>` | Exact, with no trailing slash |
+   | `ENCRYPTION_MASTER_KEY` | output of `openssl rand -base64 32` | Mark **Sensitive**. A separate value per environment; see below |
 
+   - **`ENCRYPTION_MASTER_KEY`:** each tier (development, preview, production) needs its own, generated with `openssl rand -base64 32`, with a backup kept outside the repo (for example in the team password manager), because losing it makes the encrypted data unreadable.
+   - **Deploy order:** set `ENCRYPTION_MASTER_KEY` in Vercel for each tier **before** any code that calls `encryptField` is deployed to that tier. Otherwise every save fails on the live site.
    - Don't set `PWNED_PASSWORDS_API_URL`; it's for tests only.
    - Don't add a `NEXT_PUBLIC_` prefix to any of these.
 3. **Redeploy.** Variables only apply to new deployments: Deployments → latest `main` → **Redeploy**.
@@ -77,4 +97,6 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
 | Error page on every request | `BETTER_AUTH_SECRET` missing or shorter than 32 characters, or `DATABASE_URL` missing. Fix it in Vercel and redeploy. |
 | "We couldn't check this password against known data breaches…" | The breach-check service was briefly unreachable, so signup refused, as designed. Retry in a minute. |
 | Login fails only on preview URLs | Known open concern: previews may need extra trusted origins. Test on the production domain. |
+| Sessions fail to save or load right after an encryption deploy | `ENCRYPTION_MASTER_KEY` missing or malformed in that environment (Vercel logs show `EncryptionKeyError`), or `0003` not applied yet. |
+| `Could not decrypt …` in the Vercel logs | The value was encrypted with a different `ENCRYPTION_MASTER_KEY`, such as a regenerated or another environment's key. Restore the original key from the backup; never generate a new one over existing data. |
 | `psql: … already exists` while applying the migration | It was applied before. Check the tables with `\dt` instead of re-running it. |

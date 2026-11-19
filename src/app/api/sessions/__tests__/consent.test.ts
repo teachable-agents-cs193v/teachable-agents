@@ -5,6 +5,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
+import { encryptField } from "@/lib/crypto/fieldEncryption";
+import { storedLearnerState } from "./storedSession";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import { AI_LEARNER_ID } from "@/lib/aiData";
@@ -98,11 +100,10 @@ const storedLearnerId = async (id: string) =>
 /** An old session from testing the removed offline-demo choice. No route can create one now. */
 async function legacyOfflineSession(userId: string, topicId = TOPIC) {
   const id = `session_offline-${crypto.randomUUID()}`;
-  await getPool().query(`insert into teaching_sessions (id, user_id, topic_id, learner_id) values ($1, $2, $3, 'pip-offline')`, [
-    id,
-    userId,
-    topicId,
-  ]);
+  await getPool().query(
+    `insert into teaching_sessions (id, user_id, topic_id, learner_id, messages) values ($1, $2, $3, 'pip-offline', $4)`,
+    [id, userId, topicId, encryptField(userId, "messages", "[]")],
+  );
   return id;
 }
 
@@ -144,8 +145,7 @@ describe.skipIf(!hasDb)("AI use on /api/sessions", () => {
       expect(r.body.pip).toBeNull();
     }
     expect(model.calls).toHaveLength(0);
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [id]);
-    expect(rows[0].learner_state).toBeNull();
+    expect(await storedLearnerState(id)).toBeNull();
   });
 
   it("an old 'pip-offline' session never calls the model on the on-device path either", async () => {

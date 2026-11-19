@@ -59,7 +59,7 @@ export function MisconceptionTracker({ misconceptions, wrongTaught = [], student
                   justChanged ? "animate-pop border-forest/50 bg-sage/40" : "border-line bg-paper",
                 )}
               >
-                <Badge tone={m.status === "changed_mind" ? "forest" : "terracotta"}>{m.status === "changed_mind" ? "Fixed" : "Not right"}</Badge>
+                <Badge tone={m.status === "changed_mind" ? "forest" : "leaf"}>{m.status === "changed_mind" ? "Fixed" : "Not right"}</Badge>
                 <span className="sr-only"> ({status.label})</span>
                 <p className="mt-1.5 text-charcoal/90">&ldquo;{m.statement}&rdquo;</p>
                 <p className="mt-1 text-xs text-muted">{detail(m, learnerName)}</p>
@@ -72,7 +72,7 @@ export function MisconceptionTracker({ misconceptions, wrongTaught = [], student
               data-status="taught_wrong"
               className={cn(
                 "rounded-2xl border px-3.5 py-2.5 text-[14px] leading-relaxed",
-                w.turn === latest ? "animate-pop border-terracotta/50 bg-terracotta/10" : "border-line bg-paper",
+                w.turn === latest ? "animate-pop border-leaf/50 bg-leaf/10" : "border-line bg-paper",
               )}
             >
               <Badge tone={w.fixed ? "forest" : "butter"}>{w.fixed ? "Fixed" : w.verdict === "wrong" ? "You taught this" : "Partly right"}</Badge>

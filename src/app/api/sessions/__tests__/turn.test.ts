@@ -7,6 +7,8 @@ import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachab
 import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import { probabilityPack } from "@/lib/learner/teachable/packs/probability";
 import { getUserSessionStore } from "@/lib/persistence/server";
+import { decryptField } from "@/lib/crypto/fieldEncryption";
+import { storedLearnerState, storedRow } from "./storedSession";
 import type { AuthUser, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { GET as get, PUT as put } from "../[id]/route";
@@ -120,8 +122,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     expect(stored.messages[1]).toMatchObject({ id: "msg_1", role: "student", text: "Independent means they don't affect each other." });
     expect(stored.messages[2]).toMatchObject({ role: "learner", text: res.body.reply.text });
 
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [session.id]);
-    expect(rows[0].learner_state.notebook.studentTurns).toBe(1);
+    expect(((await storedLearnerState(session.id)) as { notebook: { studentTurns: number } }).notebook.studentTurns).toBe(1);
     const fetched = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
     expect(fetched.messages).toEqual(stored.messages);
     expect(JSON.stringify(fetched)).not.toMatch(/learner_?[sS]tate|notebook|taughtCorrectly/);
@@ -315,14 +316,42 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
 
     const replyPrompts = JSON.stringify(prompts.reply);
     const responseBody = JSON.stringify(res.body);
-    const { rows } = await getPool().query("select learner_state from teaching_sessions where id = $1", [session.id]);
-    const stored = JSON.stringify(rows[0].learner_state);
+    const stored = JSON.stringify(await storedLearnerState(session.id));
     for (const s of secrets) {
       expect(responseBody).not.toContain(s);
       expect(replyPrompts).not.toContain(s);
       expect(stored).not.toContain(s);
     }
     expect(stored).not.toMatch(/analysis|moveNote/);
+  });
+
+  it("stores the transcript and learner state encrypted, and decrypts them for the owner", async () => {
+    model = new FakeModel();
+    const { cookie, session } = await openedSession();
+    const text = "My secret explanation: independent events don't affect each other.";
+    const res = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text });
+    expect(res.status).toBe(200);
+
+    const row = await storedRow(session.id);
+    for (const value of [row.messages, row.learner_state]) {
+      expect(value).toMatch(/^v1:/);
+      expect(value).not.toContain("secret");
+      expect(value).not.toContain("notebook");
+    }
+    const messages = JSON.parse(decryptField(row.user_id, "messages", row.messages));
+    expect(messages).toEqual(res.body.session.messages);
+    expect(messages[1]).toMatchObject({ id: "msg_1", role: "student", text });
+    expect(await storedLearnerState(session.id)).toMatchObject({ notebook: { studentTurns: 1 } });
+    // Another user's key can't read it.
+    const other = (await getPool().query<{ user_id: string }>("select user_id from teaching_sessions where id <> $1 limit 1", [session.id])).rows[0];
+    if (other) expect(() => decryptField(other.user_id, "learner_state", row.learner_state!)).toThrow("Could not decrypt learner_state.");
+  });
+
+  it("refuses a plaintext learner state written straight to the database", async () => {
+    const { session } = await openedSession();
+    await expect(
+      getPool().query(`update teaching_sessions set learner_state = '{"notebook":{}}' where id = $1`, [session.id]),
+    ).rejects.toThrow(/violates check constraint/);
   });
 
   it("GET /pip is null for the scripted learner", async () => {

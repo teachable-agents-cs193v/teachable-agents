@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
+import { decryptField, encryptField } from "../crypto/fieldEncryption";
 import { getPool } from "../db/pool";
 import { AI_LEARNER_ID } from "../aiData";
 import type { AuthUser, ChatMessage, TeachingSession } from "../types";
@@ -14,6 +15,11 @@ import type { SessionUpdate } from "./validate";
  * 2. Every query filters by `user_id`.
  * 3. Another user's session looks exactly like a missing one (`null` / `false`).
  * 4. The server generates IDs; updates only touch rows this user already owns.
+ *
+ * The transcript, pre-explanation, reflection and learner state are encrypted per user and
+ * field (src/lib/crypto/fieldEncryption.ts, db/migrations/0003_encrypt_teaching_sessions.sql,
+ * db/migrations/0004_learner_state.sql):
+ * encrypted on every write, decrypted on every read, always with this store's user ID.
  *
  * Server-only. API routes get one with `getUserSessionStore(await requireApiUser())`.
  */
@@ -30,13 +36,17 @@ interface Row {
   status: TeachingSession["status"];
   started_at: Date;
   ended_at: Date | null;
-  messages: TeachingSession["messages"];
+  /** Encrypted JSON array. */
+  messages: string;
   learner_cursor: number;
+  /** Encrypted text. */
   pre_explanation: string | null;
-  reflection: TeachingSession["reflection"] | null;
+  /** Encrypted JSON object. */
+  reflection: string | null;
 }
 
-function toSession(row: Row): TeachingSession {
+/** Decrypts a row for its owner. Throws FieldDecryptionError if any value can't be decrypted. */
+function toSession(userId: string, row: Row): TeachingSession {
   return {
     id: row.id,
     topicId: row.topic_id,
@@ -44,10 +54,10 @@ function toSession(row: Row): TeachingSession {
     status: row.status,
     startedAt: row.started_at.toISOString(),
     endedAt: row.ended_at?.toISOString(),
-    messages: row.messages,
+    messages: JSON.parse(decryptField(userId, "messages", row.messages)),
     learnerCursor: row.learner_cursor,
-    preExplanation: row.pre_explanation ?? undefined,
-    reflection: row.reflection ?? undefined,
+    preExplanation: row.pre_explanation === null ? undefined : decryptField(userId, "pre_explanation", row.pre_explanation),
+    reflection: row.reflection === null ? undefined : JSON.parse(decryptField(userId, "reflection", row.reflection)),
   };
 }
 
@@ -59,12 +69,14 @@ export class PostgresSessionStore implements SessionStore {
     private readonly pool: Pool,
   ) {}
 
+  private toSession = (row: Row): TeachingSession => toSession(this.userId, row);
+
   async listSessions(): Promise<TeachingSession[]> {
     const { rows } = await this.pool.query<Row>(
       `select ${COLUMNS} from teaching_sessions where user_id = $1 order by started_at desc`,
       [this.userId],
     );
-    return rows.map(toSession);
+    return rows.map(this.toSession);
   }
 
   async getSession(id: string): Promise<TeachingSession | null> {
@@ -72,7 +84,7 @@ export class PostgresSessionStore implements SessionStore {
       id,
       this.userId,
     ]);
-    return rows[0] ? toSession(rows[0]) : null;
+    return rows[0] ? this.toSession(rows[0]) : null;
   }
 
   async findActiveSession(topicId: string): Promise<TeachingSession | null> {
@@ -82,7 +94,7 @@ export class PostgresSessionStore implements SessionStore {
        order by started_at desc limit 1`,
       [this.userId, topicId],
     );
-    return rows[0] ? toSession(rows[0]) : null;
+    return rows[0] ? this.toSession(rows[0]) : null;
   }
 
   /**
@@ -91,19 +103,28 @@ export class PostgresSessionStore implements SessionStore {
    * so the browser can't change it later.
    */
   async createSession(topicId: string, preExplanation?: string): Promise<TeachingSession> {
+    const explanation = preExplanation?.trim();
     const { rows } = await this.pool.query<Row>(
-      `insert into teaching_sessions (id, user_id, topic_id, learner_id, pre_explanation)
-       values ($1, $2, $3, $4, $5) returning ${COLUMNS}`,
-      [`session_${randomUUID()}`, this.userId, topicId, AI_LEARNER_ID, preExplanation?.trim() || null],
+      `insert into teaching_sessions (id, user_id, topic_id, learner_id, messages, pre_explanation)
+       values ($1, $2, $3, $4, $5, $6) returning ${COLUMNS}`,
+      [
+        `session_${randomUUID()}`,
+        this.userId,
+        topicId,
+        AI_LEARNER_ID,
+        // The column has no default: even the empty transcript is stored encrypted.
+        encryptField(this.userId, "messages", "[]"),
+        explanation ? encryptField(this.userId, "pre_explanation", explanation) : null,
+      ],
     );
-    return toSession(rows[0]);
+    return this.toSession(rows[0]);
   }
 
-  /** Updates the fields the browser may change (status, end time, reflection); null if there is no such session. */
   /**
-   * Updates status, endedAt and reflection. "completed" is final: once ended, a session can't go
-   * back to in_progress (its review, with the assessor's verdicts, is open by then), so that
-   * update answers "ended" and changes nothing. Saving a completed session again (e.g. its
+   * Updates the fields the browser may change: status, endedAt and reflection (null if there is
+   * no such session). "completed" is final: once ended, a session can't go back to in_progress
+   * (its review, with the assessor's verdicts, is open by then), so that update answers "ended"
+   * and changes nothing. Saving a completed session again (e.g. its
    * reflection) is fine.
    */
   async updateSession(id: string, update: SessionUpdate): Promise<TeachingSession | null | "ended"> {
@@ -112,9 +133,15 @@ export class PostgresSessionStore implements SessionStore {
        set status = $3, ended_at = $4, reflection = $5, updated_at = now()
        where id = $1 and user_id = $2 and (status = 'in_progress' or $3 = 'completed')
        returning ${COLUMNS}`,
-      [id, this.userId, update.status, update.endedAt ?? null, update.reflection ? JSON.stringify(update.reflection) : null],
+      [
+        id,
+        this.userId,
+        update.status,
+        update.endedAt ?? null,
+        update.reflection ? encryptField(this.userId, "reflection", JSON.stringify(update.reflection)) : null,
+      ],
     );
-    if (rows[0]) return toSession(rows[0]);
+    if (rows[0]) return this.toSession(rows[0]);
     return (await this.getSession(id)) ? "ended" : null;
   }
 
@@ -137,12 +164,14 @@ export class PostgresSessionStore implements SessionStore {
    * Never returned by GET /api/sessions/[id]: the learner state holds the assessor's hidden verdicts.
    */
   async getTurnContext(id: string): Promise<{ session: TeachingSession; learnerState: unknown; version: string } | null> {
-    const { rows } = await this.pool.query<Row & { learner_state: unknown; version: string }>(
+    const { rows } = await this.pool.query<Row & { learner_state: string | null; version: string }>(
       `select ${COLUMNS}, learner_state, updated_at::text as version from teaching_sessions where id = $1 and user_id = $2`,
       [id, this.userId],
     );
     const row = rows[0];
-    return row ? { session: toSession(row), learnerState: row.learner_state ?? null, version: row.version } : null;
+    if (!row) return null;
+    const learnerState = row.learner_state === null ? null : JSON.parse(decryptField(this.userId, "learner_state", row.learner_state));
+    return { session: this.toSession(row), learnerState, version: row.version };
   }
 
   /**
@@ -151,8 +180,8 @@ export class PostgresSessionStore implements SessionStore {
    * (otherwise "conflict"). Null if there's no such session.
    *
    * The server is the only writer of the transcript: the browser can't PUT
-   * messages. This is also the one place the transcript is read and written for
-   * a turn, so encryption at rest wraps this method.
+   * messages. The transcript and learner state are decrypted on the read and
+   * re-encrypted on the write, like every other encrypted field.
    */
   async appendToSession(
     id: string,
@@ -166,7 +195,7 @@ export class PostgresSessionStore implements SessionStore {
     const { rows } = await this.pool.query<Row & { version: string }>(
       `update teaching_sessions
        set messages = $4, learner_cursor = $5,
-           learner_state = case when $7 then learner_state else $6::jsonb end,
+           learner_state = case when $7 then learner_state else $6::text end,
            updated_at = now()
        where id = $1 and user_id = $2 and updated_at = $3::timestamptz
        returning ${COLUMNS}, updated_at::text as version`,
@@ -174,14 +203,16 @@ export class PostgresSessionStore implements SessionStore {
         id,
         this.userId,
         change.version,
-        JSON.stringify(messages),
+        encryptField(this.userId, "messages", JSON.stringify(messages)),
         change.learnerCursor ?? current.session.learnerCursor,
-        keepState ? null : JSON.stringify(change.learnerState),
+        keepState || change.learnerState === null
+          ? null
+          : encryptField(this.userId, "learner_state", JSON.stringify(change.learnerState)),
         keepState,
       ],
     );
     // No row: another request changed the session between the read and this write.
-    return rows[0] ? { session: toSession(rows[0]), version: rows[0].version } : "conflict";
+    return rows[0] ? { session: this.toSession(rows[0]), version: rows[0].version } : "conflict";
   }
 
   /** Deletes one of this user's sessions; false if there is no such session. */

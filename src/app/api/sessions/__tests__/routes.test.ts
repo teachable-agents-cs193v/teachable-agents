@@ -4,6 +4,7 @@
 // lists scoped to the current user.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getPool } from "@/lib/db/pool";
+import { decryptField } from "@/lib/crypto/fieldEncryption";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import type { TeachingSession } from "@/lib/types";
 import { GET as list, POST as create } from "../route";
@@ -131,8 +132,9 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const res = await as(cookie, () => put(jsonRequest("PUT", { ...update(s), messages: [forged], learnerCursor: 7 }), ctx(s.id)));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ id: s.id, messages: [], learnerCursor: 0 });
-    const { rows } = await getPool().query("select messages, learner_cursor from teaching_sessions where id = $1", [s.id]);
-    expect(rows[0]).toEqual({ messages: [], learner_cursor: 0 });
+    const { rows } = await getPool().query("select user_id, messages, learner_cursor from teaching_sessions where id = $1", [s.id]);
+    expect(JSON.parse(decryptField(rows[0].user_id, "messages", rows[0].messages))).toEqual([]);
+    expect(rows[0].learner_cursor).toBe(0);
   });
 
   it("never reopens a completed session (its review is open), but still saves it again", async () => {
@@ -211,5 +213,67 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const s = await startSession(cookie);
     await getPool().query("delete from users where id = (select user_id from teaching_sessions where id = $1)", [s.id]);
     expect((await getPool().query("select 1 from teaching_sessions where id = $1", [s.id])).rowCount).toBe(0);
+  });
+});
+
+// User-written session data is encrypted at rest (db/migrations/0003_*, 0004_*).
+// The transcript and learner state written by /turn are covered in turn.test.ts.
+describe.skipIf(!hasDb)("encryption at rest", () => {
+  const raw = async (id: string) =>
+    (await getPool().query("select messages, pre_explanation, reflection from teaching_sessions where id = $1", [id])).rows[0];
+
+  it("stores the transcript, pre-explanation and reflection encrypted, and returns them decrypted", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie, { topicId: TOPIC, preExplanation: "my secret guess" });
+    expect((await raw(s.id)).messages).toMatch(/^v1:/); // even the empty transcript
+
+    const reflection = {
+      postExplanation: "my secret reflection",
+      confidence: 3,
+      hardestToExplain: "",
+      misconceptionReflection: "yes",
+      noticedGap: "no",
+      noticedGapDetail: "",
+      freeReflection: "",
+      submittedAt: new Date().toISOString(),
+    };
+    const body = update(s, { status: "completed", endedAt: new Date().toISOString(), reflection: reflection as TeachingSession["reflection"] });
+    expect((await as(cookie, () => put(jsonRequest("PUT", body), ctx(s.id)))).status).toBe(200);
+
+    const row = await raw(s.id);
+    for (const value of Object.values(row)) {
+      expect(value).toMatch(/^v1:/);
+      expect(value).not.toContain("secret");
+    }
+    const saved = (await (await as(cookie, () => get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id)))).json()) as TeachingSession;
+    expect(saved).toMatchObject({ messages: [], preExplanation: "my secret guess", reflection });
+  });
+
+  it("can't decrypt a value copied into another user's session", async () => {
+    const alice = await newStudent();
+    const bob = await newStudent();
+    const aliceSession = await startSession(alice, { topicId: TOPIC, preExplanation: "Alice's notes" });
+    const bobSession = await startSession(bob);
+    // Someone with database access copies Alice's encrypted notes into Bob's row.
+    await getPool().query(
+      "update teaching_sessions set pre_explanation = (select pre_explanation from teaching_sessions where id = $1) where id = $2",
+      [aliceSession.id, bobSession.id],
+    );
+    await expect(as(bob, () => get(new Request(`${URL_BASE}/${bobSession.id}`), ctx(bobSession.id)))).rejects.toThrow(
+      "Could not decrypt pre_explanation.",
+    );
+  });
+
+  it("refuses plaintext written straight to the database", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    for (const sql of [
+      "update teaching_sessions set messages = '[]' where id = $1",
+      "update teaching_sessions set pre_explanation = 'plain notes' where id = $1",
+      `update teaching_sessions set reflection = '{"confidence":3}' where id = $1`,
+      `update teaching_sessions set learner_state = '{"notebook":{}}' where id = $1`,
+    ]) {
+      await expect(getPool().query(sql, [s.id]), sql).rejects.toThrow(/violates check constraint/);
+    }
   });
 });

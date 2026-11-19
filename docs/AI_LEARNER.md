@@ -11,7 +11,7 @@ Pip only knows what the student teaches it in the session, including any mistake
    LLM_API_KEY=<your key>
    LLM_MODEL=openai/gpt-oss-120b
    ```
-3. Apply the migration to your database: `psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_learner_state.sql`
+3. Apply the migration to your database: `psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql`
 4. `npm run dev`, then start a session on any topic with **Start teaching Pip**. The note under the teaching tips says "AI learner" when the model is answering.
 
 With no key, or on a topic without a topic pack, Pip falls back to the scripted demo learner. Nothing breaks.

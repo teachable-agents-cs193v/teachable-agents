@@ -1,3 +1,4 @@
+import { StudentFacingError } from "../errors";
 import type { LearnerReply, LearningProgress, LearningReview, StudentBelief, TeachingSession } from "../types";
 import type { ChatTurn } from "./teachable/llm";
 import { AT_CAPACITY, atCapacityMessage } from "./capacity";
@@ -46,8 +47,11 @@ export interface TurnResponse {
   device: { forMessageId: string | null; messages: ChatTurn[] } | null;
 }
 
-/** A failed turn. `message` is always safe to show a student; `session` is the server's copy when it sent one. */
-export class TurnError extends Error {
+/**
+ * A failed turn. `message` is always safe to show a student (a StudentFacingError, #22);
+ * `session` is the server's copy when it sent one.
+ */
+export class TurnError extends StudentFacingError {
   constructor(
     message: string,
     readonly status: number,
