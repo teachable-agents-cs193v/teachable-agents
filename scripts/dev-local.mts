@@ -43,6 +43,8 @@ const next: ChildProcess = spawn(new URL(repo("node_modules/.bin/next")).pathnam
     DATABASE_URL: pg.url,
     BETTER_AUTH_SECRET: randomBytes(32).toString("base64"),
     BETTER_AUTH_URL: `http://localhost:${PORT}`,
+    // The throwaway database is encrypted too (#50); a throwaway key is fine for it.
+    ENCRYPTION_MASTER_KEY: process.env.ENCRYPTION_MASTER_KEY ?? randomBytes(32).toString("base64"),
   },
 });
 next.on("exit", stop);
