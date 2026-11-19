@@ -20,6 +20,22 @@ describe("OpenAiCompatibleModel rate limits", () => {
     expect(error.retryable).toBe(false);
     expect(error.message).toContain("retry after 600s");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // Structured, so the route can tell "out of capacity" from other failures without reading text.
+    expect(error.kind).toBe("rate_limited");
+    expect(error.retryAfterSeconds).toBe(600);
+  });
+
+  it("marks a 429 that's still limited after every retry as rate limited, and other failures as not", async () => {
+    const stillLimited = new OpenAiCompatibleModel(config, vi.fn(async () => limited("0")) as unknown as typeof fetch);
+    const limitedError = (await stillLimited.completeJson([{ role: "user", content: "hi" }], { label: "reply" }).catch((e: unknown) => e)) as LlmError;
+    expect(limitedError.kind).toBe("rate_limited");
+    expect(limitedError.retryable).toBe(true);
+    expect(limitedError.retryAfterSeconds).toBeUndefined();
+
+    const down = new OpenAiCompatibleModel(config, vi.fn(async () => new Response("{}", { status: 503 })) as unknown as typeof fetch);
+    const downError = (await down.completeJson([{ role: "user", content: "hi" }], { label: "reply" }).catch((e: unknown) => e)) as LlmError;
+    expect(downError).toBeInstanceOf(LlmError);
+    expect(downError.kind).toBe("other");
   });
 
   it("retries a short per-minute limit and succeeds", async () => {

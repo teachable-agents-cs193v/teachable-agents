@@ -24,15 +24,32 @@ export interface JsonModel {
   completeJson(messages: ChatTurn[], options: JsonCallOptions): Promise<unknown>;
 }
 
+/**
+ * Why a call failed, for the student-facing message: "rate_limited" is the provider saying it's
+ * out of capacity for us (HTTP 429: a per-minute rate limit or the daily quota); "other" is
+ * anything else.
+ */
+export type LlmErrorKind = "rate_limited" | "other";
+
 export class LlmError extends Error {
+  readonly kind: LlmErrorKind;
+  /** From the provider's Retry-After header, when it sent a number of seconds. */
+  readonly retryAfterSeconds?: number;
+
   constructor(
     message: string,
     readonly retryable: boolean,
+    details: { kind?: LlmErrorKind; retryAfterSeconds?: number } = {},
   ) {
     super(message);
     this.name = "LlmError";
+    this.kind = details.kind ?? "other";
+    if (details.retryAfterSeconds !== undefined) this.retryAfterSeconds = details.retryAfterSeconds;
   }
 }
+
+/** True when the provider is out of capacity (rate limit or quota), however it was wrapped. */
+export const isRateLimited = (error: unknown): error is LlmError => error instanceof LlmError && error.kind === "rate_limited";
 
 export interface LlmConfig {
   baseUrl: string;
@@ -136,11 +153,16 @@ export class OpenAiCompatibleModel implements JsonModel {
       // Retry-After tells a per-minute limit (seconds) from a daily one (minutes or more).
       const hint = retryAfter ? ` (retry after ${retryAfter}s)` : "";
       const message = `${options.label}: provider returned ${response.status}${hint}`;
+      const seconds = Number(retryAfter);
+      const details =
+        response.status === 429
+          ? { kind: "rate_limited" as const, ...(retryAfter && Number.isFinite(seconds) && seconds > 0 ? { retryAfterSeconds: seconds } : {}) }
+          : {};
       // A wait longer than we're willing to sleep (e.g. the daily token cap) won't
       // clear by retrying, so fail now instead of burning every attempt.
-      if (Number(retryAfter) * 1000 > cap) throw new LlmError(message, false);
+      if (seconds * 1000 > cap) throw new LlmError(message, false, details);
       await sleep(retryAfterMs(response, attempt, cap));
-      throw new LlmError(message, true);
+      throw new LlmError(message, true, details);
     }
     if (!response.ok) {
       // Never include the response body: some providers echo request headers.
