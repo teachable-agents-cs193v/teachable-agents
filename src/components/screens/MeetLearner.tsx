@@ -13,8 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, inputClasses } from "@/components/ui/Field";
 import { LearnerAvatar } from "@/components/LearnerAvatar";
 import { TeachingTips } from "@/components/TeachingTips";
-import { AiChoiceCard } from "@/components/AiChoiceCard";
-import type { LearnerMode } from "@/lib/aiData";
+import { AiNoticeCard } from "@/components/AiNoticeCard";
 import { ArrowLeftIcon, SUBJECT_ICONS } from "@/components/illustrations/Icons";
 
 export function MeetLearner({ topic }: { topic: Topic }) {
@@ -23,7 +22,7 @@ export function MeetLearner({ topic }: { topic: Topic }) {
   const Icon = SUBJECT_ICONS[topic.subjectId];
   const [preExplanation, setPreExplanation] = useState("");
   const [active, setActive] = useState<TeachingSession | null>(null);
-  const [starting, setStarting] = useState<LearnerMode | null>(null);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,15 +39,15 @@ export function MeetLearner({ topic }: { topic: Topic }) {
     };
   }, [topic.id]);
 
-  const begin = async (mode: LearnerMode) => {
-    setStarting(mode);
+  const begin = async () => {
+    setStarting(true);
     setError(null);
     try {
-      const session = await startSession(topic.id, preExplanation, mode);
+      const session = await startSession(topic.id, preExplanation);
       router.push(`/teach/${session.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start the session.");
-      setStarting(null);
+      setStarting(false);
     }
   };
 
@@ -133,7 +132,7 @@ export function MeetLearner({ topic }: { topic: Topic }) {
             </p>
           )}
 
-          <AiChoiceCard onChoose={(mode) => void begin(mode)} starting={starting} />
+          <AiNoticeCard onStart={() => void begin()} starting={starting} label={active ? "Start a new session" : undefined} />
           {active && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <p className="text-sm text-muted">Or pick up where you left off:</p>

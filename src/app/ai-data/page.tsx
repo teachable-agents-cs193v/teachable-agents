@@ -16,7 +16,7 @@ export default function AiDataPage() {
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-terracotta">{CARD.title}</span>
             <h1 className="font-display text-4xl text-forest sm:text-5xl">What happens to what you teach Pip</h1>
             <p className="text-lg leading-relaxed text-muted">
-              AI Pip&rsquo;s replies are written by AI models that {PROVIDER} runs for us. Here is exactly what goes to{" "}
+              Pip&rsquo;s replies are written by AI models that {PROVIDER} runs for us. Here is exactly what goes to{" "}
               {PROVIDER}, what doesn&rsquo;t, and what each of us keeps.
             </p>
           </div>
