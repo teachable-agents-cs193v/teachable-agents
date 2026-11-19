@@ -157,6 +157,14 @@ Write a pack in `src/lib/learner/teachable/packs/` with the same shape as `proba
 
 It spends real Groq quota, so it isn't part of `npm test` or CI. Unit and route tests use a fake model.
 
+## When the model fails: errors the student sees
+
+The student's message is saved before any model call, so a failed turn never loses it, and "Try again" resends the same body (it's never saved or answered twice). The student never sees the provider's own error.
+
+- **Out of capacity** (Groq answers 429: the per-minute rate limit or the daily quota). `llm.ts` still retries short waits and fails at once on long ones, as below, and the error it throws has `kind: "rate_limited"` and `retryAfterSeconds` when Retry-After gave a number. `POST /turn` answers `503 { error, code: "at_capacity", retryAfterSeconds? }`, and the browser (`postTurn` / `postDeviceReply` in `src/lib/learner/httpLearner.ts`) shows "Pip is at capacity right now: a lot of people are teaching at once. Try again in a few minutes." (or "in about N minutes/hours" when the wait is known). The wording is in `src/lib/learner/capacity.ts`. The client goes by `code`, never by the text. `POST /device-reply` never calls a model, so it can't hit this; the assessor call for the on-device path happens in `/turn`.
+- **Any other model failure** (5xx, timeouts, bad JSON): `503` (or `500` for a non-model bug) with "Pip is having trouble thinking right now. Wait a moment and try again." and no `code`.
+- Tests: "says Pip is at capacity" and "keeps the student's message when the model fails" in `src/app/api/sessions/__tests__/turn.test.ts`, "failed turns" in `src/lib/__tests__/httpLearner.test.ts`, and the rate-limit cases in `src/lib/learner/teachable/__tests__/llm.test.ts`.
+
 ## Free-tier caveats
 
 - Respect the provider's terms. Don't put real student names or personal details in messages during user tests.
