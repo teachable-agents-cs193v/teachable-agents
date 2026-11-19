@@ -73,11 +73,13 @@ export class PacedModel implements JsonModel {
   readonly name: string;
   /** Calls since the last drain(). */
   private calls: CallRecord[] = [];
+  /** Time spent waiting out quota limits this run (bounded by maxQuotaWaitMs). */
+  private quotaWaitedMs = 0;
 
   constructor(
     private readonly inner: JsonModel & { usage?: Usage },
     private readonly limiter: TokenLimiter,
-    private readonly options: { retries?: number; retryWaitMs?: number; sleep?: (ms: number) => Promise<void>; log?: (line: string) => void } = {},
+    private readonly options: { retries?: number; retryWaitMs?: number; maxQuotaWaitMs?: number; sleep?: (ms: number) => Promise<void>; log?: (line: string) => void } = {},
   ) {
     this.name = inner.name;
   }
@@ -115,6 +117,17 @@ export class PacedModel implements JsonModel {
         const after = this.inner.usage?.[options.label] ?? before;
         this.limiter.record(options.label, after.prompt - before.prompt + after.completion - before.completion || this.limiter.estimate(options.label));
         if (error instanceof LlmError && !error.retryable && /\b429\b/.test(error.message)) {
+          // Groq's daily token cap is a rolling window: a Retry-After of minutes means tokens come
+          // back soon. Wait those out (up to maxQuotaWaitMs in total) instead of stopping the run.
+          const seconds = Number(/retry after (\d+(?:\.\d+)?)s/.exec(error.message)?.[1] ?? NaN);
+          const wait = (seconds + 5) * 1000;
+          const budget = this.options.maxQuotaWaitMs ?? 3 * 60 * 60 * 1000;
+          if (Number.isFinite(seconds) && seconds <= 20 * 60 && this.quotaWaitedMs + wait <= budget) {
+            this.quotaWaitedMs += wait;
+            this.options.log?.(`  ${options.label} (${this.name}): rate-limited; waiting ${Math.round(wait / 1000)}s for the rolling quota`);
+            await sleep(wait);
+            continue;
+          }
           throw new QuotaExhaustedError(`${this.name}: ${error.message}. The daily quota is probably used up; resume later.`);
         }
         if (!(error instanceof LlmError) || !error.retryable || attempt >= retries) throw error;
