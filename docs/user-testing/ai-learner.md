@@ -13,6 +13,12 @@ Version tested: run locally on Chase's #42 branch at commit `204eebb`, before #4
 
 Setup: One classmate tested the AI learner on Chase's #42 branch, running locally. They read the participant notice and used their student account to sign up. The topic they chose was supply and demand.
 
+Task given: Navigate the teachable agents interface to learn more about a topic.
+
+Finished: The user ran through a session of the supply and demand topic for 16 minutes (21 message exchanges),  and voluntarily ended a session successfully. 
+
+Urge to explain: I wanted to explain they should pick a topic they have knowledge about when they immediately went to a topic I knew they didn't know much about but I remained as an observer and instead wrote down the behavior to consider in our feedback. 
+
 ### Observations
 
 Getting started: The first challenge was picking a topic. They initially chose photosynthesis but switched to supply and demand after realizing they would need to teach the topic to Pip.
