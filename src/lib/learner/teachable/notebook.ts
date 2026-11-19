@@ -156,7 +156,7 @@ export function sanitizeMove(assessment: Assessment, notebook: Notebook): Assess
   const taught = notebook.beliefs.some((b) => b.source === "taught");
   const unvoiced = activeMisconceptions(notebook).find((b) => !notebook.voicedMisconceptionIds.includes(b.misconceptionId!));
   const last = notebook.moves.at(-1);
-  // "Why?" twice in a row stalls the conversation (students said it felt stuck): try what was taught.
+  // Asking "why?" twice in a row stalls the conversation, so the second time Pip tries what was taught.
   if ((move === "ask_why" || move === "ask_for_example") && last === move) {
     move = taught ? "try_to_apply" : "admit_confusion";
     moveTarget = null;

@@ -53,5 +53,5 @@ playwright-report/
 # sympy for the optional derivative cross-check (eval/README.md)
 /eval/.venv/
 
-# On-device Pip weights (research/unlearning/outputs/webllm), served locally; never committed
+# On-device Pip weights (the off-by-default experiment), served locally; never committed
 /public/webllm/

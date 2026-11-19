@@ -1,5 +1,5 @@
 {
-  "about": "Real teaching sessions by a project member (Chase), Derivatives topic, 2026-11-17/18, exported from a local throwaway database. Identities removed. Sessions marked pipWrittenOnDevice used the on-device model for Pip's replies (now an experiment); the rest used the server pipeline before the assessor/note-taker split.",
+  "about": "Real teaching sessions by a project team member, Derivatives topic, 2026-11-17/18, exported from a local throwaway database. Identities removed. Sessions marked pipWrittenOnDevice used the on-device model for Pip's replies (now an experiment); the rest used the server pipeline before the assessor/note-taker split.",
   "sessions": [
     {
       "id": "human-1",

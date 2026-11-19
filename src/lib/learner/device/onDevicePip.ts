@@ -5,9 +5,9 @@
  * model (TopicPack.device). The server still owns the transcript, the notebook and the assessor;
  * the device only turns the notebook-only prompt the server sends into Pip's words.
  *
- * The model is Qwen3-0.6B with the topic unlearned (research/unlearning), packed in WebLLM's
- * format with research/unlearning/mlc_pack.py. It runs on WebLLM's prebuilt Qwen3-0.6B library,
- * since the architecture is the same.
+ * The model is Qwen3-0.6B fine-tuned to not know the topic, packed in WebLLM's MLC format (16-bit).
+ * The weights aren't in this repository. It runs on WebLLM's prebuilt Qwen3-0.6B library, since the
+ * architecture is the same.
  */
 import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import type { ChatTurn } from "../teachable/llm";
@@ -18,7 +18,7 @@ import type { ChatTurn } from "../teachable/llm";
  */
 export const DEVICE_EXPERIMENT = process.env.NEXT_PUBLIC_DEVICE_PIP_EXPERIMENT === "1";
 
-/** Where the weights are served from. WebLLM appends "resolve/main/" to this. */
+/** Where the weights are served from. WebLLM appends "resolve/main/" to this. The id names the packed weights. */
 const MODEL_URL = process.env.NEXT_PUBLIC_DEVICE_PIP_URL ?? "/webllm/pip-v10-q0f16-MLC/";
 const MODEL_ID = "pip-v10-q0f16";
 /** The prebuilt library this model runs on (same architecture and quantization). */

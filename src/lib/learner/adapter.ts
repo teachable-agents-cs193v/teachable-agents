@@ -16,11 +16,10 @@ export interface LearnerContext {
 }
 
 /**
- * Integration point for the AI learner (owned by Chase).
- *
- * The UI only ever talks to this interface. To plug in a real model, implement
- * it (likely by calling a Next.js route handler that holds the API key) and
- * return it from `getLearnerAdapter()` in `./index.ts`.
+ * A learner that answers from the conversation alone. The scripted demo learner
+ * implements it, and the server uses it when no model is configured or the topic
+ * has no pack (learnerTurn() in ./teachable/server.ts). The AI learner runs
+ * through the turn pipeline instead (./teachable/pipeline.ts).
  */
 export interface LearnerAdapter {
   /** Stable identifier shown in the UI so demo vs. real behavior is transparent. */

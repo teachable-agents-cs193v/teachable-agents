@@ -44,8 +44,9 @@ export interface TopicPack {
   concepts: PackConcept[];
   misconceptions: PackMisconception[];
   /**
-   * When set, Pip's reply can be written on the student's device by a small model trained for this
-   * topic (research/unlearning), from this prompt and Pip's notebook only. Safe for Pip to see.
+   * When set, Pip's reply can be written on the student's device by a small model fine-tuned for
+   * this topic (an off-by-default experiment), from this prompt and Pip's notebook only. Safe for
+   * Pip to see.
    */
   device?: {
     /** System prompt; `{notes}` becomes Pip's notebook, one "- belief" per line. */

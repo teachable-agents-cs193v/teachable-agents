@@ -4,11 +4,11 @@ import type { TopicPack } from "../types";
  * Hidden answer key for "Derivatives" (Calc 1). The three starting misconceptions are classic,
  * documented ones: (fg)' = f'g' and the chain rule without the inner derivative (Orton, 1983,
  * "Students' understanding of differentiation"; Clark et al., 1997, on the chain rule), and e^x
- * treated as a power function. Needs a human review before user tests: the assessor treats this as
- * ground truth.
+ * treated as a power function. The assessor treats this pack as ground truth, so any change to it
+ * needs checking by someone who knows the subject.
  *
- * This is the topic the on-device Pip was trained for (research/unlearning): its weights don't know
- * derivatives, so on this topic everything it does comes from its notebook.
+ * This is the topic the experimental on-device Pip was fine-tuned for: its weights have had
+ * derivatives removed, so on this topic everything it says comes from its notebook.
  */
 export const calculusPack: TopicPack = {
   topicId: "derivatives",
@@ -55,7 +55,7 @@ export const calculusPack: TopicPack = {
     },
   ],
   device: {
-    // Exactly the prompt the on-device model was trained with (research/unlearning/gated.py PIP_SYSTEMS[0]).
+    // Exactly the system prompt the on-device model was fine-tuned with; changing it degrades the model.
     system:
       "You are Pip, a student who is learning derivatives from a classmate. Your notes are the only calculus you know:\n{notes}\nUse only your notes, and trust them as written. If your notes don't cover something, say you haven't learned it. Answer in one to three casual sentences.",
     opener: "Hi! Ready to learn about derivatives?",
