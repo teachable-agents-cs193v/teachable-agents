@@ -17,7 +17,7 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
     if (res.url().includes("/turn") || res.url().includes("/progress")) turnBodies.push(await res.text());
   });
 
-  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await page.goto("/learner/derivatives");
   await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
@@ -31,27 +31,27 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   await expect(tracker).toContainText("came in with a few wrong ideas");
 
   const composer = page.getByLabel("Your message to Pip");
-  await composer.fill("Independent means one doesn't change the other's chance.");
+  await composer.fill("A derivative is how fast something is changing at one point.");
   await composer.press("Enter");
   await expect(log.locator("[data-role=learner]")).toHaveCount(2);
 
-  const first = beliefs.locator("li", { hasText: "doesn't change the other's chance" });
+  const first = beliefs.locator("li", { hasText: "how fast something is changing" });
   await expect(first).toHaveAttribute("data-status", "heard");
   await expect(first).toHaveAttribute("data-changed", "true");
   await expect(tracker.locator("li")).toHaveAttribute("data-status", "believes");
-  await expect(tracker).toContainText("can't happen at the same time");
+  await expect(tracker).toContainText("multiply their derivatives");
   await expect(tracker.locator("li")).toContainText("Not right");
   // A side note says Pip's idea isn't right (Pip itself never does), without giving the answer.
   await expect(page.getByTestId("learning-flags")).toContainText("Catch it");
   await expect(strip).toContainText("Your last message: Pip heard, Pip said what it believes");
 
-  await composer.fill("Heads and a six can both happen, and heads doesn't change the 1/6 chance of a six.");
+  await composer.fill("No: x times x is x squared, with derivative 2x, but 1 times 1 is 1. The product rule is f'g + fg'.");
   await composer.press("Enter");
   await expect(log.locator("[data-role=learner]")).toHaveCount(3);
 
   await expect(tracker.locator("li")).toHaveAttribute("data-status", "changed_mind");
   await expect(tracker).toContainText("1 of 1 changed");
-  await expect(beliefs.locator("li", { hasText: "Heads and a six" })).toHaveAttribute("data-status", "understood");
+  await expect(beliefs.locator("li", { hasText: "The product rule" })).toHaveAttribute("data-status", "understood");
   await expect(first).not.toHaveAttribute("data-changed", "true");
   await expect(strip).toContainText("Pip changed its mind");
   await expect(strip.locator("ol > li")).toHaveCount(2);
@@ -70,7 +70,7 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   await page.setViewportSize({ width: 1280, height: 800 });
 
   // Nothing hidden reached the browser during the session.
-  for (const body of turnBodies) expect(body).not.toMatch(/correctness|taughtCorrectly|keyIdea|whyWrong|analysis|same deck/);
+  for (const body of turnBodies) expect(body).not.toMatch(/correctness|taughtCorrectly|keyIdea|whyWrong|analysis|leave the inside alone/);
 
   await page.getByRole("button", { name: "End Session" }).click();
   await page.getByRole("button", { name: "Yes, end session" }).click();
@@ -79,7 +79,7 @@ test("a student sees Pip's beliefs and misconceptions change, then reviews the s
   const review = page.getByTestId("learning-review");
   await expect(review).toBeVisible();
   await expect(review).toContainText("1 of 3");
-  await expect(review.locator("[data-outcome=corrected]")).toContainText("Independent events cannot happen at the same time");
+  await expect(review.locator("[data-outcome=corrected]")).toContainText("The derivative of a product is the product of the derivatives");
   await expect(review.locator("[data-outcome=still_held]")).toHaveCount(2);
   await expect(review.locator("[data-correctness=correct]")).toHaveCount(2);
   await review.getByText("Message by message").click();

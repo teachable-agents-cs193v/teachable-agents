@@ -2,6 +2,7 @@
 // throwaway Postgres. The model is a fake injected through modelsFromEnv(); no network calls.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
+import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
 import type { TeachingSession } from "@/lib/types";
@@ -162,7 +163,9 @@ describe.skipIf(!hasDb)("on-device Pip (derivatives)", () => {
   });
 
   it("replies on the server for topics without an on-device Pip", async () => {
-    const { cookie, session } = await newSession("independence-vs-mutual-exclusivity");
+    // Probability has no on-device Pip. It's hidden from new sessions, so move an existing one onto it.
+    const { cookie, session } = await newSession("derivatives");
+    await getPool().query("update teaching_sessions set topic_id = 'independence-vs-mutual-exclusivity' where id = $1", [session.id]);
     const open = await turnAs(cookie, session.id, { replyOn: "device" });
     expect(open.status).toBe(200);
     expect(open.body.device).toBeUndefined();

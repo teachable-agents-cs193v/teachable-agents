@@ -48,7 +48,7 @@ export default function AboutPage() {
             Explaining the idea to a curious student, and being asked &ldquo;but why?&rdquo;, tests it.
           </p>
           <p className="leading-relaxed text-charcoal/85">
-            The lessons are concepts students commonly half-understand, starting with probability. The library is small on
+            The lessons are concepts students commonly half-understand, starting with derivatives. The library is small on
             purpose so each lesson can be done well.
           </p>
         </div>
@@ -75,8 +75,8 @@ export default function AboutPage() {
           ))}
         </ul>
         <p className="text-sm leading-relaxed text-muted">
-          In the current build Pip follows a written script for each lesson while the AI learner is being integrated, so
-          Pip won&rsquo;t react to your exact wording yet. The app says which learner is running on every session.
+          Pip&rsquo;s replies are written by an AI model, which reacts to your exact wording. If the AI isn&rsquo;t
+          available, Pip falls back to a written script for the lesson. The app says which one is running on every session.
         </p>
       </section>
 

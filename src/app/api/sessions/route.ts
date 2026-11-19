@@ -1,6 +1,6 @@
 import { requireApiUser } from "@/lib/auth/server";
 import { getUserSessionStore } from "@/lib/persistence/server";
-import { getTopic } from "@/lib/topics";
+import { getStartableTopic, getTopic } from "@/lib/topics";
 import { error, json, readJson } from "./shared";
 
 /**
@@ -30,6 +30,8 @@ export async function POST(request: Request) {
   if (read instanceof Response) return read;
   const { topicId, preExplanation } = (read.body ?? {}) as Record<string, unknown>;
   if (typeof topicId !== "string" || !getTopic(topicId)) return error("Unknown topic.", 400);
+  // A hidden topic keeps its existing sessions, but new ones can't start on it.
+  if (!getStartableTopic(topicId)) return error("That lesson isn't available right now.", 404);
   if (preExplanation !== undefined && (typeof preExplanation !== "string" || preExplanation.length > 20_000)) {
     return error("Invalid preExplanation.", 400);
   }

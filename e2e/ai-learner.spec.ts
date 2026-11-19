@@ -20,7 +20,7 @@ test("a student teaches the AI learner and the session survives a reload", async
     if (res.url().includes("/turn")) turnResponses.push(await res.text());
   });
 
-  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await page.goto("/learner/derivatives");
   await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
 
@@ -37,7 +37,7 @@ test("a student teaches the AI learner and the session survives a reload", async
   await expect(learner).toHaveCount(2, { timeout: 90_000 });
 
   await composer.fill(
-    "Independent means knowing one event happened doesn't change the chance of the other. A coin flip and a die roll can both happen, heads and a six, and getting heads doesn't change the 1/6 chance of a six.",
+    "A derivative is the instantaneous rate of change. For a product you can't just multiply the derivatives: x times x is x squared, whose derivative is 2x, but 1 times 1 is 1. The product rule is f'g + fg'.",
   );
   await composer.press("Enter");
   await expect(learner).toHaveCount(3, { timeout: 90_000 });

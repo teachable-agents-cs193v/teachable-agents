@@ -5,7 +5,7 @@ import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { getPool } from "@/lib/db/pool";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer } from "@/lib/learner/teachable/__tests__/fakeTurns";
-import { probabilityPack } from "@/lib/learner/teachable/packs/probability";
+import { calculusPack } from "@/lib/learner/teachable/packs/calculus";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import { decryptField } from "@/lib/crypto/fieldEncryption";
 import { storedLearnerState, storedRow } from "./storedSession";
@@ -48,7 +48,7 @@ beforeEach(() => {
   model = null;
 });
 
-const TOPIC = "independence-vs-mutual-exclusivity";
+const TOPIC = "derivatives";
 const URL_BASE = "http://localhost:3000/api/sessions";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonRequest = (method: string, body: unknown) =>
@@ -104,7 +104,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     expect(opening.body.reply).toMatchObject({ kind: "opening", nextCursor: 1 });
     expect(roles(opening.body.session)).toEqual(["learner"]);
 
-    const next = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "Independent means no effect." });
+    const next = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "A derivative is a rate of change." });
     expect(roles(next.body.session)).toEqual(["learner", "student", "learner"]);
     expect(next.body.session.learnerCursor).toBe(next.body.reply.nextCursor);
   });
@@ -258,7 +258,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
 
   it("returns what Pip believes, as the student may see it, with each turn and from GET /pip", async () => {
     model = new FakeModel();
-    const taught = { claims: [{ pipStatement: "So independent means they can't both happen?", conceptId: "independence-definition", correctness: "incorrect", explained: false }] };
+    const taught = { claims: [{ pipStatement: "So the derivative is just the slope?", conceptId: "derivative-meaning", correctness: "incorrect", explained: false }] };
     model.completeJson = async (_messages, options) => {
       model!.calls.push(options.label);
       if (options.label === "noteTaker") return noteTakerAnswer(taught);
@@ -268,7 +268,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     const { cookie, session } = await openedSession();
     const res = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "Independent events can't both happen." });
     expect(res.body.pip).toEqual([
-      expect.objectContaining({ statement: "So independent means they can't both happen?", status: "heard", startedWith: false, changedThisTurn: true, evidence: [0] }),
+      expect.objectContaining({ statement: "So the derivative is just the slope?", status: "heard", startedWith: false, changedThisTurn: true, evidence: [0] }),
     ]);
 
     const loaded = await (await as(cookie, () => getPip(new Request(`${URL_BASE}/${session.id}/pip`), ctx(session.id)))).json();
@@ -282,10 +282,10 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
 
   it("a prompt-injected assessor can't get the answer key into the response or Pip's prompt", async () => {
     const secrets = [
-      ...probabilityPack.concepts.map((c) => c.keyIdea),
-      ...probabilityPack.misconceptions.flatMap((m) => [m.whyWrong, m.correctionMustAddress]),
+      ...calculusPack.concepts.map((c) => c.keyIdea),
+      ...calculusPack.misconceptions.flatMap((m) => [m.whyWrong, m.correctionMustAddress]),
     ];
-    const key = probabilityPack.concepts[3].keyIdea;
+    const key = calculusPack.concepts[3].keyIdea;
     const prompts: Record<string, ChatTurn[][]> = {};
     model = new FakeModel();
     model.completeJson = async (messages, options) => {
@@ -328,7 +328,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
   it("stores the transcript and learner state encrypted, and decrypts them for the owner", async () => {
     model = new FakeModel();
     const { cookie, session } = await openedSession();
-    const text = "My secret explanation: independent events don't affect each other.";
+    const text = "My secret explanation: a derivative is the instantaneous rate of change.";
     const res = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text });
     expect(res.status).toBe(200);
 

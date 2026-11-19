@@ -39,7 +39,7 @@ async function failSaves(page: Page, failing: number[]) {
 }
 
 async function startTeaching(page: Page) {
-  await page.goto("/learner/independence-vs-mutual-exclusivity");
+  await page.goto("/learner/derivatives");
   await page.getByRole("button", { name: "Start teaching Pip" }).click();
   await expect(page).toHaveURL(/\/teach\/session_/);
   const log = page.getByRole("log");
@@ -61,7 +61,7 @@ async function expectSaved(page: Page, students: number, learners: number) {
 test("a turn that fails shows a friendly error, keeps the message, and sends it once on retry", async ({ page }) => {
   const log = await startTeaching(page);
   await failTurns(page, [1], "before");
-  await send(page, "Independent events don't change each other's chances.");
+  await send(page, "A derivative is how fast something changes.");
 
   const alert = appAlert(page);
   await expect(alert).toContainText("couldn\u2019t respond");
@@ -78,7 +78,7 @@ test("a turn that fails shows a friendly error, keeps the message, and sends it 
 test("when the answer is lost on the way back, retrying doesn't duplicate anything", async ({ page }) => {
   const log = await startTeaching(page);
   await failTurns(page, [1], "after"); // the server saved both messages; the browser never heard
-  await send(page, "Independent events don't change each other's chances.");
+  await send(page, "A derivative is how fast something changes.");
   await expect(appAlert(page)).toContainText("trouble thinking", { timeout: 10_000 });
 
   await appAlert(page).getByRole("button", { name: "Try again" }).click();

@@ -6,7 +6,7 @@ import { hasDb, sessionCookie, signUp } from "@/lib/auth/__tests__/testHelpers";
 import { storedLearnerState, writeLearnerState } from "./storedSession";
 import type { ChatTurn, JsonCallOptions, JsonModel } from "@/lib/learner/teachable/llm";
 import { assessorAnswer, noteTakerAnswer, type FakeTurn } from "@/lib/learner/teachable/__tests__/fakeTurns";
-import { probabilityPack as pack } from "@/lib/learner/teachable/packs/probability";
+import { calculusPack as pack } from "@/lib/learner/teachable/packs/calculus";
 import type { LearningProgress, LearningReview, TeachingSession } from "@/lib/types";
 import { POST as create } from "../route";
 import { PUT as put } from "../[id]/route";
@@ -24,8 +24,8 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(requestCookie ? { cookie: requestCookie } : {}),
 }));
 
-const VOICED = "independent-means-cannot-co-occur";
-const SILENT = "same-source-means-dependent";
+const VOICED = "product-of-derivatives";
+const SILENT = "chain-without-inner";
 const verdict = (over: FakeTurn = {}): FakeTurn => over;
 
 /**
@@ -78,21 +78,21 @@ const say = (cookie: string, id: string, clientMessageId: string, text: string) 
 async function taughtSession() {
   model = new FakeModel([
     verdict({
-      claims: [{ pipStatement: "Independent means no effect.", conceptId: "independence-definition", correctness: "incorrect", explained: false }],
+      claims: [{ pipStatement: "A derivative is a slope.", conceptId: "derivative-meaning", correctness: "incorrect", explained: false }],
       corrections: [{ misconceptionId: SILENT, targeted: false, explained: false }],
       move: "voice_misconception",
       moveTarget: VOICED,
     }),
     verdict({
-      claims: [{ pipStatement: "A coin and a die can both happen.", conceptId: "independent-can-co-occur", correctness: "correct", explained: true }],
+      claims: [{ pipStatement: "(fg)' is f'g + fg'.", conceptId: "product-rule", correctness: "correct", explained: true }],
       corrections: [{ misconceptionId: VOICED, targeted: true, explained: true }],
     }),
   ]);
   const cookie = sessionCookie((await signUp()).res);
   const session = (await (await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC, learner: "ai" })))).json()) as TeachingSession;
   expect((await as(cookie, () => read(turn(jsonRequest("POST", {}), ctx(session.id))))).status).toBe(200);
-  const first = await say(cookie, session.id, "msg_1", "Independent means they don't affect each other.");
-  const second = await say(cookie, session.id, "msg_2", "Heads and a six can both happen, and heads doesn't change the 1/6.");
+  const first = await say(cookie, session.id, "msg_1", "A derivative is how fast something changes.");
+  const second = await say(cookie, session.id, "msg_2", "No: (x·x)' is 2x, but 1·1 is 1, so (fg)' = f'g + fg'.");
   return { cookie, session: second.body.session as TeachingSession, first: first.body, second: second.body };
 }
 
@@ -203,13 +203,13 @@ describe.skipIf(!hasDb)("GET /api/sessions/[id]/review", () => {
     expect(review.misconceptions.map((m) => [m.id, m.outcome, m.voiced])).toEqual([
       [`m:${VOICED}`, "corrected", true],
       [`m:${SILENT}`, "still_held", false],
-      ["m:exclusive-means-independent", "still_held", false],
+      ["m:exp-as-power", "still_held", false],
     ]);
-    expect(review.misconceptions[0]).toMatchObject({ label: "Independent events cannot happen at the same time", turnsToCorrect: 1 });
+    expect(review.misconceptions[0]).toMatchObject({ label: "The derivative of a product is the product of the derivatives", turnsToCorrect: 1 });
     expect(review.misconceptions[1].attempts).toEqual([{ turn: 0, targeted: false, explained: false, accepted: false }]);
     expect(review.taught.map((t) => [t.statement, t.correctness, t.explainedWhenTaught])).toEqual([
-      ["Independent means no effect.", "incorrect", false],
-      ["A coin and a die can both happen.", "correct", true],
+      ["A derivative is a slope.", "incorrect", false],
+      ["(fg)' is f'g + fg'.", "correct", true],
     ]);
 
     // Even after the session, the answer key and the assessor's reasoning stay on the server.

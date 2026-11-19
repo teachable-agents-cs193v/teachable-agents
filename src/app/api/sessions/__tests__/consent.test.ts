@@ -52,7 +52,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const TOPIC = "independence-vs-mutual-exclusivity";
+const TOPIC = "derivatives";
 const URL_BASE = "http://localhost:3000/api/sessions";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonRequest = (method: string, body: unknown) =>

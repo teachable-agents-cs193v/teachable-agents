@@ -36,18 +36,18 @@ const verdict = (over: Record<string, unknown>) => ({
 /** One step per student message, in order; after that, nothing changes. */
 const SCRIPT: Step[] = [
   {
-    notes: ["Independent means one event doesn't change the other's chance."],
+    notes: ["A derivative is how fast something is changing at one point."],
     verdict: verdict({
-      noteGrades: [{ index: 0, conceptId: "independence-definition", correctness: "correct", explained: false, faithful: true }],
+      noteGrades: [{ index: 0, conceptId: "derivative-meaning", correctness: "correct", explained: false, faithful: true }],
       move: "voice_misconception",
-      moveTarget: "independent-means-cannot-co-occur",
+      moveTarget: "product-of-derivatives",
     }),
   },
   {
-    notes: ["Heads and a six can happen together."],
+    notes: ["The product rule is f'g + fg', because x times x has derivative 2x, not 1."],
     verdict: verdict({
-      noteGrades: [{ index: 0, conceptId: "independent-can-co-occur", correctness: "correct", explained: true, faithful: true }],
-      corrections: [{ misconceptionId: "independent-means-cannot-co-occur", targeted: true, explained: true }],
+      noteGrades: [{ index: 0, conceptId: "product-rule", correctness: "correct", explained: true, faithful: true }],
+      corrections: [{ misconceptionId: "product-of-derivatives", targeted: true, explained: true }],
       move: "try_to_apply",
     }),
   },

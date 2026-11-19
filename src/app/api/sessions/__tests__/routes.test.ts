@@ -23,7 +23,7 @@ beforeEach(() => {
   requestCookie = undefined;
 });
 
-const TOPIC = "independence-vs-mutual-exclusivity";
+const TOPIC = "derivatives";
 const URL_BASE = "http://localhost:3000/api/sessions";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const jsonRequest = (method: string, body: unknown, url = URL_BASE) =>
@@ -213,6 +213,35 @@ describe.skipIf(!hasDb)("/api/sessions", () => {
     const s = await startSession(cookie);
     await getPool().query("delete from users where id = (select user_id from teaching_sessions where id = $1)", [s.id]);
     expect((await getPool().query("select 1 from teaching_sessions where id = $1", [s.id])).rowCount).toBe(0);
+  });
+});
+
+// Only Derivatives is offered; the other topics are hidden (src/lib/topics.ts).
+describe.skipIf(!hasDb)("hidden topics", () => {
+  const HIDDEN = "independence-vs-mutual-exclusivity";
+
+  it("can't start a new session", async () => {
+    const cookie = await newStudent();
+    const res = await as(cookie, () => create(jsonRequest("POST", { topicId: HIDDEN })));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "That lesson isn't available right now." });
+    expect((await (await as(cookie, () => list(new Request(URL_BASE)))).json()).sessions).toEqual([]);
+  });
+
+  it("an existing session on one still lists, opens, saves and deletes", async () => {
+    const cookie = await newStudent();
+    const s = await startSession(cookie);
+    // A session started before the topic was hidden.
+    await getPool().query("update teaching_sessions set topic_id = $2 where id = $1", [s.id, HIDDEN]);
+
+    const listed = (await (await as(cookie, () => list(new Request(URL_BASE)))).json()).sessions as TeachingSession[];
+    expect(listed.map((x) => [x.id, x.topicId])).toEqual([[s.id, HIDDEN]]);
+    const opened = await as(cookie, () => get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id)));
+    expect(opened.status).toBe(200);
+    expect((await opened.json()).topicId).toBe(HIDDEN);
+    const ended = await as(cookie, () => put(jsonRequest("PUT", update(s, { status: "completed", endedAt: new Date().toISOString() })), ctx(s.id)));
+    expect(ended.status).toBe(200);
+    expect((await as(cookie, () => remove(new Request(`${URL_BASE}/${s.id}`, { method: "DELETE" }), ctx(s.id)))).status).toBe(204);
   });
 });
 

@@ -38,6 +38,11 @@ export interface Topic {
   postSessionPrompt: string;
   /** Marks the most complete demo scenario. */
   featured?: boolean;
+  /**
+   * Not offered to students: left out of every list and picker, and new sessions can't
+   * start on it. Its pack and script stay, and existing sessions on it still open.
+   */
+  hidden?: boolean;
   /** Pip can be run on the student's device for this topic (its pack has an on-device prompt). */
   onDevice?: boolean;
 }

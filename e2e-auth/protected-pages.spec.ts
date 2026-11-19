@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { PASSWORDS } from "./fixtures";
 import { signUpTestStudent } from "./signIn";
 
-const PROTECTED = ["/dashboard", "/profile", "/learner/independence-vs-mutual-exclusivity", "/teach/session_any", "/reflect/session_any", "/sessions", "/sessions/session_any"];
+const PROTECTED = ["/dashboard", "/profile", "/learner/derivatives", "/teach/session_any", "/reflect/session_any", "/sessions", "/sessions/session_any"];
 const PUBLIC = ["/", "/topics", "/login", "/signup"];
 
 test.beforeAll(async ({ request }) => {
@@ -47,11 +47,10 @@ test("public pages stay public", async ({ page }) => {
 test("logged out, picking a topic asks you to log in, then opens that topic", async ({ page, baseURL }) => {
   const email = await createAccount(page, baseURL);
   await page.goto("/topics");
-  await page.getByRole("button", { name: /^Probability/ }).click();
   await page.getByRole("link", { name: "Teach This Topic" }).click();
-  await expect(page).toHaveURL(/\/login\?next=%2Flearner%2Findependence-vs-mutual-exclusivity$/);
+  await expect(page).toHaveURL(/\/login\?next=%2Flearner%2Fderivatives$/);
   await logIn(page, email);
-  await expect(page).toHaveURL(/\/learner\/independence-vs-mutual-exclusivity$/);
+  await expect(page).toHaveURL(/\/learner\/derivatives$/);
   await expect(page.getByRole("button", { name: "Start teaching Pip" })).toBeVisible();
 });
 

@@ -1,6 +1,9 @@
 import type { Topic } from "./types";
 
-/** Mock topic catalogue. Replace with a backend query when one exists. */
+/**
+ * The topic catalogue. Only Derivatives is offered to students right now; the other
+ * topics are `hidden` (see visibleTopics()), with their packs and scripts kept.
+ */
 export const TOPICS: Topic[] = [
   {
     id: "independence-vs-mutual-exclusivity",
@@ -21,7 +24,7 @@ export const TOPICS: Topic[] = [
       "In two or three sentences, explain the difference between independent events and mutually exclusive events as you understand it right now.",
     postSessionPrompt:
       "Without notes, explain how you would check whether two events are independent, and why mutually exclusive events are not independent.",
-    featured: true,
+    hidden: true,
   },
   {
     id: "supply-and-demand",
@@ -42,6 +45,7 @@ export const TOPICS: Topic[] = [
       "In two or three sentences, explain what makes a demand curve shift versus what moves you along it.",
     postSessionPrompt:
       "Without notes, explain why a price set above equilibrium does not stay there.",
+    hidden: true,
   },
   {
     id: "photosynthesis",
@@ -62,6 +66,7 @@ export const TOPICS: Topic[] = [
       "In two or three sentences, explain where most of a plant's mass comes from and what role sunlight plays.",
     postSessionPrompt:
       "Without notes, explain what the light reactions produce and how the Calvin cycle uses it.",
+    hidden: true,
   },
   {
     id: "recursion",
@@ -82,6 +87,7 @@ export const TOPICS: Topic[] = [
       "In two or three sentences, explain what a base case is and why a recursive function needs one.",
     postSessionPrompt:
       "Without notes, trace what happens when factorial(3) runs, including the order in which calls return.",
+    hidden: true,
   },
   {
     id: "classical-vs-operant-conditioning",
@@ -102,31 +108,47 @@ export const TOPICS: Topic[] = [
       "In two or three sentences, explain the difference between classical and operant conditioning as you understand it now.",
     postSessionPrompt:
       "Without notes, explain the difference between negative reinforcement and punishment with one example of each.",
+    hidden: true,
+  },
+  {
+    id: "derivatives",
+    subjectId: "calculus",
+    title: "Derivatives",
+    description:
+      "Pip has never seen calculus, and it comes in with a few classic wrong ideas. Teach it the rules, and watch it apply only what you taught.",
+    learningObjective:
+      "Explain what a derivative is and how to find one with the power, product and chain rules, and why the common shortcuts are wrong.",
+    learnerIntro:
+      "Derivatives are brand new to me. I've picked up a few ideas about them from friends, but I don't really know what's true yet.",
+    teachingTips: [
+      "Start with what a derivative means (a rate of change) before any rules.",
+      "When Pip uses a wrong rule, ask it to try a case you can check, like the derivative of x times x.",
+      "Pip will share a few wrong ideas of its own. Catch them, and explain why they're wrong with an example.",
+    ],
+    preSessionPrompt:
+      "In two or three sentences, explain what a derivative is and how you'd find the derivative of x squared times sin x.",
+    postSessionPrompt:
+      "Without notes, explain the product rule and the chain rule, and why (fg)' is not f'g'.",
+    onDevice: true,
+    featured: true,
   },
 ];
 
-TOPICS.push({
-  id: "derivatives",
-  subjectId: "calculus",
-  title: "Derivatives",
-  description:
-    "Pip has never seen calculus, and it comes in with a few classic wrong ideas. Teach it the rules, and watch it apply only what you taught.",
-  learningObjective:
-    "Explain what a derivative is and how to find one with the power, product and chain rules, and why the common shortcuts are wrong.",
-  learnerIntro:
-    "Derivatives are brand new to me. I've picked up a few ideas about them from friends, but I don't really know what's true yet.",
-  teachingTips: [
-    "Start with what a derivative means (a rate of change) before any rules.",
-    "When Pip uses a wrong rule, ask it to try a case you can check, like the derivative of x times x.",
-    "Pip will share a few wrong ideas of its own. Catch them, and explain why they're wrong with an example.",
-  ],
-  preSessionPrompt:
-    "In two or three sentences, explain what a derivative is and how you'd find the derivative of x squared times sin x.",
-  postSessionPrompt:
-    "Without notes, explain the product rule and the chain rule, and why (fg)' is not f'g'.",
-  onDevice: true,
-});
-
+/**
+ * Any topic, hidden or not: for opening, reviewing and deleting sessions, which must
+ * keep working for topics that are no longer offered.
+ */
 export function getTopic(id: string): Topic | undefined {
   return TOPICS.find((t) => t.id === id);
+}
+
+/** The topics students are offered: every list, filter and picker uses this. */
+export function visibleTopics(): Topic[] {
+  return TOPICS.filter((t) => !t.hidden);
+}
+
+/** A topic a new session may start on: it exists and isn't hidden. */
+export function getStartableTopic(id: string): Topic | undefined {
+  const topic = getTopic(id);
+  return topic && !topic.hidden ? topic : undefined;
 }

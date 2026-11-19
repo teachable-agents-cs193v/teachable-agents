@@ -13,7 +13,8 @@ interface TopicFiltersProps {
 export function TopicFilters({ value, onChange, counts }: TopicFiltersProps) {
   const options: Array<{ id: SubjectId | "all"; label: string }> = [
     { id: "all", label: "All subjects" },
-    ...SUBJECTS.map((s) => ({ id: s.id, label: s.label })),
+    // Only subjects with a topic on offer: hidden topics leave theirs empty.
+    ...SUBJECTS.filter((s) => counts[s.id]).map((s) => ({ id: s.id, label: s.label })),
   ];
   return (
     <div role="group" aria-label="Filter topics by subject" className="flex flex-wrap gap-2">
