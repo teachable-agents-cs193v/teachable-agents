@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
-import { decryptField, encryptField } from "../crypto/fieldEncryption";
+import { decryptField, encryptField, FieldDecryptionError } from "../crypto/fieldEncryption";
 import { getPool } from "../db/pool";
 import { PIP } from "../learner";
 import type { AuthUser, TeachingSession } from "../types";
@@ -70,12 +70,25 @@ export class PostgresSessionStore implements SessionStore {
 
   private toSession = (row: Row): TeachingSession => toSession(this.userId, row);
 
+  /**
+   * All of this user's sessions, newest first. A session that can't be decrypted is
+   * left out and its ID logged (never its contents), so one bad row doesn't hide the
+   * rest (#52). A missing or malformed key still throws: that affects every row.
+   */
   async listSessions(): Promise<TeachingSession[]> {
     const { rows } = await this.pool.query<Row>(
       `select ${COLUMNS} from teaching_sessions where user_id = $1 order by started_at desc`,
       [this.userId],
     );
-    return rows.map(this.toSession);
+    return rows.flatMap((row) => {
+      try {
+        return [this.toSession(row)];
+      } catch (error) {
+        if (!(error instanceof FieldDecryptionError)) throw error;
+        console.error(`[sessions] skipped session ${row.id}: ${error.message}`);
+        return [];
+      }
+    });
   }
 
   async getSession(id: string): Promise<TeachingSession | null> {
