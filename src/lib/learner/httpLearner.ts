@@ -1,5 +1,6 @@
 import type { LearnerReply, LearningProgress, LearningReview, StudentBelief, TeachingSession } from "../types";
 import type { ChatTurn } from "./teachable/llm";
+import { AT_CAPACITY, atCapacityMessage } from "./capacity";
 
 type Fetch = typeof fetch;
 
@@ -8,6 +9,22 @@ const FALLBACK = "Pip couldn't respond. Check your connection and try again.";
 /** For any server error. The server's own text is only trusted for 4xx answers, which are written for students. */
 const BUSY = "Pip is having trouble thinking right now. Wait a moment and try again.";
 const LOGGED_OUT = "You've been logged out. Log in again to keep going.";
+
+type ErrorBody = { error?: string; code?: string; retryAfterSeconds?: unknown };
+
+/**
+ * The student-facing text for a failed response. A 5xx gets BUSY, except a 503 whose `code` says the
+ * AI provider is out of capacity: that gets the capacity message, with roughly when to try again.
+ */
+function failureMessage(status: number, data: ErrorBody | null): string {
+  if (status === 401) return LOGGED_OUT;
+  if (status === 503 && data?.code === AT_CAPACITY) {
+    const wait = typeof data.retryAfterSeconds === "number" ? data.retryAfterSeconds : undefined;
+    return atCapacityMessage(wait);
+  }
+  if (status >= 500) return BUSY;
+  return data?.error ?? FALLBACK;
+}
 
 /** The student's new message, or `{}` to have Pip answer whatever is waiting (its opening, or an unanswered message). */
 export type TurnBody =
@@ -58,10 +75,9 @@ export async function postTurn(sessionId: string, body: TurnBody, fetchImpl: Fet
   } catch {
     throw new TurnError(FALLBACK, 0);
   }
-  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & { error?: string }) | null;
+  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & ErrorBody) | null;
   if (!res.ok || !data?.session) {
-    const message = res.status === 401 ? LOGGED_OUT : res.status >= 500 ? BUSY : (data?.error ?? FALLBACK);
-    throw new TurnError(message, res.status, data?.session);
+    throw new TurnError(failureMessage(res.status, data), res.status, data?.session);
   }
   return {
     session: data.session,
@@ -90,10 +106,9 @@ export async function postDeviceReply(
   } catch {
     throw new TurnError(FALLBACK, 0);
   }
-  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & { error?: string }) | null;
+  const data = (await res.json().catch(() => null)) as (Partial<TurnResponse> & ErrorBody) | null;
   if (!res.ok || !data?.session) {
-    const message = res.status === 401 ? LOGGED_OUT : res.status >= 500 ? BUSY : (data?.error ?? FALLBACK);
-    throw new TurnError(message, res.status, data?.session);
+    throw new TurnError(failureMessage(res.status, data), res.status, data?.session);
   }
   return { session: data.session, reply: data.reply ?? null, learner: data.learner ?? null, pip: data.pip ?? null, progress: data.progress ?? null, device: null };
 }

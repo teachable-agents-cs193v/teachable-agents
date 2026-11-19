@@ -1,5 +1,6 @@
 import { requireApiUser } from "@/lib/auth/server";
-import { LlmError } from "@/lib/learner/teachable/llm";
+import { AT_CAPACITY, atCapacityMessage } from "@/lib/learner/capacity";
+import { isRateLimited, LlmError } from "@/lib/learner/teachable/llm";
 import { modelsFromEnv } from "@/lib/learner/teachable/server";
 import { runServerTurn } from "@/lib/learner/teachable/turnService";
 import { getUserSessionStore } from "@/lib/persistence/server";
@@ -13,6 +14,9 @@ import { error, json, readJson } from "../../shared";
  *   { ..., replyOn: "device" } → assesses, then returns `device: { forMessageId, messages }` instead of
  *                            a reply, when the topic has an on-device Pip (POST /device-reply next)
  * → { session, reply, learner, pip, progress, device? }
+ * A model failure answers 503 { error } with a student-safe message. When the provider is out of
+ * capacity (rate limit or daily quota) it's 503 { error, code: "at_capacity", retryAfterSeconds? }.
+ * The student's message is already saved either way; sending the same body again retries.
  *   pip: what Pip believes, as the student may see it; progress: learning metrics and timeline
  *   (LearningProgress, same hiding rules). Both null for the scripted learner.
  *
@@ -52,6 +56,10 @@ export async function POST(request: Request, { params }: Context) {
   } catch (cause) {
     // Log the reason for us; the student only ever sees the friendly message (#22).
     console.error(`[turn] session ${id}:`, cause instanceof Error ? cause.message : cause);
+    if (isRateLimited(cause)) {
+      const retryAfterSeconds = cause.retryAfterSeconds;
+      return json({ error: atCapacityMessage(retryAfterSeconds), code: AT_CAPACITY, ...(retryAfterSeconds ? { retryAfterSeconds } : {}) }, 503);
+    }
     return error(BUSY, cause instanceof LlmError ? 503 : 500);
   }
 }

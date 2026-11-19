@@ -158,6 +158,7 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     const failed = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
     expect(failed.status).toBe(503);
     expect(failed.body.error).toMatch(/Pip is having trouble/);
+    expect(failed.body).not.toHaveProperty("code"); // an error without kind "rate_limited" is not "at capacity"
     expect(JSON.stringify(failed.body)).not.toMatch(/429|provider/);
 
     const stored = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
@@ -165,6 +166,40 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
 
     // A different new message is refused while this one is waiting for Pip.
     expect((await turnAs(cookie, session.id, { clientMessageId: "msg_2", text: "next" })).status).toBe(409);
+
+    model.completeJson = working;
+    const retried = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(retried.status).toBe(200);
+    expect(roles(retried.body.session)).toEqual(["learner", "student", "learner"]);
+  });
+
+  it("says Pip is at capacity when the provider rate-limits, keeps the message, and answers it on retry", async () => {
+    model = new FakeModel();
+    const { cookie, session } = await openedSession();
+    const working = model.completeJson.bind(model);
+    const { LlmError } = await import("@/lib/learner/teachable/llm");
+    model.completeJson = async () => {
+      throw new LlmError("assessor: provider returned 429 (retry after 300s)", false, { kind: "rate_limited", retryAfterSeconds: 300 });
+    };
+    const failed = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(failed.status).toBe(503);
+    expect(failed.body.code).toBe("at_capacity");
+    expect(failed.body.retryAfterSeconds).toBe(300);
+    expect(failed.body.error).toBe("Pip is at capacity right now: a lot of people are teaching at once. Try again in about 5 minutes.");
+    expect(JSON.stringify(failed.body)).not.toMatch(/429|provider|assessor/);
+
+    const stored = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
+    expect(roles(stored)).toEqual(["learner", "student"]);
+
+    // Without a Retry-After, no retryAfterSeconds and a vaguer time.
+    model.completeJson = async () => {
+      throw new LlmError("reply: provider returned 429", true, { kind: "rate_limited" });
+    };
+    const again = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
+    expect(again.status).toBe(503);
+    expect(again.body.code).toBe("at_capacity");
+    expect(again.body).not.toHaveProperty("retryAfterSeconds");
+    expect(again.body.error).toMatch(/Try again in a few minutes\.$/);
 
     model.completeJson = working;
     const retried = await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "hello" });
