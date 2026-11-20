@@ -293,6 +293,40 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
     );
   });
 
+  // #52: one bad row mustn't hide the student's other sessions.
+  it("leaves an undecryptable session out of the list, logs its id, and still lists the rest", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const alice = await newStudent();
+    const bob = await newStudent();
+    const good = await startSession(alice);
+    const bad = await startSession(alice);
+    // Simulate tampering: Bob's encrypted transcript can't be decrypted as Alice's.
+    const bobSession = await startSession(bob);
+    await getPool().query(
+      "update teaching_sessions set messages = (select messages from teaching_sessions where id = $1) where id = $2",
+      [bobSession.id, bad.id],
+    );
+
+    const res = await as(alice, () => list(new Request(URL_BASE)));
+    expect(res.status).toBe(200);
+    expect((await res.json()).sessions.map((s: TeachingSession) => s.id)).toEqual([good.id]);
+    expect(log).toHaveBeenCalledWith(`[sessions] skipped session ${bad.id}: Could not decrypt messages.`);
+    // Opening that one session directly still fails loudly rather than returning bad data.
+    await expect(as(alice, () => get(new Request(`${URL_BASE}/${bad.id}`), ctx(bad.id)))).rejects.toThrow("Could not decrypt messages.");
+    log.mockRestore();
+  });
+
+  it("still fails the whole list when the encryption key is missing", async () => {
+    const cookie = await newStudent();
+    await startSession(cookie);
+    vi.stubEnv("ENCRYPTION_MASTER_KEY", undefined);
+    try {
+      await expect(as(cookie, () => list(new Request(URL_BASE)))).rejects.toThrow("ENCRYPTION_MASTER_KEY is not set.");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("refuses plaintext written straight to the database", async () => {
     const cookie = await newStudent();
     const s = await startSession(cookie);
