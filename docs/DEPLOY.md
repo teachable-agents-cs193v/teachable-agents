@@ -26,7 +26,8 @@ Everything below uses placeholders like `<your-production-domain>`. Real values 
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
    psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
-   psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions
+   psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0005_rate_limits.sql
+   psql "$DB_DIRECT_URL" -c '\dt'                     # expect: users, auth_session, auth_account, auth_verification, teaching_sessions, rate_limit_counts
    unset DB_DIRECT_URL
    ```
    - Apply the files in number order. `-1` runs each whole file in one transaction, so a failure halfway leaves nothing behind.
@@ -63,6 +64,19 @@ unset DB_DIRECT_URL
 ```
 
 Smoke test after the deploy: send Pip a message on the live site, then in the Neon SQL Editor `select left(learner_state, 3) from teaching_sessions where learner_state is not null` should show `v1:`.
+
+### Rate limits (`0005_rate_limits.sql`)
+
+Adds `rate_limit_counts`, the per-user request counts behind the limits on starting and saving sessions (`src/lib/rateLimit.ts`, #58). It only adds a table, so nothing existing changes. Apply it **before deploying the code that uses it**: otherwise starting or saving a session fails with a missing table.
+
+```bash
+read -rs DB_DIRECT_URL && export DB_DIRECT_URL
+psql "$DB_DIRECT_URL" -1 -v ON_ERROR_STOP=1 -f db/migrations/0005_rate_limits.sql
+psql "$DB_DIRECT_URL" -c '\d rate_limit_counts'   # expect the table, with its primary key
+unset DB_DIRECT_URL
+```
+
+Smoke test after the deploy: start a session on the live site, then in the Neon SQL Editor `select action, count from rate_limit_counts` should show `session_create` rows.
 
 ## Part B: Chase (Vercel)
 
@@ -118,6 +132,8 @@ Smoke test after the deploy: send Pip a message on the live site, then in the Ne
 | Login fails only on preview URLs | Known open concern: previews may need extra trusted origins. Test on the production domain. |
 | Sessions fail to save or load right after an encryption deploy | `ENCRYPTION_MASTER_KEY` missing or malformed in that environment (Vercel logs show `EncryptionKeyError`), or `0003` not applied yet. |
 | Pip answers "having trouble thinking" on every message; logs show `column "learner_state" does not exist` or a type error on it | `0004_learner_state.sql` isn't applied. Apply it (after `0003`). |
+| Starting or saving a session fails; logs show `relation "rate_limit_counts" does not exist` | `0005_rate_limits.sql` isn't applied. Apply it. |
+| "You're doing that too often" when starting or saving a session | That student hit the per-user limit (429). It resets when the hour or day window ends; the limits are in `src/lib/rateLimit.ts`. |
 | Pip answers "at capacity" | The provider's rate limit or daily quota (Groq: per account and model). It resets on its own; see docs/AI_LEARNER.md, "Free-tier caveats". |
 | `Could not decrypt …` in the Vercel logs | The value was encrypted with a different `ENCRYPTION_MASTER_KEY`, such as a regenerated or another environment's key. Restore the original key from the backup; never generate a new one over existing data. |
 | `psql: … already exists` while applying the migration | It was applied before. Check the tables with `\dt` instead of re-running it. |

@@ -77,6 +77,7 @@ Severity is judged for this app: a student-facing teaching tool with open signup
 - **Where:** `src/app/api/sessions/route.ts:24` (`POST`, create) and `src/app/api/sessions/[id]/route.ts:23` (`PUT`, update).
 - **Why it matters:** a logged-in user can create sessions and send updates without any limit, which can fill the database. Each request is size-limited (`MAX_BODY_BYTES` 1 MB at `validate.ts:11`, 1,000 messages at `:68`, 20,000 characters per text field at `:13`), but the number of requests isn't. Better Auth's limiter covers only `/api/auth/*`, in memory on each server instance (`docs/AUTH.md:162`).
 - **Suggested fix:** a per-user limit using the same Postgres-backed limiter as finding 2.
+- **Fix:** per-user limits on `POST` and `PUT`, counted in Postgres (`src/lib/rateLimit.ts`, `db/migrations/0005_rate_limits.sql`), answering a friendly 429 with `Retry-After`. The limiter is shared, so #55 can add a turn limit to it.
 - **Tracked in:** #58, linked to #55.
 
 ### 7. Student messages go to Groq; retention not verified (Medium, privacy) [#42]

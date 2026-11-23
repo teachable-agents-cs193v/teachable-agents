@@ -7,12 +7,13 @@ type Fetch = typeof fetch;
 /** Messages a student may see; the raw server error is never shown (#22). */
 const MESSAGES = {
   401: "You've been logged out. Log in again to keep going.",
+  429: "You're doing that too often. Wait a few minutes and try again.",
   default: "Your session couldn't be saved or loaded. Check your connection and try again.",
 } as const;
 
 export class SessionStoreError extends StudentFacingError {
   constructor(readonly status: number) {
-    super(status === 401 ? MESSAGES[401] : MESSAGES.default);
+    super(status === 401 || status === 429 ? MESSAGES[status] : MESSAGES.default);
     this.name = "SessionStoreError";
   }
 }

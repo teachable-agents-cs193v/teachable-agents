@@ -1,13 +1,15 @@
 import { requireApiUser } from "@/lib/auth/server";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import { getStartableTopic, getTopic } from "@/lib/topics";
-import { error, json, readJson } from "./shared";
+import { error, json, rateLimit, readJson } from "./shared";
 
 /**
  * GET  /api/sessions                    → { sessions }: the user's sessions, newest first
  * GET  /api/sessions?activeTopicId=<id> → { sessions }: the in-progress session for a topic (0 or 1)
  * POST /api/sessions { topicId, preExplanation? } → 201 with the new session. Every new session
  *      gets AI Pip (learnerId "pip"); any `learner` or `learnerId` field in the body is ignored.
+ *      Rate limited per user (src/lib/rateLimit.ts): over the limit it answers 429
+ *      { error, code: "rate_limited", retryAfterSeconds } with a Retry-After header.
  */
 export async function GET(request: Request) {
   const user = await requireApiUser();
@@ -35,6 +37,10 @@ export async function POST(request: Request) {
   if (preExplanation !== undefined && (typeof preExplanation !== "string" || preExplanation.length > 20_000)) {
     return error("Invalid preExplanation.", 400);
   }
+
+  // Only valid requests count: an invalid one never reaches the database.
+  const limited = await rateLimit(user.id, "session_create");
+  if (limited) return limited;
 
   // Any id or user id in the body is ignored: the server picks both.
   const session = await getUserSessionStore(user).createSession(topicId, preExplanation);
