@@ -11,7 +11,7 @@ Findings marked **[#42]** are in **unmerged code** on #42's branch (`learner/tea
 | # | Severity | Finding | Where | Tracked in |
 |---|---|---|---|---|
 | 1 | High | Account data (name, email, session tokens) is stored as plaintext | `db/migrations/0001_auth.sql` | #54 |
-| 2 | High **[#42]** | No per-user limit on AI learner turns | `src/app/api/sessions/[id]/turn/route.ts` | #55 |
+| 2 | High **[#42]** | No per-user limit on AI learner turns (**fixed**) | `src/app/api/sessions/[id]/turn/route.ts` | #55 |
 | 3 | Medium | No security headers | `next.config.ts` | #56 |
 | 4 | Medium **[#42]** | Answer keys and `llm.ts` aren't marked `server-only` | `src/lib/learner/teachable/` | #57 |
 | 5 | Medium (main), fixed in **[#42]** | The browser can rewrite the whole transcript and reopen sessions | `src/lib/persistence/server.ts` | Fixed by #42 |
@@ -45,6 +45,7 @@ Severity is judged for this app: a student-facing teaching tool with open signup
   - Possibly a maximum number of turns per session.
   - A friendly 429 using the existing capacity message (`src/lib/learner/capacity.ts`).
   - Document the limits in COST-CONTROLS.md.
+- **Fix:** a per-user turn limit of 8 a minute, 60 an hour and 150 a day (`ai_turn` in `src/lib/rateLimit.ts`), counted in Postgres with the same limiter as finding 6. It's checked before the session is loaded, so a refused turn saves nothing and calls no model, and it answers a friendly 429 with `Retry-After`. There's no separate per-session cap; the daily cap bounds a session too.
 - **Tracked in:** #55.
 
 ### 3. No security headers (Medium)

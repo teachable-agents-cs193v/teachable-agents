@@ -1,6 +1,6 @@
 /**
  * What a student sees when Pip's models fail: out of capacity (a rate limit or the daily quota),
- * or any other server error. Shared by the /turn route and the browser client, which tell the
+ * or any other server error, and when the student hits their own turn limit. Shared by the /turn route and the browser client, which tell the
  * capacity case apart by the response's `code`, never by its text. Safe to import from the
  * browser and the server.
  */
@@ -19,6 +19,14 @@ function when(retryAfterSeconds?: number): string {
   if (minutes < 60) return `in about ${minutes} minutes`;
   const hours = Math.ceil(minutes / 60);
   return hours === 1 ? "in about an hour" : `in about ${hours} hours`;
+}
+
+/**
+ * When this student has sent Pip too many messages (the per-user turn limit, #55). A 429 with
+ * this text and `code: "rate_limited"`; the browser shows 4xx text as is.
+ */
+export function tooManyTurnsMessage(retryAfterSeconds?: number): string {
+  return `You've sent Pip a lot of messages in a short time. Take a short break and try again ${when(retryAfterSeconds)}.`;
 }
 
 /** The student-safe message. Never includes anything the provider said. */

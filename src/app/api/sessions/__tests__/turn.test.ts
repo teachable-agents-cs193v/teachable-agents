@@ -359,4 +359,47 @@ describe.skipIf(!hasDb)("POST /api/sessions/[id]/turn", () => {
     const loaded = await (await as(cookie, () => getPip(new Request(`${URL_BASE}/${session.id}/pip`), ctx(session.id)))).json();
     expect(loaded).toEqual({ pip: null });
   });
+  describe("per-user turn limit (#55)", () => {
+    /** Fills the user's current "ai_turn" windows, so the next turn is over the limit. */
+    async function useUpTurns(sessionId: string) {
+      const { rows } = await getPool().query("select user_id from teaching_sessions where id = $1", [sessionId]);
+      await getPool().query("update rate_limit_counts set count = 100000 where user_id = $1 and action = 'ai_turn'", [rows[0].user_id]);
+    }
+
+    it("answers a friendly 429 over the limit, without saving the message or calling the model", async () => {
+      model = new FakeModel();
+      const { cookie, session } = await openedSession();
+      await useUpTurns(session.id);
+      const callsBefore = model.calls.length;
+
+      const res = await as(cookie, () => turn(say("msg_1", "A derivative is a slope."), ctx(session.id)));
+      expect(res.status).toBe(429);
+      const body = await res.json();
+      expect(body).toMatchObject({ code: "rate_limited", error: expect.stringMatching(/sent Pip a lot of messages/) });
+      expect(body.retryAfterSeconds).toBeGreaterThan(0);
+      expect(Number(res.headers.get("retry-after"))).toBe(body.retryAfterSeconds);
+      expect(model.calls.length).toBe(callsBefore);
+
+      const fetched = await (await as(cookie, () => get(new Request(`${URL_BASE}/${session.id}`), ctx(session.id)))).json();
+      expect(roles(fetched)).toEqual(["learner"]);
+    });
+
+    it("one student's limit doesn't affect another's", async () => {
+      model = new FakeModel();
+      const alice = await openedSession();
+      await useUpTurns(alice.session.id);
+      const bob = await openedSession(); // its opening turn expects 200
+      expect((await turnAs(bob.cookie, bob.session.id, { clientMessageId: "msg_1", text: "hi" })).status).toBe(200);
+    });
+
+    it("counts every valid turn, but not invalid bodies", async () => {
+      const { cookie, session } = await openedSession();
+      expect((await turnAs(cookie, session.id, { clientMessageId: "msg_1", text: "" })).status).toBe(400);
+      const { rows } = await getPool().query(
+        "select count from rate_limit_counts r join teaching_sessions t on t.user_id = r.user_id where t.id = $1 and r.action = 'ai_turn' order by window_seconds",
+        [session.id],
+      );
+      expect(rows.map((r) => r.count)).toEqual([1, 1, 1]); // the opening only, in each window
+    });
+  });
 });
