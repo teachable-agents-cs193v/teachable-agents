@@ -7,15 +7,16 @@ import { getPool } from "./db/pool";
  * Vercel instance sees the same counts. Fixed windows: "at most `max` per `windowSeconds`",
  * counted from the start of the current window (e.g. the current hour).
  *
- * Used by POST and PUT /api/sessions (#58). Meant to be reused for the AI learner's turn
- * limit (#55): add an action name and its limits below.
+ * Used by POST and PUT /api/sessions (#58) and by POST /api/sessions/[id]/turn, the AI
+ * learner's turns (#55). To limit another action, add its name and limits below.
  */
 export interface Limit {
   max: number;
   windowSeconds: number;
 }
 
-const HOUR = 60 * 60;
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
@@ -32,6 +33,17 @@ export const RATE_LIMITS = {
   session_update: [
     { max: 120, windowSeconds: HOUR },
     { max: 500, windowSeconds: DAY },
+  ],
+  /**
+   * POST /api/sessions/[id]/turn: one message to Pip, which is up to three model calls
+   * (note-taker, assessor, reply). The per-minute limit is faster than anyone types; the
+   * hourly and daily caps stop one account or a script from using up the shared Groq quota
+   * or, on a paid key, running up the bill.
+   */
+  ai_turn: [
+    { max: 8, windowSeconds: MINUTE },
+    { max: 60, windowSeconds: HOUR },
+    { max: 150, windowSeconds: DAY },
   ],
 } satisfies Record<string, Limit[]>;
 

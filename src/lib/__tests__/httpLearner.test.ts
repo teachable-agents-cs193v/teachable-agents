@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getLearningProgress, getLearningReview, postDeviceReply, postTurn, TurnError } from "../learner/httpLearner";
-import { atCapacityMessage } from "../learner/capacity";
+import { atCapacityMessage, tooManyTurnsMessage } from "../learner/capacity";
 
 const respond = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
 
@@ -49,6 +49,13 @@ describe("failed turns", () => {
       expect((await failure(status, body)).message).toBe("Pip is having trouble thinking right now. Wait a moment and try again.");
     }
     expect((await failure(401, {})).message).toMatch(/logged out/);
+  });
+
+  it("show the server's message when the student hits their turn limit (#55)", async () => {
+    const error = await failure(429, { error: tooManyTurnsMessage(45), code: "rate_limited", retryAfterSeconds: 45 });
+    expect(error.status).toBe(429);
+    expect(error.message).toBe("You've sent Pip a lot of messages in a short time. Take a short break and try again in about a minute.");
+    expect(tooManyTurnsMessage(3 * 3600)).toMatch(/in about 3 hours\.$/);
   });
 
   it("say roughly when to try again", () => {

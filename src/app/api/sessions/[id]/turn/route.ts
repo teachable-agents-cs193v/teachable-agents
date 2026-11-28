@@ -1,11 +1,11 @@
 import { requireApiUser } from "@/lib/auth/server";
-import { AT_CAPACITY, atCapacityMessage, PIP_BUSY } from "@/lib/learner/capacity";
+import { AT_CAPACITY, atCapacityMessage, PIP_BUSY, tooManyTurnsMessage } from "@/lib/learner/capacity";
 import { isRateLimited, LlmError } from "@/lib/learner/teachable/llm";
 import { modelsFromEnv } from "@/lib/learner/teachable/server";
 import { runServerTurn } from "@/lib/learner/teachable/turnService";
 import { getUserSessionStore } from "@/lib/persistence/server";
 import { parseTurnRequest } from "@/lib/persistence/validate";
-import { error, json, readJson } from "../../shared";
+import { error, json, rateLimit, readJson } from "../../shared";
 
 /**
  * POST /api/sessions/[id]/turn
@@ -17,6 +17,9 @@ import { error, json, readJson } from "../../shared";
  * A model failure answers 503 { error } with a student-safe message. When the provider is out of
  * capacity (rate limit or daily quota) it's 503 { error, code: "at_capacity", retryAfterSeconds? }.
  * The student's message is already saved either way; sending the same body again retries.
+ * Each user has a turn limit (src/lib/rateLimit.ts, "ai_turn", #55): over it the route answers
+ * 429 { error, code: "rate_limited", retryAfterSeconds } with a Retry-After header, before
+ * anything is saved or any model is called. Every valid request counts, retries included.
  *   pip: what Pip believes, as the student may see it; progress: learning metrics and timeline
  *   (LearningProgress, same hiding rules). Both null for the scripted learner.
  *
@@ -38,6 +41,10 @@ export async function POST(request: Request, { params }: Context) {
   if (read instanceof Response) return read;
   const parsed = parseTurnRequest(read.body);
   if (!parsed.ok) return error(parsed.error, 400);
+
+  // Only valid requests count; checked before the session is loaded so no model call happens.
+  const limited = await rateLimit(user.id, "ai_turn", tooManyTurnsMessage);
+  if (limited) return limited;
 
   const id = (await params).id;
   try {
