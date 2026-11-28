@@ -49,6 +49,13 @@ describe("HttpSessionStore", () => {
     await expect(store.saveSession(session)).rejects.toThrow(/logged out/);
   });
 
+  it("tells students to slow down when they're rate limited (429)", async () => {
+    const { store } = storeReturning(
+      Response.json({ error: "You're doing that too often.", code: "rate_limited", retryAfterSeconds: 60 }, { status: 429 }),
+    );
+    await expect(store.createSession("derivatives")).rejects.toThrow(/too often/);
+  });
+
   it("reports a network failure as a SessionStoreError", async () => {
     const store = new HttpSessionStore("/api/sessions", (async () => {
       throw new TypeError("Failed to fetch");

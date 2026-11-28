@@ -305,4 +305,63 @@ describe.skipIf(!hasDb)("encryption at rest", () => {
       await expect(getPool().query(sql, [s.id]), sql).rejects.toThrow(/violates check constraint/);
     }
   });
+
+  describe("rate limits (#58)", () => {
+    /** Fills the user's current windows for `action`, so the next request is over the limit. */
+    async function useUpLimit(sessionId: string, action: string) {
+      const { rows } = await getPool().query("select user_id from teaching_sessions where id = $1", [sessionId]);
+      await getPool().query(
+        `update rate_limit_counts set count = 100000 where user_id = $1 and action = $2`,
+        [rows[0].user_id, action],
+      );
+    }
+
+    it("refuses new sessions over the limit with a friendly 429, and creates nothing", async () => {
+      const cookie = await newStudent();
+      const first = await startSession(cookie);
+      await useUpLimit(first.id, "session_create");
+
+      const res = await as(cookie, () => create(jsonRequest("POST", { topicId: TOPIC })));
+      expect(res.status).toBe(429);
+      const body = await res.json();
+      expect(body).toMatchObject({ code: "rate_limited", error: expect.stringMatching(/too often/) });
+      expect(Number(res.headers.get("retry-after"))).toBe(body.retryAfterSeconds);
+      expect(body.retryAfterSeconds).toBeGreaterThan(0);
+      const sessions = await as(cookie, async () => (await (await list(new Request(URL_BASE))).json()).sessions);
+      expect(sessions).toHaveLength(1);
+    });
+
+    it("refuses updates over the limit, and leaves the session unchanged", async () => {
+      const cookie = await newStudent();
+      const s = await startSession(cookie);
+      expect((await as(cookie, () => put(jsonRequest("PUT", update(s)), ctx(s.id)))).status).toBe(200);
+      await useUpLimit(s.id, "session_update");
+
+      const ended = update(s, { status: "completed", endedAt: new Date().toISOString() });
+      const res = await as(cookie, () => put(jsonRequest("PUT", ended), ctx(s.id)));
+      expect(res.status).toBe(429);
+      const after = await as(cookie, async () => (await get(new Request(`${URL_BASE}/${s.id}`), ctx(s.id))).json());
+      expect(after.status).toBe("in_progress");
+    });
+
+    it("one student's limit doesn't affect another's", async () => {
+      const alice = await newStudent();
+      const bob = await newStudent();
+      await useUpLimit((await startSession(alice)).id, "session_create");
+      await startSession(bob); // expects 201
+    });
+
+    it("invalid requests don't count", async () => {
+      const cookie = await newStudent();
+      for (let i = 0; i < 3; i++) {
+        expect((await as(cookie, () => create(jsonRequest("POST", { topicId: "no-such-topic" })))).status).toBe(400);
+      }
+      const s = await startSession(cookie);
+      const { rows } = await getPool().query(
+        "select count from rate_limit_counts r join teaching_sessions t on t.user_id = r.user_id where t.id = $1 and r.action = 'session_create'",
+        [s.id],
+      );
+      expect(rows.map((r) => r.count)).toEqual([1, 1]);
+    });
+  });
 });

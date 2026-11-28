@@ -70,6 +70,7 @@ Students sign up with a name, email and password, then log in and out. The teach
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0002_teaching_sessions.sql
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0003_encrypt_teaching_sessions.sql
    psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0004_learner_state.sql
+   psql "<your-database-url>" -1 -v ON_ERROR_STOP=1 -f db/migrations/0005_rate_limits.sql
    ```
 4. Run `npm install`, then `npm run dev`.
 
@@ -88,7 +89,7 @@ Run the [one-time secret-scanning setup](#one-time-setup-secret-scanning) above 
 
 See [docs/DEPLOY.md](docs/DEPLOY.md). Production needs every variable in the table in [Part B, step 2](docs/DEPLOY.md#part-b-chase-vercel) set in Vercel. Never commit real values, and never prefix them with `NEXT_PUBLIC_`.
 
-**Deploying this version:** apply the migrations in number order before deploying the code. `0004_learner_state.sql` (Pip's notebook, encrypted) goes after `0003_encrypt_teaching_sessions.sql`; `ENCRYPTION_MASTER_KEY` must already be set in Vercel. The steps and smoke tests are in [docs/DEPLOY.md](docs/DEPLOY.md#pips-notebook-0004_learner_statesql). Leave the `DEVICE_*` experiment variables unset.
+**Deploying this version:** apply the migrations in number order before deploying the code. `0004_learner_state.sql` (Pip's notebook, encrypted) goes after `0003_encrypt_teaching_sessions.sql`; `ENCRYPTION_MASTER_KEY` must already be set in Vercel. `0005_rate_limits.sql` (per-user limits on starting and saving sessions) only adds a table. The steps and smoke tests are in [docs/DEPLOY.md](docs/DEPLOY.md#pips-notebook-0004_learner_statesql). Leave the `DEVICE_*` experiment variables unset.
 
 ## The student flow
 
